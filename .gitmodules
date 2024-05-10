@@ -1,0 +1,3 @@
+[submodule "kosongg"]
+	path = kosongg
+	url = git@github.com:firodj/kosongg

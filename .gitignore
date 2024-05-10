@@ -1,0 +1,10 @@
+venv/
+.vscode/
+
+build-*/
+*.dSYM/
+ext/
+vinfony
+vinfony.exe
+vinfonyd
+vinfonyd.exe
