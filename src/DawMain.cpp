@@ -42,7 +42,7 @@ void DawMain::Begin() {
 void DawMain::End() {
   static float w = 200.0f;
 
-
+  ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
   // DAW test
   auto conavail = ImGui::GetContentRegionAvail();
 
@@ -122,7 +122,7 @@ void DawMain::End() {
       }
       rcmin.x += 3;
       rcmax.x -= 3;
-      draw_list->AddRectFilled(rcmin, rcmax, IM_COL32(255, 0, 0, 255));
+      draw_list->AddRectFilled(rcmin, rcmax, color_border);
       ImGui::PopID();
 
       pos_x += 8;
@@ -151,7 +151,7 @@ void DawMain::End() {
 
       rcmin.y += 3;
       rcmax.y -= 3;
-      draw_list->AddRectFilled(rcmin, rcmax, IM_COL32(255, 0, 0, 255));
+      draw_list->AddRectFilled(rcmin, rcmax, color_border);
 
       //draw_list->AddLine(cursor + ImVec2{0, (r+2) * ImGui::GetFrameHeightWithSpacing()},
       //  cursor + ImVec2{legend.x, (r+2) * ImGui::GetFrameHeightWithSpacing()}, IM_COL32(255,  0, 0, 255));
@@ -216,7 +216,7 @@ void DawMain::End() {
 
       rcmin.y += 3;
       rcmax.y -= 3;
-      draw_list->AddRectFilled(rcmin, rcmax, IM_COL32(255, 0, 0, 255));
+      draw_list->AddRectFilled(rcmin, rcmax, color_border);
 
       //draw_list->AddLine(cursor + ImVec2{0, (r+2) * ImGui::GetFrameHeightWithSpacing()},
       //  cursor + ImVec2{legend.x, (r+2) * ImGui::GetFrameHeightWithSpacing()}, IM_COL32(255,  0, 0, 255));
