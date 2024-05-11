@@ -8,3 +8,5 @@ vinfony
 vinfony.exe
 vinfonyd
 vinfonyd.exe
+
+*.ini

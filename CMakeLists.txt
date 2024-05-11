@@ -45,6 +45,7 @@ set(SOURCE
   ${IMGUI_DIR}/imgui_widgets.cpp
 ## -- sources --
   src/MainApp.cpp
+  src/DawMain.cpp
 ## -- endsources --
 )
 
@@ -54,6 +55,7 @@ set(HEADERS
   ${VENDOR_DIR}/kosongg/GLUtil.h
 ## -- headers --
   src/MainApp.hpp
+  src/DawMain.hpp
 ## -- endheaders --
 )
 

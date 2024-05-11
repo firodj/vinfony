@@ -3,6 +3,9 @@
 #include <mutex>
 #include <iostream>
 #include "imgui.h"
+#include "imgui_internal.h"
+#include "DawMain.hpp"
+
 #include <kosongg/INIReader.h>
 
 static std::unique_ptr<MainApp> g_mainapp;
@@ -11,6 +14,7 @@ static std::mutex g_mtxMainapp;
 
 struct MainApp::Impl {
   /* private implementations */
+  std::unique_ptr<DawMain> dawMain;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -38,17 +42,28 @@ void MainApp::RunImGui() {
   EngineBase::RunImGui();
 
   // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+  if (ImGui::BeginMainMenuBar())
   {
-    static float f = 0.0f;
-    static int counter = 0;
+    if (ImGui::BeginMenu("File"))
+    {
+      if (ImGui::MenuItem("New", "CTRL+N")) {}
+      ImGui::Separator();
+      if (ImGui::MenuItem("Exit", "CTRL+W")) {}
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Window"))
+    {
+        ImGui::MenuItem("Demo Window",    __null, &m_showDemoWindow);
+        ImGui::MenuItem("Another Window", __null, &m_showAnotherWindow);
+        ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
+  }
 
-    ImGui::Begin("Welcome to vinfony!");        // Create a window called "Hello, world!" and append into it.
+  static int counter = 0;
 
-    ImGui::Text("This is some useful text.");              // Display some text (you can use a format strings too)
-    ImGui::Checkbox("Demo Window", &m_showDemoWindow);      // Edit bools storing our window open/close state
-    ImGui::Checkbox("Another Window", &m_showAnotherWindow);
-
-    ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
+  if (ImGui::Begin("Welcome to vinfony!")) {      // Create a window called "Hello, world!" and append into it.
+    // Other Things
     ImGui::ColorEdit3("clear color", (float*)&clearColor.Value); // Edit 3 floats representing a color
 
     if (ImGui::Button("Button"))                           // Buttons return true when clicked (most widgets return true when edited/activated)
@@ -57,13 +72,18 @@ void MainApp::RunImGui() {
     ImGui::Text("counter = %d", counter);
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-    ImGui::End();
+
+    m_impl->dawMain->Begin();
+    m_impl->dawMain->End();
   }
+  ImGui::End();
+
 }
 
 void MainApp::Init() {
   ReadIniConfig();
   EngineBase::Init();
+  m_impl->dawMain = std::make_unique<DawMain>();
 }
 
 void MainApp::ReadIniConfig() {
