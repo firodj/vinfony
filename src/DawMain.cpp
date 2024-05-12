@@ -2,6 +2,7 @@
 
 #include <map>
 #include <imgui.h>
+#include <imgui_internal.h>
 
 static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
 
@@ -17,6 +18,8 @@ struct DawMain::Impl {
 
   int last_tracks_id = 0;
   int last_props_id = 0;
+  bool main_opened = true;
+  float split_thick = 8;
 };
 
 DawMain::DawMain() {
@@ -35,202 +38,197 @@ DawMain::DawMain() {
 DawMain::~DawMain() {
 }
 
-void DawMain::Begin() {
+bool DawMain::Begin() {
+  ImGui::SetNextWindowSize({640, 480});
+  m_impl->main_opened = ImGui::Begin("Vinfony Project");
+  return m_impl->main_opened;
+}
 
+void DawMain::VSplitter(float pos_x, float pos_y, float avail_h, SplitterOnDraggingFunc func) {
+  auto draw_list = ImGui::GetWindowDrawList();
+  ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
+
+  ImGui::SetCursorPosX(pos_x);
+  ImGui::SetCursorPosY(pos_y);
+  ImGui::InvisibleButton("vsplitter", ImVec2{m_impl->split_thick, (float)ImMax(avail_h, 1.0f)});
+  auto rcmin = ImGui::GetItemRectMin();
+  auto rcmax = ImGui::GetItemRectMax();
+  if (ImGui::IsItemHovered()) {
+    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+  }
+  if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+    if (func) func();
+  }
+  rcmin.x += m_impl->split_thick/2;
+  rcmax.x = rcmin.x;
+  draw_list->AddLine(rcmin, rcmax, color_border);
+}
+
+void DawMain::HSplitter(float pos_x, float pos_y, float avail_w, SplitterOnDraggingFunc func) {
+  auto draw_list     = ImGui::GetWindowDrawList();
+  ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
+
+  ImGui::SetCursorPosX(pos_x);
+  ImGui::SetCursorPosY(pos_y);
+  ImGui::InvisibleButton("hsplitter", ImVec2{(float)ImMax(avail_w, 1.0f), m_impl->split_thick});
+  auto rcmin = ImGui::GetItemRectMin();
+  auto rcmax = ImGui::GetItemRectMax();
+  if (ImGui::IsItemHovered()) {
+    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+  }
+  if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+    if (func) func();
+  }
+  rcmin.y += m_impl->split_thick/2;
+  rcmax.y = rcmin.y;
+  draw_list->AddLine(rcmin, rcmax, color_border);
 }
 
 void DawMain::End() {
   static float w = 200.0f;
 
-  ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
-  // DAW test
-  auto conavail = ImGui::GetContentRegionAvail();
+  if (m_impl->main_opened) {
+    ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
+    // DAW test
+    auto conavail = ImGui::GetContentRegionAvail();
 
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-  ImGui::SetNextWindowScroll(ImVec2{m_impl->scroll_x0, m_impl->scroll_y});
-  if (ImGui::BeginChild("child_1", {w, 0.0f}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar)) {
-    auto draw_list = ImGui::GetWindowDrawList();
-    static int w0 = 200;
-    static float f = 0.0f;
+    //ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    auto cursor = ImGui::GetCursorScreenPos();
-    auto legend = ImGui::GetWindowSize();
+    ImGui::SetNextWindowScroll(ImVec2{m_impl->scroll_x0, m_impl->scroll_y});
+    if (ImGui::BeginChild("child_1", {w, 0.0f}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar)) {
+      auto draw_list = ImGui::GetWindowDrawList();
 
-    auto xy0 = ImGui::GetCursorPos();
-    auto avail = ImGui::GetContentRegionAvail();
+      auto cursor = ImGui::GetCursorScreenPos();
+      auto legend = ImGui::GetWindowSize();
 
-    // Row 0: Header
-    int pos_x = xy0.x;
-    for (int c=0; c<m_impl->prop_nums.size(); c++) {
-      int prop_id = m_impl->prop_nums[c];
-      DawProp * prop = m_impl->props[prop_id].get();
-      if (c > 0) ImGui::SameLine();
-      ImGui::SetCursorPosX(pos_x);
-      ImGui::Button(prop->name.c_str(), {(float)prop->w, 0});
-      pos_x += prop->w + 8;
-    }
+      auto xy0 = ImGui::GetCursorPos();
+      auto avail = ImGui::GetContentRegionAvail();
 
-    // Row N: Track
-    int pos_y = xy0.y + ImGui::GetFrameHeightWithSpacing();
-    for (int r=0; r<m_impl->track_nums.size(); r++) {
-      int track_id = m_impl->track_nums[r];
-      DawTrack * track = m_impl->tracks[track_id].get();
-      pos_x = xy0.x;
-      ImGui::SetCursorPosY(pos_y);
-
+      // Row 0: Header
+      int pos_x = xy0.x;
       for (int c=0; c<m_impl->prop_nums.size(); c++) {
         int prop_id = m_impl->prop_nums[c];
         DawProp * prop = m_impl->props[prop_id].get();
-
-        DawPropDrawParam param{};
-        param.self = prop;
-        param.track = track;
-        param.r = r;
-        param.c = c;
-        if (prop->DrawTrack) {
-          if (c > 0) ImGui::SameLine();
-          ImGui::SetCursorPosX(pos_x);
-          prop->DrawTrack(&param);
-        }
-
-        pos_x += prop->w + 8;
+        if (c > 0) ImGui::SameLine();
+        ImGui::SetCursorPosX(pos_x);
+        ImGui::Button(prop->name.c_str(), {(float)prop->w, 0});
+        pos_x += prop->w + m_impl->split_thick;
       }
-      pos_y += track->h + 8;
+
+      // Row N: Track
+      int pos_y = xy0.y + ImGui::GetFrameHeightWithSpacing();
+      for (int r=0; r<m_impl->track_nums.size(); r++) {
+        int track_id = m_impl->track_nums[r];
+        DawTrack * track = m_impl->tracks[track_id].get();
+        pos_x = xy0.x;
+        ImGui::SetCursorPosY(pos_y);
+
+        for (int c=0; c<m_impl->prop_nums.size(); c++) {
+          int prop_id = m_impl->prop_nums[c];
+          DawProp * prop = m_impl->props[prop_id].get();
+
+          DawPropDrawParam param{};
+          param.self = prop;
+          param.track = track;
+          param.r = r;
+          param.c = c;
+          if (prop->DrawTrack) {
+            if (c > 0) ImGui::SameLine();
+            ImGui::SetCursorPosX(pos_x);
+            prop->DrawTrack(&param);
+          }
+
+          pos_x += prop->w + m_impl->split_thick;
+        }
+        pos_y += track->h + m_impl->split_thick;
+      }
+
+      //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
+
+      // Borders C
+      pos_x = xy0.x;
+      pos_y = xy0.y;
+      ImGui::SetCursorPosY(xy0.y);
+      for (int c=0; c<m_impl->prop_nums.size(); c++) {
+        int prop_id = m_impl->prop_nums[c];
+        DawProp * prop = m_impl->props[prop_id].get();
+        pos_x += prop->w;
+        ImGui::PushID(c);
+        VSplitter(pos_x, pos_y, avail.y, [&]() { prop->w += ImGui::GetIO().MouseDelta.x; });
+        ImGui::PopID();
+        pos_x += m_impl->split_thick;
+      }
+
+      // Borders R
+      pos_x = xy0.x;
+      pos_y = xy0.y + ImGui::GetFrameHeightWithSpacing();
+      for (int r=0; r<m_impl->track_nums.size(); r++) {
+        int track_id = m_impl->track_nums[r];
+        DawTrack * track = m_impl->tracks[track_id].get();
+        pos_y += track->h;
+        ImGui::PushID(r);
+        HSplitter(pos_x, pos_y, avail.x, [&]() { track->h += ImGui::GetIO().MouseDelta.y; });
+        ImGui::PopID();
+        pos_y += m_impl->split_thick;
+      }
+
+      ImGui::SetCursorPos({0, 1500});
+      m_impl->scroll_y = ImGui::GetScrollY();
+      m_impl->scroll_x0 = ImGui::GetScrollX();
     }
+    ImGui::EndChild();
 
-    //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
-
-    // Borders C
-    pos_x = xy0.x;
-    ImGui::SetCursorPosY(xy0.y);
-    for (int c=0; c<m_impl->prop_nums.size(); c++) {
-      int prop_id = m_impl->prop_nums[c];
-      DawProp * prop = m_impl->props[prop_id].get();
-      if (c > 0) ImGui::SameLine();
-      pos_x += prop->w;
-      ImGui::SetCursorPosX(pos_x);
-
-      ImGui::PushID(c);
-      ImGui::InvisibleButton("csplitter", ImVec2(8, avail.y));
-      auto rcmin = ImGui::GetItemRectMin();
-      auto rcmax = ImGui::GetItemRectMax();
+    ImGui::SameLine(0, 0);
+  #if 0 // WITHOUT  SPLITTER
+    {
+      auto drawlist = ImGui::GetWindowDrawList();
+      auto cursor = ImGui::GetCursorScreenPos();
+      ImGui::InvisibleButton("v_splitter", {8.0, (float)ImMax(ImGui::GetWindowSize().y - ImGui::GetCursorPosY() - 10.0, 1.0)});
       if (ImGui::IsItemHovered()) {
+        //if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
       }
-      if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-          prop->w += ImGui::GetIO().MouseDelta.x;
+      if(ImGui::IsItemActive()) {
+          w += ImGui::GetIO().MouseDelta.x;
       }
-      rcmin.x += 3;
-      rcmax.x -= 3;
-      draw_list->AddRectFilled(rcmin, rcmax, color_border);
-      ImGui::PopID();
-
-      pos_x += 8;
+      auto button = ImGui::GetItemRectSize();
+      auto rcmax = ImGui::GetItemRectMax(); // = cursor+button ?
+      drawlist->AddRect(cursor, cursor+button, IM_COL32(255, 0,0, 255));
     }
+    ImGui::SameLine();
+  #endif
 
-    // Borders R
-    pos_x = xy0.x;
-    pos_y = xy0.y + ImGui::GetFrameHeightWithSpacing();
-    for (int r=0; r<m_impl->track_nums.size(); r++) {
-      int track_id = m_impl->track_nums[r];
-      DawTrack * track = m_impl->tracks[track_id].get();
+    ImGui::SetNextWindowScroll(ImVec2{m_impl->scroll_x1, m_impl->scroll_y});
+    if (ImGui::BeginChild("child_2", {0, 0}, true, ImGuiWindowFlags_HorizontalScrollbar)) {
+      auto draw_list = ImGui::GetWindowDrawList();
+      auto cursor = ImGui::GetCursorScreenPos();
+      auto xy0 = ImGui::GetCursorPos();
+      auto avail = ImGui::GetContentRegionAvail();
 
-      ImGui::PushID(r);
-      ImGui::SetCursorPosX(pos_x);
-      pos_y += track->h;
-      ImGui::SetCursorPosY(pos_y);
-      ImGui::InvisibleButton("rsplitter", ImVec2(avail.x, 8));
-      auto rcmin = ImGui::GetItemRectMin();
-      auto rcmax = ImGui::GetItemRectMax();
-      if (ImGui::IsItemHovered()) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+      // Borders R
+      int pos_x = xy0.x;
+      int pos_y = xy0.y + ImGui::GetFrameHeightWithSpacing();
+      for (int r=0; r<m_impl->track_nums.size(); r++) {
+        int track_id = m_impl->track_nums[r];
+        DawTrack * track = m_impl->tracks[track_id].get();
+
+        ImGui::PushID(r);
+        pos_y += track->h;
+        HSplitter(pos_x, pos_y, avail.x, [&]() { track->h += ImGui::GetIO().MouseDelta.y; });
+        ImGui::PopID();
+        pos_y += 8;
       }
-      if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-          track->h += ImGui::GetIO().MouseDelta.y;
-      }
 
-      rcmin.y += 3;
-      rcmax.y -= 3;
-      draw_list->AddRectFilled(rcmin, rcmax, color_border);
-
-      //draw_list->AddLine(cursor + ImVec2{0, (r+2) * ImGui::GetFrameHeightWithSpacing()},
-      //  cursor + ImVec2{legend.x, (r+2) * ImGui::GetFrameHeightWithSpacing()}, IM_COL32(255,  0, 0, 255));
-      ImGui::PopID();
-
-      pos_y += 8;
+      ImGui::SetCursorPos({1500, 1500});
+      m_impl->scroll_y = ImGui::GetScrollY();
+      m_impl->scroll_x1 = ImGui::GetScrollX();
     }
+    ImGui::EndChild();
 
-    ImGui::SetCursorPos({0, 1500});
-    m_impl->scroll_y = ImGui::GetScrollY();
-    m_impl->scroll_x0 = ImGui::GetScrollX();
+    // ImGui::PopStyleVar();
   }
-  ImGui::EndChild();
 
-  ImGui::SameLine();
-#if 0 // WITHOUT  SPLITTER
-  {
-    auto drawlist = ImGui::GetWindowDrawList();
-    auto cursor = ImGui::GetCursorScreenPos();
-    ImGui::InvisibleButton("v_splitter", {8.0, (float)ImMax(ImGui::GetWindowSize().y - ImGui::GetCursorPosY() - 10.0, 1.0)});
-    if (ImGui::IsItemHovered()) {
-      //if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    }
-    if(ImGui::IsItemActive()) {
-        w += ImGui::GetIO().MouseDelta.x;
-    }
-    auto button = ImGui::GetItemRectSize();
-    auto rcmax = ImGui::GetItemRectMax(); // = cursor+button ?
-    drawlist->AddRect(cursor, cursor+button, IM_COL32(255, 0,0, 255));
-  }
-  ImGui::SameLine();
-#endif
-
-  ImGui::SetNextWindowScroll(ImVec2{m_impl->scroll_x1, m_impl->scroll_y});
-  if (ImGui::BeginChild("child_2", {0, 0}, true, ImGuiWindowFlags_HorizontalScrollbar)) {
-    auto draw_list = ImGui::GetWindowDrawList();
-    auto cursor = ImGui::GetCursorScreenPos();
-    auto xy0 = ImGui::GetCursorPos();
-    auto avail = ImGui::GetContentRegionAvail();
-
-    // Borders R
-    int pos_x = xy0.x;
-    int pos_y = xy0.y + ImGui::GetFrameHeightWithSpacing();
-    for (int r=0; r<m_impl->track_nums.size(); r++) {
-      int track_id = m_impl->track_nums[r];
-      DawTrack * track = m_impl->tracks[track_id].get();
-
-      ImGui::PushID(r);
-      ImGui::SetCursorPosX(pos_x);
-      pos_y += track->h;
-      ImGui::SetCursorPosY(pos_y);
-      ImGui::InvisibleButton("rsplitter", ImVec2(avail.x, 8));
-      auto rcmin = ImGui::GetItemRectMin();
-      auto rcmax = ImGui::GetItemRectMax();
-      if (ImGui::IsItemHovered()) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-      }
-      if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-          track->h += ImGui::GetIO().MouseDelta.y;
-      }
-
-      rcmin.y += 3;
-      rcmax.y -= 3;
-      draw_list->AddRectFilled(rcmin, rcmax, color_border);
-
-      //draw_list->AddLine(cursor + ImVec2{0, (r+2) * ImGui::GetFrameHeightWithSpacing()},
-      //  cursor + ImVec2{legend.x, (r+2) * ImGui::GetFrameHeightWithSpacing()}, IM_COL32(255,  0, 0, 255));
-      ImGui::PopID();
-
-      pos_y += 8;
-    }
-
-    ImGui::SetCursorPos({1500, 1500});
-    m_impl->scroll_y = ImGui::GetScrollY();
-    m_impl->scroll_x1 = ImGui::GetScrollX();
-  }
-  ImGui::EndChild();
-  ImGui::PopStyleVar();
+  ImGui::End();
 }
 
 int DawMain::NewTrack(std::string name) {

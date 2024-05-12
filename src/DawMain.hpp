@@ -13,6 +13,7 @@ struct DawPropDrawParam {
 };
 
 using DawPropDrawFunc = std::function<void(DawPropDrawParam * param)>;
+using SplitterOnDraggingFunc = std::function<void()>;
 
 struct DawProp {
   int         id;
@@ -36,8 +37,10 @@ public:
     DawMain();
     ~DawMain();
 
-    void Begin();
+    bool Begin();
     void End();
     int NewProp(std::string name, DawPropDrawFunc func);
     int NewTrack(std::string name);
+    void VSplitter(float pos_x, float pos_y, float avail_h, SplitterOnDraggingFunc func);
+    void HSplitter(float pos_x, float pos_y, float avail_w, SplitterOnDraggingFunc func);
 };

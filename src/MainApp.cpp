@@ -72,12 +72,11 @@ void MainApp::RunImGui() {
     ImGui::Text("counter = %d", counter);
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-
-    m_impl->dawMain->Begin();
-    m_impl->dawMain->End();
   }
   ImGui::End();
 
+  if (m_impl->dawMain->Begin()) {
+  } m_impl->dawMain->End();
 }
 
 void MainApp::Init() {
