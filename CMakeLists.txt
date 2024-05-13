@@ -23,6 +23,7 @@ set("IMGUI_DIR" "ext/imgui-docking")
 set("GLAD_SOURCES_DIR" "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
+add_subdirectory(ext/jdksmidi)
 
 include_directories(SYSTEM
   ${OPENGL_INCLUDE_DIR}
@@ -108,6 +109,7 @@ target_link_libraries(vinfony
   ${OPENGL_LIBRARIES}
   SDL2-static
   glad_gl_core_33
+  jdksmidi
 )
 
 set_target_properties(vinfony PROPERTIES
@@ -119,4 +121,6 @@ set_target_properties(vinfony PROPERTIES
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT vinfony)
 
 ## -- others --
+add_executable(test_sequencer examples/test_sequencer.cpp)
+target_link_libraries(test_sequencer jdksmidi)
 ## -- endothers --

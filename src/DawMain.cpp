@@ -1,10 +1,10 @@
 #include "DawMain.hpp"
 
 #include <map>
+
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-
-static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
 
 struct DawMain::Impl {
   std::map<int, std::unique_ptr<DawTrack>> tracks;
@@ -26,8 +26,25 @@ DawMain::DawMain() {
   m_impl = std::make_unique<Impl>();
 
   NewProp("No", [](DawPropDrawParam * param) { ImGui::Text("%d", param->r); });
-  NewProp("Name", [](DawPropDrawParam * param) { ImGui::Text("%s", param->track->name.c_str() ); });
-  NewProp("Channel", nullptr);
+  NewProp("Name", [](DawPropDrawParam * param) {
+    auto p1 = ImGui::GetCursorScreenPos();
+    auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
+    ImGui::PushClipRect(p1, p2, false);
+    // ImGui::GetWindowDrawList()->AddRectFilled(p1, p2, IM_COL32(255, 0,0, 255));
+    ImGui::Text("%s", param->track->name.c_str() );
+    ImGui::PopClipRect();
+  });
+  NewProp("Channel", [](DawPropDrawParam * param) {
+    auto p1 = ImGui::GetCursorScreenPos();
+    auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
+
+    const char* items[] = {"-", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
+    static int item_current = 0;
+    ImGui::SetNextItemWidth(param->self->w);
+    ImGui::PushID(param->track->id);
+    ImGui::Combo("##channel", &item_current, items, IM_ARRAYSIZE(items));
+    ImGui::PopID();
+  });
   NewProp("Instrument", nullptr);
 
   NewTrack("Piano");
@@ -39,25 +56,28 @@ DawMain::~DawMain() {
 }
 
 bool DawMain::Begin() {
-  ImGui::SetNextWindowSize({640, 480});
+  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   m_impl->main_opened = ImGui::Begin("Vinfony Project");
   return m_impl->main_opened;
 }
 
 void DawMain::VSplitter(float pos_x, float pos_y, float avail_h, SplitterOnDraggingFunc func) {
-  auto draw_list = ImGui::GetWindowDrawList();
+  auto draw_list     = ImGui::GetWindowDrawList();
   ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
+  ImU32 color_hover  = ImGui::GetColorU32(ImGuiCol_SeparatorHovered, 1.0);
+  ImU32 color_active  = ImGui::GetColorU32(ImGuiCol_SeparatorActive, 1.0);
 
-  ImGui::SetCursorPosX(pos_x);
-  ImGui::SetCursorPosY(pos_y);
+  ImGui::SetCursorPos({ pos_x, pos_y });
   ImGui::InvisibleButton("vsplitter", ImVec2{m_impl->split_thick, (float)ImMax(avail_h, 1.0f)});
   auto rcmin = ImGui::GetItemRectMin();
   auto rcmax = ImGui::GetItemRectMax();
   if (ImGui::IsItemHovered()) {
     ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    color_border = color_hover;
   }
   if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
     if (func) func();
+    color_border = color_active;
   }
   rcmin.x += m_impl->split_thick/2;
   rcmax.x = rcmin.x;
@@ -67,17 +87,20 @@ void DawMain::VSplitter(float pos_x, float pos_y, float avail_h, SplitterOnDragg
 void DawMain::HSplitter(float pos_x, float pos_y, float avail_w, SplitterOnDraggingFunc func) {
   auto draw_list     = ImGui::GetWindowDrawList();
   ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
+  ImU32 color_hover  = ImGui::GetColorU32(ImGuiCol_SeparatorHovered, 1.0);
+  ImU32 color_active = ImGui::GetColorU32(ImGuiCol_SeparatorActive, 1.0);
 
-  ImGui::SetCursorPosX(pos_x);
-  ImGui::SetCursorPosY(pos_y);
+  ImGui::SetCursorPos({pos_x, pos_y});
   ImGui::InvisibleButton("hsplitter", ImVec2{(float)ImMax(avail_w, 1.0f), m_impl->split_thick});
   auto rcmin = ImGui::GetItemRectMin();
   auto rcmax = ImGui::GetItemRectMax();
   if (ImGui::IsItemHovered()) {
     ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+    color_border = color_hover;
   }
   if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
     if (func) func();
+    color_border = color_active;
   }
   rcmin.y += m_impl->split_thick/2;
   rcmax.y = rcmin.y;
@@ -154,7 +177,7 @@ void DawMain::End() {
         DawProp * prop = m_impl->props[prop_id].get();
         pos_x += prop->w;
         ImGui::PushID(c);
-        VSplitter(pos_x, pos_y, avail.y, [&]() { prop->w += ImGui::GetIO().MouseDelta.x; });
+        VSplitter(pos_x, pos_y, avail.y, [&]() { prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f); });
         ImGui::PopID();
         pos_x += m_impl->split_thick;
       }
@@ -167,7 +190,7 @@ void DawMain::End() {
         DawTrack * track = m_impl->tracks[track_id].get();
         pos_y += track->h;
         ImGui::PushID(r);
-        HSplitter(pos_x, pos_y, avail.x, [&]() { track->h += ImGui::GetIO().MouseDelta.y; });
+        HSplitter(pos_x, pos_y, avail.x, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
         ImGui::PopID();
         pos_y += m_impl->split_thick;
       }
@@ -214,7 +237,7 @@ void DawMain::End() {
 
         ImGui::PushID(r);
         pos_y += track->h;
-        HSplitter(pos_x, pos_y, avail.x, [&]() { track->h += ImGui::GetIO().MouseDelta.y; });
+        HSplitter(pos_x, pos_y, avail.x, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
         ImGui::PopID();
         pos_y += 8;
       }
