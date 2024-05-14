@@ -122,14 +122,13 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT v
 
 ## -- others --
 message(STATUS "CMAKE_SIZEOF_VOID_P = ${CMAKE_SIZEOF_VOID_P}")
-
+set(BASSMIDI_MIRROR "${PROJECT_SOURCE_DIR}/bassmidi-mirror")
 add_executable(test_sequencer examples/test_sequencer.cpp)
 if(WIN32)
-
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    set(BASS_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/ext/bass24/win32/x64")
+    set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x64")
   elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    set(BASS_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/ext/bass24/win32/x32")
+    set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x32")
   endif()
 
   message(STATUS "BASS_LIBRARY_DIR = ${BASS_LIBRARY_DIR}" )
@@ -143,11 +142,11 @@ if(WIN32)
       "${BASS_LIBRARY_DIR}/bassmidi.dll"
       $<TARGET_FILE_DIR:test_sequencer>)
 elseif(APPLE)
-  set(BASS_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/ext/bass24/osx")
+  set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/osx")
 
 endif()
 
-target_include_directories(test_sequencer PRIVATE "${CMAKE_SOURCE_DIR}/ext/bass24/include")
+target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
 target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi)
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
 

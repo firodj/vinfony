@@ -1,3 +1,6 @@
 [submodule "kosongg"]
 	path = kosongg
 	url = git@github.com:firodj/kosongg
+[submodule "bassmidi-mirror"]
+	path = bassmidi-mirror
+	url = https://github.com/firodj/bassmidi-mirror.git
