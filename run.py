@@ -31,6 +31,9 @@ if len(args) >= 1:
       case "test":
         target = "test_sequencer"
         executable = "%s/%s/test_sequencer" %  (build_name, build_mode)
+      case "tsf":
+        target = "test_tsf3"
+        executable = "%s/%s/test_tsf3" %  (build_name, build_mode)
       case _:
         raise Exception("invalid cmd %s" % (cmd,))
 
@@ -41,7 +44,7 @@ if os.name == 'nt':
   shellcmd = "%s.exe" %  (executable.replace("/", "\\"),)
 
 if len(passargs) > 0:
-  shellcmd += " " + " ".join(passargs)
+  shellcmd += " \"" + "\" \"".join(passargs) + "\""
 
 print(shellcmd)
 subprocess.run(shellcmd, shell=True, check=True)

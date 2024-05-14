@@ -150,4 +150,16 @@ target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/inc
 target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi)
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
 
+add_executable(test_tsf1 "${PROJECT_SOURCE_DIR}/examples/tsf_example1.cpp")
+target_include_directories(test_tsf1 PRIVATE "${PROJECT_SOURCE_DIR}/ext/tsf")
+target_link_libraries(test_tsf1 SDL2-static)
+
+add_executable(test_tsf2 "${PROJECT_SOURCE_DIR}/examples/tsf_example2.cpp")
+target_include_directories(test_tsf2 PRIVATE "${PROJECT_SOURCE_DIR}/ext/tsf")
+target_link_libraries(test_tsf2 SDL2-static)
+
+add_executable(test_tsf3 "${PROJECT_SOURCE_DIR}/examples/tsf_example3.cpp")
+target_include_directories(test_tsf3 PRIVATE "${PROJECT_SOURCE_DIR}/ext/tsf")
+target_link_libraries(test_tsf3 SDL2-static)
+
 ## -- endothers --
