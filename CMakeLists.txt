@@ -121,6 +121,32 @@ set_target_properties(vinfony PROPERTIES
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT vinfony)
 
 ## -- others --
+message(STATUS "CMAKE_SIZEOF_VOID_P = ${CMAKE_SIZEOF_VOID_P}")
+
 add_executable(test_sequencer examples/test_sequencer.cpp)
-target_link_libraries(test_sequencer jdksmidi rtmidi)
+if(WIN32)
+
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(BASS_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/ext/bass24/win32/x64")
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(BASS_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/ext/bass24/win32/x32")
+  endif()
+
+  message(STATUS "BASS_LIBRARY_DIR = ${BASS_LIBRARY_DIR}" )
+
+  add_custom_command(TARGET test_sequencer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${BASS_LIBRARY_DIR}/bass.dll"
+      $<TARGET_FILE_DIR:test_sequencer>)
+  add_custom_command(TARGET test_sequencer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${BASS_LIBRARY_DIR}/bassmidi.dll"
+      $<TARGET_FILE_DIR:test_sequencer>)
+endif()
+
+target_include_directories(test_sequencer PRIVATE "${CMAKE_SOURCE_DIR}/ext/bass24/win32")
+
+target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi)
+target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
+
 ## -- endothers --
