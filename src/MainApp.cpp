@@ -53,8 +53,8 @@ void MainApp::RunImGui() {
     }
     if (ImGui::BeginMenu("Window"))
     {
-        ImGui::MenuItem("Demo Window",    __null, &m_showDemoWindow);
-        ImGui::MenuItem("Another Window", __null, &m_showAnotherWindow);
+        ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
+        ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
