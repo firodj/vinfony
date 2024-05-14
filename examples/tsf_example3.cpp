@@ -32,18 +32,26 @@ static void AudioCallback(void* data, Uint8 *stream, int len)
 			{
 				case TML_PROGRAM_CHANGE: //channel program (preset) change (special handling for 10th MIDI channel with drums)
 					tsf_channel_set_presetnumber(g_TinySoundFont, g_MidiMessage->channel, g_MidiMessage->program, (g_MidiMessage->channel == 9));
+					fprintf( stdout, "tm=%06.0f : evtm=%06d : Ch %2d PROG CHANGE    PG %3d\n", g_Msec, g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->program);
 					break;
 				case TML_NOTE_ON: //play a note
 					tsf_channel_note_on(g_TinySoundFont, g_MidiMessage->channel, g_MidiMessage->key, g_MidiMessage->velocity / 127.0f);
+					if (g_MidiMessage->velocity == 0)
+						fprintf( stdout, "tm=%06.0f : evtm=%06d : Ch %2d NOTE OFF       Note %3d\n", g_Msec, g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->key);
+					else
+						 fprintf( stdout, "tm=%06.0f : evtm=%06d : Ch %2d NOTE ON        Note %3d  Vel %3d\n", g_Msec, g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->key, g_MidiMessage->velocity);
 					break;
 				case TML_NOTE_OFF: //stop a note
 					tsf_channel_note_off(g_TinySoundFont, g_MidiMessage->channel, g_MidiMessage->key);
+					fprintf( stdout, "tm=%06.0f : evtm=%06d : Ch %2d NOTE OFF       Note %3d\n", g_Msec, g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->key);
 					break;
 				case TML_PITCH_BEND: //pitch wheel modification
 					tsf_channel_set_pitchwheel(g_TinySoundFont, g_MidiMessage->channel, g_MidiMessage->pitch_bend);
+					fprintf( stdout, "tm=%06.0f : evtm=%06d : Ch %2d BENDER         Val %3d\n", g_Msec, g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->pitch_bend);
 					break;
 				case TML_CONTROL_CHANGE: //MIDI controller messages
 					tsf_channel_midi_control(g_TinySoundFont, g_MidiMessage->channel, g_MidiMessage->control, g_MidiMessage->control_value);
+					fprintf( stdout, "tm=%06.0f : evtm=%06d : Ch %2d CTRL CHANGE    Ctrl %3d Val %3d\n", g_Msec, g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->control, g_MidiMessage->control_value);
 					break;
 			}
 		}
@@ -67,7 +75,7 @@ int main(int argc, char *argv[])
 	OutputAudioSpec.freq = 44100;
 	OutputAudioSpec.format = AUDIO_F32;
 	OutputAudioSpec.channels = 2;
-	OutputAudioSpec.samples = 4096;
+	OutputAudioSpec.samples = 4096 >> 1;
 	OutputAudioSpec.callback = AudioCallback;
 
 	// Initialize the audio system
