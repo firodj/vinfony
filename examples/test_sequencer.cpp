@@ -43,10 +43,17 @@ using namespace jdksmidi;
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <signal.h>
 using namespace std;
 
 RtMidi::Api chooseMidiApi();
 bool chooseMidiPort( RtMidiOut *rtmidi );
+bool g_abort = false;
+
+static void sigHandler(int sig) {
+  printf("Signal %d received, aborting\n", sig);
+  g_abort = true;
+};
 
 void DumpMIDIBigMessage( MIDITimedBigMessage *msg )
 {
@@ -175,6 +182,7 @@ void PlayDumpSequencer( MIDISequencer *seq )
       }
     }
     std::this_thread::sleep_for(10ms);
+    if (g_abort) break;
   }
 }
 
@@ -281,11 +289,19 @@ void PlayRtMidiSequencer( MIDISequencer *seq )
       }
     }
     std::this_thread::sleep_for(10ms);
+    if (g_abort) break;
   }
 }
 
 int main( int argc, char **argv )
 {
+  signal(SIGINT, sigHandler);
+#ifdef SIGBREAK
+  signal(SIGBREAK, sigHandler); // handles Ctrl-Break on Win32
+#endif
+  signal(SIGABRT, sigHandler);
+  signal(SIGTERM, sigHandler);
+
   const char *app_name = argv[0];
   if ( argc > 1 )
   {
@@ -331,7 +347,7 @@ int main( int argc, char **argv )
 
     double dt = seq.GetMisicDurationInSeconds();
 
-    cout << "\nMisic duration = " << dt << endl;
+    cout << "\nMusic duration = " << dt << endl;
   }
   else
   {
