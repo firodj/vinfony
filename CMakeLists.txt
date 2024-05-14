@@ -122,5 +122,5 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT v
 
 ## -- others --
 add_executable(test_sequencer examples/test_sequencer.cpp)
-target_link_libraries(test_sequencer jdksmidi)
+target_link_libraries(test_sequencer jdksmidi rtmidi)
 ## -- endothers --
