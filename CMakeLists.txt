@@ -142,10 +142,12 @@ if(WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${BASS_LIBRARY_DIR}/bassmidi.dll"
       $<TARGET_FILE_DIR:test_sequencer>)
+elseif(APPLE)
+  set(BASS_LIBRARY_DIR "${PROJECT_SOURCE_DIR}/ext/bass24/osx")
+
 endif()
 
-target_include_directories(test_sequencer PRIVATE "${CMAKE_SOURCE_DIR}/ext/bass24/win32")
-
+target_include_directories(test_sequencer PRIVATE "${CMAKE_SOURCE_DIR}/ext/bass24/include")
 target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi)
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
 

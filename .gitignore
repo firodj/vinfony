@@ -13,3 +13,4 @@ vinfonyd
 vinfonyd.exe
 
 *.ini
+.DS_Store

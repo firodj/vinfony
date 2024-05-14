@@ -321,6 +321,12 @@ void PlayBassMidiSequencer( MIDISequencer *seq )
 		cerr << "Can't initialize device";
     return;
   }
+
+  std::shared_ptr<void> _(nullptr, bind([]{
+    BASS_Free();
+	  BASS_PluginFree(0);
+  }));
+
   BASS_GetInfo(&info);
   stream = BASS_MIDI_StreamCreate(17, BASS_MIDI_ASYNC | BASS_SAMPLE_FLOAT, 1); // create the MIDI stream with async processing and 16 MIDI channels for device input + 1 for keyboard input
   BASS_ChannelSetAttribute(stream, BASS_ATTRIB_BUFFER, 0); // no buffering for minimum latency
@@ -328,8 +334,18 @@ void PlayBassMidiSequencer( MIDISequencer *seq )
   //BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_EVENT | BASS_SYNC_MIXTIME, MIDI_EVENT_PROGRAM, ProgramEventSync, &stream); // catch program/preset changes
   BASS_MIDI_StreamEvent(stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS); // send GS system reset event
 
+  const char * sfpath;
+  const char * homepath;
+#ifdef _WIN32
+  homepath = std::getenv("USERPROFILE");
+  sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
+#else
+  homepath = std::getenv("HOME");
+  std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
+  sfpath = sfpathstr.c_str();
+#endif
 
-  font = BASS_MIDI_FontInit("E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2", 0);
+  font = BASS_MIDI_FontInit(sfpath, 0);
   if (font) {
     BASS_MIDI_FONT sf;
     sf.font = font;
@@ -338,8 +354,8 @@ void PlayBassMidiSequencer( MIDISequencer *seq )
     BASS_MIDI_StreamSetFonts(0, &sf, 1); // set default soundfont
     BASS_MIDI_StreamSetFonts(stream, &sf, 1); // set for current stream too
   } else {
-    cerr << "unable to load soundfont" << endl;
-    goto cleanup;
+    cerr << "unable to load soundfont: " << sfpath << endl;
+    return;
   }
 
   BASS_ChannelPlay(stream, 0); // start it
@@ -348,7 +364,7 @@ void PlayBassMidiSequencer( MIDISequencer *seq )
 
   if ( !seq->GetNextEventTimeMs( &next_event_time ) )
   {
-    goto cleanup;
+    return;
   }
 
   // simulate a clock going forward with 10 ms resolution for 1 hour
@@ -408,10 +424,6 @@ void PlayBassMidiSequencer( MIDISequencer *seq )
     std::this_thread::sleep_for(10ms);
     if (g_abort) break;
   }
-
-cleanup:
-  BASS_Free();
-	BASS_PluginFree(0);
 }
 
 int main( int argc, char **argv )
