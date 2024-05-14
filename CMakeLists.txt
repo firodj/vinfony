@@ -24,12 +24,14 @@ set("GLAD_SOURCES_DIR" "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
 add_subdirectory(ext/jdksmidi)
+set("TSF_SOURCES_DIR" "${PROJECT_SOURCE_DIR}/ext/tsf")
 
 include_directories(SYSTEM
   ${OPENGL_INCLUDE_DIR}
   ${SDL2_SOURCE_DIR}/include
   ${IMGUI_DIR}
   ${IMGUI_DIR}/backends
+  ${TSF_SOURCES_DIR}
 )
 
 set(SOURCE
@@ -151,15 +153,15 @@ target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi)
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
 
 add_executable(test_tsf1 "${PROJECT_SOURCE_DIR}/examples/tsf_example1.cpp")
-target_include_directories(test_tsf1 PRIVATE "${PROJECT_SOURCE_DIR}/ext/tsf")
+target_include_directories(test_tsf1 PRIVATE "${TSF_SOURCES_DIR}")
 target_link_libraries(test_tsf1 SDL2-static)
 
 add_executable(test_tsf2 "${PROJECT_SOURCE_DIR}/examples/tsf_example2.cpp")
-target_include_directories(test_tsf2 PRIVATE "${PROJECT_SOURCE_DIR}/ext/tsf")
+target_include_directories(test_tsf2 PRIVATE "${TSF_SOURCES_DIR}")
 target_link_libraries(test_tsf2 SDL2-static)
 
 add_executable(test_tsf3 "${PROJECT_SOURCE_DIR}/examples/tsf_example3.cpp")
-target_include_directories(test_tsf3 PRIVATE "${PROJECT_SOURCE_DIR}/ext/tsf")
+target_include_directories(test_tsf3 PRIVATE "${TSF_SOURCES_DIR}")
 target_link_libraries(test_tsf3 SDL2-static)
 
 ## -- endothers --
