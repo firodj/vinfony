@@ -394,15 +394,20 @@ public:
     OutputAudioSpec.freq = 44100;
     OutputAudioSpec.format = AUDIO_F32;
     OutputAudioSpec.channels = 2;
-    OutputAudioSpec.samples = 4096;
+    OutputAudioSpec.samples = 4096 >> 2;
     OutputAudioSpec.userdata = this;
     OutputAudioSpec.callback = TinySoundFontAudioCallback;
 
     // Initialize the audio system
-    if (SDL_AudioInit(TSF_NULL) < 0)
+#ifdef WIN32
+    //SDL_SetHint(SDL_HINT_AUDIODRIVER, "dsound");
+#endif
+    if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO) < 0)
     {
-      fprintf(stderr, "Could not initialize audio hardware or driver\n");
+      fprintf(stderr, "Could not initialize audio hardware or driver: %s\n", SDL_GetError());
       return false;
+    } else {
+      fprintf(stdout, "SDL_GetCurrentAudioDriver = %s\n", SDL_GetCurrentAudioDriver());
     }
 
     // Load the SoundFont from a file
@@ -434,11 +439,14 @@ public:
     {
       fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
       return 1;
+    } else {
+      fprintf(stdout, "Buffer = %d\n", OutputAudioSpec.samples);
     }
 
     // Start the actual audio playback here
     // The audio thread will begin to call our AudioCallback function
-    startingTicks = SDL_GetTicks64();
+    int bufferDurationTicks = OutputAudioSpec.samples * (1000.0 / OutputAudioSpec.freq);
+    startingTicks = SDL_GetTicks64(); // - bufferDurationTicks;
     SDL_PauseAudio(0);
 
     return true;
@@ -452,8 +460,6 @@ public:
     }
     else if ( msg.IsChannelEvent() )
     {
-
-
       TinyMIDIMessage tinymsg;
       tinymsg.msg = msg;
       tinymsg.SetTicks();
@@ -462,7 +468,7 @@ public:
         return false;
       }
 
-      fprintf( stdout, "%8ld (%8llu): %s", msg.GetTime(), tinymsg.ticks, msg.MsgToText( msgbuf ) );
+      fprintf( stdout, "%8ld : %s", msg.GetTime(), msg.MsgToText( msgbuf ) );
     }
     else if ( msg.IsSystemExclusive() )
     {
@@ -485,8 +491,6 @@ public:
     int BlockCount   = (SampleCount / TSF_RENDER_EFFECTSAMPLEBLOCK);
     int SampleMarker = SampleCount - ((BlockCount-1)*TSF_RENDER_EFFECTSAMPLEBLOCK);
     int LastSampleMarker = 0;
-
-    int bufferDurationTicks = SampleCount * (1000.0 / 44100.0);
 
     for (;BlockCount;--BlockCount) {
       // NOTE: if startingTicks too close with current event, we may reduce it with bufferDurationTicks
