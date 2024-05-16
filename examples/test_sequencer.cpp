@@ -58,23 +58,7 @@ static void sigHandler(int sig) {
   g_abort = true;
 };
 
-void DumpMIDIBigMessage( MIDITimedBigMessage *msg )
-{
-  if ( msg )
-  {
-    char msgbuf[1024];
-    fprintf( stdout, "%s", msg->MsgToText( msgbuf ) );
-
-    if ( msg->IsSystemExclusive() )
-    {
-      fprintf( stdout, "SYSEX length: %d", msg->GetSysEx()->GetLengthSE() );
-    }
-
-    fprintf( stdout, "\n" );
-  }
-}
-
-void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
+static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
 {
   if ( msg )
   {
@@ -101,6 +85,17 @@ void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
   }
 }
 
+class BaseMidiOutDevice {
+public:
+  virtual ~BaseMidiOutDevice() {};
+  virtual bool Init() { return true; };
+  virtual bool HardwareMsgOut( const MIDITimedBigMessage &msg ) {
+    DumpMIDITimedBigMessage( &msg );
+    return true;
+  }
+};
+
+#if 0
 void DumpMIDITrack( MIDITrack *t )
 {
   MIDITimedBigMessage *msg;
@@ -126,6 +121,7 @@ void DumpAllTracks( MIDIMultiTrack *mlt )
     }
   }
 }
+#endif
 
 void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
 {
@@ -147,12 +143,15 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
   while ( i.GoToNextEvent() );
 }
 
-void PlayDumpSequencer( MIDISequencer *seq )
+void PlaySequencer( MIDISequencer *seq, BaseMidiOutDevice *dev )
 {
   float pretend_clock_time = 0.0;
   float next_event_time = 0.0;
-  MIDITimedBigMessage ev;
+  MIDITimedBigMessage msg;
   int ev_track;
+
+  if (!dev->Init()) return;
+
   seq->GoToTimeMs( pretend_clock_time );
 
   if ( !seq->GetNextEventTimeMs( &next_event_time ) )
@@ -168,12 +167,12 @@ void PlayDumpSequencer( MIDISequencer *seq )
     // find all events that came before or a the current time
     while ( next_event_time <= pretend_clock_time )
     {
-      if ( seq->GetNextEvent( &ev_track, &ev ) )
+      if ( seq->GetNextEvent( &ev_track, &msg ) )
       {
         // found the event!
         // show it to stdout
         fprintf( stdout, "tm=%06.0f : evtm=%06.0f :trk%02d : ", pretend_clock_time, next_event_time, ev_track );
-        DumpMIDITimedBigMessage( &ev );
+        if (!dev->HardwareMsgOut( msg )) return;
         // now find the next message
 
         if ( !seq->GetNextEventTimeMs( &next_event_time ) )
@@ -189,7 +188,26 @@ void PlayDumpSequencer( MIDISequencer *seq )
   }
 }
 
-bool HardwareRtMidiMsgOut( RtMidiOut * pMidiOut, const MIDITimedBigMessage &msg )
+class RtMidiDevice: public BaseMidiOutDevice {
+protected:
+  RtMidiOut * pMidiOut{};
+public:
+  bool Init() override {
+    pMidiOut = new RtMidiOut(chooseMidiApi());
+    // Call function to select port.
+    try {
+      if ( chooseMidiPort( pMidiOut ) == false ) return false;
+    }
+    catch ( RtMidiError &error ) {
+      error.printMessage();
+      return false;
+    }
+    return true;
+  }
+  bool HardwareMsgOut ( const MIDITimedBigMessage &msg ) override;
+};
+
+bool RtMidiDevice::HardwareMsgOut( const MIDITimedBigMessage &msg )
 {
   std::vector<unsigned char> message((size_t)3);
 
@@ -243,187 +261,112 @@ bool HardwareRtMidiMsgOut( RtMidiOut * pMidiOut, const MIDITimedBigMessage &msg 
   return false;
 }
 
-void PlayRtMidiSequencer( MIDISequencer *seq )
-{
-  std::unique_ptr<RtMidiOut> midiout = std::make_unique<RtMidiOut>(chooseMidiApi());
-
-  // Call function to select port.
-  try {
-    if ( chooseMidiPort( midiout.get() ) == false ) return;
-  }
-  catch ( RtMidiError &error ) {
-    error.printMessage();
-    return;
-  }
-
-  float pretend_clock_time = 0.0;
-  float next_event_time = 0.0;
-  MIDITimedBigMessage ev;
-  int ev_track;
-  seq->GoToTimeMs( pretend_clock_time );
-
-  if ( !seq->GetNextEventTimeMs( &next_event_time ) )
-  {
-    return;
-  }
-
-  // simulate a clock going forward with 10 ms resolution for 1 hour
-  float max_time = 3600. * 1000.;
-  const auto start = std::chrono::high_resolution_clock::now();
-  for ( ; pretend_clock_time < max_time; pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count())
-  {
-    // find all events that came before or a the current time
-    while ( next_event_time <= pretend_clock_time )
-    {
-      if ( seq->GetNextEvent( &ev_track, &ev ) )
-      {
-        // found the event!
-        // show it to stdout
-        fprintf( stdout, "tm=%06.0f : evtm=%06.0f :trk%02d : ", pretend_clock_time, next_event_time, ev_track );
-        HardwareRtMidiMsgOut( midiout.get(), ev );
-
-        // now find the next message
-        if ( !seq->GetNextEventTimeMs( &next_event_time ) )
-        {
-          // no events left so end
-          fprintf( stdout, "End\n" );
-          return;
-        }
-      }
-    }
-    std::this_thread::sleep_for(10ms);
-    if (g_abort) break;
-  }
-}
-
-void PlayBassMidiSequencer( MIDISequencer *seq )
-{
+class BassMidiDevice: public BaseMidiOutDevice {
+protected:
+  std::vector<unsigned char> message;
+  char msgbuf[1024];
   BASS_INFO info;
   HSTREAM stream;		// output stream
   HSOUNDFONT font;	// soundfont
   BASS_MIDI_FONTINFO fontinfo;
 
-  float pretend_clock_time = 0.0;
-  float next_event_time = 0.0;
-  MIDITimedBigMessage msg;
-  int ev_track;
-  std::vector<unsigned char> message((size_t)3);
-  char msgbuf[1024];
-
-  uint16_t dllbassversion = BASS_GetVersion() >> 16;
-
-  if (HIWORD(BASS_GetVersion()) != BASSVERSION) {
-		cerr << "An incorrect version of BASS.DLL was loaded expect: " << BASSVERSION << " got: " << dllbassversion << endl;
-		return;
-	}
-
-  if (!BASS_Init(-1, 44100, 0, nullptr, NULL)) {
-		cerr << "Can't initialize device";
-    return;
-  }
-
-  std::shared_ptr<void> _(nullptr, bind([]{
+public:
+  ~BassMidiDevice() override {
     BASS_Free();
 	  BASS_PluginFree(0);
-  }));
+  }
 
-  BASS_GetInfo(&info);
-  stream = BASS_MIDI_StreamCreate(17, BASS_MIDI_ASYNC | BASS_SAMPLE_FLOAT, 1); // create the MIDI stream with async processing and 16 MIDI channels for device input + 1 for keyboard input
-  BASS_ChannelSetAttribute(stream, BASS_ATTRIB_BUFFER, 0); // no buffering for minimum latency
-  BASS_ChannelSetAttribute(stream, BASS_ATTRIB_MIDI_SRC, 0); // 2 point linear interpolation
-  //BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_EVENT | BASS_SYNC_MIXTIME, MIDI_EVENT_PROGRAM, ProgramEventSync, &stream); // catch program/preset changes
-  BASS_MIDI_StreamEvent(stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS); // send GS system reset event
+  bool Init() override {
+    uint16_t dllbassversion = BASS_GetVersion() >> 16;
+    message.resize((size_t)3);
 
-  const char * sfpath;
-  const char * homepath;
+    if (HIWORD(BASS_GetVersion()) != BASSVERSION) {
+      cerr << "An incorrect version of BASS.DLL was loaded expect: " << BASSVERSION << " got: " << dllbassversion << endl;
+      return false;
+    }
+    if (!BASS_Init(-1, 44100, 0, nullptr, NULL)) {
+      cerr << "Can't initialize device";
+      return false;
+    }
+
+    BASS_GetInfo(&info);
+    stream = BASS_MIDI_StreamCreate(17, BASS_MIDI_ASYNC | BASS_SAMPLE_FLOAT, 1); // create the MIDI stream with async processing and 16 MIDI channels for device input + 1 for keyboard input
+    BASS_ChannelSetAttribute(stream, BASS_ATTRIB_BUFFER, 0); // no buffering for minimum latency
+    BASS_ChannelSetAttribute(stream, BASS_ATTRIB_MIDI_SRC, 0); // 2 point linear interpolation
+    //BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_EVENT | BASS_SYNC_MIXTIME, MIDI_EVENT_PROGRAM, ProgramEventSync, &stream); // catch program/preset changes
+    BASS_MIDI_StreamEvent(stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS); // send GS system reset event
+
+    const char * sfpath;
+    const char * homepath;
 #ifdef _WIN32
-  homepath = std::getenv("USERPROFILE");
-  sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
+    homepath = std::getenv("USERPROFILE");
+    sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
 #else
-  homepath = std::getenv("HOME");
-  std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
-  sfpath = sfpathstr.c_str();
+    homepath = std::getenv("HOME");
+    std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
+    sfpath = sfpathstr.c_str();
 #endif
 
-  font = BASS_MIDI_FontInit(sfpath, 0);
-  if (font) {
-    BASS_MIDI_FONT sf;
-    sf.font = font;
-    sf.preset = -1;
-    sf.bank = 0;
-    BASS_MIDI_StreamSetFonts(0, &sf, 1); // set default soundfont
-    BASS_MIDI_StreamSetFonts(stream, &sf, 1); // set for current stream too
-  } else {
-    cerr << "unable to load soundfont: " << sfpath << endl;
-    return;
-  }
-
-  BASS_ChannelPlay(stream, 0); // start it
-
-  seq->GoToTimeMs( pretend_clock_time );
-
-  if ( !seq->GetNextEventTimeMs( &next_event_time ) )
-  {
-    return;
-  }
-
-  // simulate a clock going forward with 10 ms resolution for 1 hour
-  float max_time = 3600. * 1000.;
-  const auto start = std::chrono::high_resolution_clock::now();
-  for ( ; pretend_clock_time < max_time; pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count())
-  {
-    // find all events that came before or a the current time
-    while ( next_event_time <= pretend_clock_time )
-    {
-      if ( seq->GetNextEvent( &ev_track, &msg ) )
-      {
-        // found the event!
-        // show it to stdout
-        fprintf( stdout, "tm=%06.0f : evtm=%06.0f :trk%02d : ", pretend_clock_time, next_event_time, ev_track );
-
-        if ( msg.IsBeatMarker() )
-        {
-          fprintf( stdout, "%8ld : %s <------------------>", msg.GetTime(), msg.MsgToText( msgbuf ) );
-        }
-        else if ( msg.IsChannelEvent() )
-        {
-          message[0] = msg.GetStatus();
-          message[1] = msg.GetByte1();
-          message[2] = msg.GetByte2();
-
-          BASS_MIDI_StreamEvents(stream, BASS_MIDI_EVENTS_RAW, message.data(), msg.GetLength());
-
-          fprintf( stdout, "%8ld : %s", msg.GetTime(), msg.MsgToText( msgbuf ) );
-        }
-        else if ( msg.IsSystemExclusive() )
-        {
-          std::vector<unsigned char> sysexmessage((size_t)1+msg.GetSysEx()->GetLength());
-
-          sysexmessage[0] = msg.GetStatus();
-          memcpy( &sysexmessage[1], msg.GetSysEx()->GetBuf(), msg.GetSysEx()->GetLength() );
-          BASS_MIDI_StreamEvents(stream, BASS_MIDI_EVENTS_RAW, sysexmessage.data(), sysexmessage.size());
-
-          fprintf( stdout, "SYSEX length: %d", msg.GetSysEx()->GetLengthSE() );
-        }
-        else
-        {
-          fprintf( stdout, "%8ld : %s (Skipped)", msg.GetTime(), msg.MsgToText( msgbuf ) );
-        }
-
-        fprintf( stdout, "\n" );
-
-        // now find the next message
-        if ( !seq->GetNextEventTimeMs( &next_event_time ) )
-        {
-          // no events left so end
-          fprintf( stdout, "End\n" );
-          return;
-        }
-      }
+    font = BASS_MIDI_FontInit(sfpath, 0);
+    if (font) {
+      BASS_MIDI_FONT sf;
+      sf.font = font;
+      sf.preset = -1;
+      sf.bank = 0;
+      BASS_MIDI_StreamSetFonts(0, &sf, 1); // set default soundfont
+      BASS_MIDI_StreamSetFonts(stream, &sf, 1); // set for current stream too
+    } else {
+      cerr << "unable to load soundfont: " << sfpath << endl;
+      return false;
     }
-    std::this_thread::sleep_for(10ms);
-    if (g_abort) break;
+
+    BASS_ChannelPlay(stream, 0); // start it
+
+    return true;
   }
+  bool HardwareMsgOut ( const MIDITimedBigMessage &msg ) override;
+};
+
+bool BassMidiDevice::HardwareMsgOut ( const MIDITimedBigMessage &msg ) {
+  if ( msg.IsBeatMarker() )
+  {
+    fprintf( stdout, "%8ld : %s <------------------>", msg.GetTime(), msg.MsgToText( msgbuf ) );
+  }
+  else if ( msg.IsChannelEvent() )
+  {
+    message[0] = msg.GetStatus();
+    message[1] = msg.GetByte1();
+    message[2] = msg.GetByte2();
+
+    BASS_MIDI_StreamEvents(stream, BASS_MIDI_EVENTS_RAW, message.data(), msg.GetLength());
+
+    fprintf( stdout, "%8ld : %s", msg.GetTime(), msg.MsgToText( msgbuf ) );
+  }
+  else if ( msg.IsSystemExclusive() )
+  {
+    std::vector<unsigned char> sysexmessage((size_t)1+msg.GetSysEx()->GetLength());
+
+    sysexmessage[0] = msg.GetStatus();
+    memcpy( &sysexmessage[1], msg.GetSysEx()->GetBuf(), msg.GetSysEx()->GetLength() );
+    BASS_MIDI_StreamEvents(stream, BASS_MIDI_EVENTS_RAW, sysexmessage.data(), sysexmessage.size());
+
+    fprintf( stdout, "SYSEX length: %d", msg.GetSysEx()->GetLengthSE() );
+  }
+  else
+  {
+    fprintf( stdout, "%8ld : %s (Skipped)", msg.GetTime(), msg.MsgToText( msgbuf ) );
+  }
+
+  fprintf( stdout, "\n" );
+  return true;
+}
+
+class TinySoundFontDevice: public BaseMidiOutDevice {
+  bool HardwareMsgOut ( const MIDITimedBigMessage &msg ) override;
+};
+
+bool TinySoundFontDevice::HardwareMsgOut ( const MIDITimedBigMessage &msg ) {
+  return false;
 }
 
 int main( int argc, char **argv )
@@ -459,6 +402,7 @@ int main( int argc, char **argv )
       return -1;
     }
 
+    std::unique_ptr<BaseMidiOutDevice> dev{};
     if ( argc > 2 )
     {
       cout << endl;
@@ -466,17 +410,24 @@ int main( int argc, char **argv )
       switch ( mode )
       {
       case 1:
-        PlayDumpSequencer( &seq );
+        dev = std::make_unique<BaseMidiOutDevice>();
         break;
       case 2:
-        PlayRtMidiSequencer( &seq );
+        dev = std::make_unique<RtMidiDevice>();
         break;
       case 3:
-        PlayBassMidiSequencer( &seq );
+        dev = std::make_unique<BassMidiDevice>();
         break;
-      default:
-        DumpMIDIMultiTrack( &tracks );
+      case 4:
+        dev = std::make_unique<TinySoundFontDevice>();
+        break;
       }
+    }
+
+    if (dev) {
+      PlaySequencer( &seq, dev.get());
+    } else {
+      DumpMIDIMultiTrack( &tracks );
     }
 
     //      cout << MultiTrackAsText( tracks ); // new util fun
@@ -492,6 +443,7 @@ int main( int argc, char **argv )
     cerr << "\t\t[1 for PlayDumpSequencer]\n";
     cerr << "\t\t[2 for PlayRtMidiSequencer]\n";
     cerr << "\t\t[3 for PlayBassMidiSequencer]\n";
+    cerr << "\t\t[4 for PlayTinySoundFontMidiSequencer]\n";
     return -1;
   }
 
