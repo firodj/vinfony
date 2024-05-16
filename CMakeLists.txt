@@ -148,7 +148,7 @@ elseif(APPLE)
 endif()
 
 target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
-target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi)
+target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi SDL2-static tsf)
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
 
 add_executable(test_tsf1 "${PROJECT_SOURCE_DIR}/examples/tsf_example1.cpp")

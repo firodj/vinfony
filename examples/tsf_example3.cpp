@@ -1,11 +1,6 @@
 #include <SDL.h>
-#define TSF_IMPLEMENTATION
 #include <tsf.h>
-#define TML_IMPLEMENTATION
 #include <tml.h>
-//#include "../tsf.h"
-//#include "minisdl_audio.h"
-//#include "../tml.h"
 #include <string>
 
 // Holds the global instance pointer
