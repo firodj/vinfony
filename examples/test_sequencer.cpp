@@ -26,10 +26,6 @@
 // www.vmgames.com vrm@vmgames.com
 //
 
-#ifdef WIN32
-#include <windows.h>
-#endif
-
 #include "jdksmidi/world.h"
 #include "jdksmidi/track.h"
 #include "jdksmidi/multitrack.h"
@@ -40,11 +36,15 @@
 #include "RtMidi/RtMidi.h"
 using namespace jdksmidi;
 
+#ifdef USE_BASS
 #include "bass.h"
 #include "bassmidi.h"
+#endif
 
+#ifdef USE_TSF
 #include <SDL.h>
 #include <tsf.h>
+#endif
 
 #include <iostream>
 #include <thread>
@@ -266,6 +266,7 @@ bool RtMidiDevice::HardwareMsgOut( const MIDITimedBigMessage &msg )
   return false;
 }
 
+#ifdef USE_BASS
 class BassMidiDevice: public BaseMidiOutDevice {
 protected:
   std::vector<unsigned char> message;
@@ -366,7 +367,9 @@ bool BassMidiDevice::HardwareMsgOut ( const MIDITimedBigMessage &msg ) {
   fprintf( stdout, "\n" );
   return true;
 }
+#endif
 
+#ifdef USE_TSF
 void TinySoundFontAudioCallback(void* data, Uint8 *stream, int len);
 
 class TinyMIDIMessage {
@@ -407,7 +410,7 @@ public:
     const char * homepath;
   #ifdef _WIN32
     homepath = std::getenv("USERPROFILE");
-    sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
+    def_sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
   #else
     homepath = std::getenv("HOME");
     std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
@@ -537,6 +540,7 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const MIDITimedBigMessage &msg ) 
   }
   return true;
 }
+#endif
 
 int main( int argc, char **argv )
 {
@@ -584,13 +588,18 @@ int main( int argc, char **argv )
       case 2:
         dev = std::make_unique<RtMidiDevice>();
         break;
+#ifdef USE_BASS
       case 3:
         dev = std::make_unique<BassMidiDevice>();
         break;
+#endif
+#ifdef USE_TSF
       case 4:
         dev = std::make_unique<TinySoundFontDevice>();
         break;
+#endif
       }
+
     }
 
     if (dev) {
@@ -611,8 +620,12 @@ int main( int argc, char **argv )
     cerr << "\tswitch:\t[0 for DumpMIDIMultiTrack]\n";
     cerr << "\t\t[1 for PlayDumpSequencer]\n";
     cerr << "\t\t[2 for PlayRtMidiSequencer]\n";
+#ifdef USE_BASS
     cerr << "\t\t[3 for PlayBassMidiSequencer]\n";
+#endif
+#ifdef USE_TSF
     cerr << "\t\t[4 for PlayTinySoundFontMidiSequencer]\n";
+#endif
     return -1;
   }
 

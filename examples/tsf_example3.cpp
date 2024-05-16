@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
   const char * homepath;
 #ifdef _WIN32
   homepath = std::getenv("USERPROFILE");
-  sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
+  def_sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
 #else
   homepath = std::getenv("HOME");
   std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");

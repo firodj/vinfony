@@ -76,8 +76,7 @@ source_group("Header Files" FILES ${HEADERS})
 if (MSVC)
 
   # Silence MSVC CRT security warnings
-  target_compile_definitions(vinfony PUBLIC
-    -D_CRT_SECURE_NO_WARNINGS
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS
 
   )
 
@@ -103,7 +102,8 @@ else()
   endif()
 endif()
 
-target_compile_definitions(vinfony PUBLIC -D_USE_
+add_compile_definitions(_USE_
+  SDL_MAIN_HANDLED
 )
 
 target_link_libraries(vinfony
@@ -148,8 +148,12 @@ elseif(APPLE)
 endif()
 
 target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
-target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi SDL2-static tsf)
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
+target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi SDL2-static tsf)
+
+target_compile_definitions(test_sequencer PUBLIC
+  -DUSE_BASS -DUSE_TSF
+)
 
 add_executable(test_tsf1 "${PROJECT_SOURCE_DIR}/examples/tsf_example1.cpp")
 target_link_libraries(test_tsf1 SDL2-static tsf)
