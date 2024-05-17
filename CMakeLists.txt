@@ -147,6 +147,10 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT v
 ## -- others --
 message(STATUS "CMAKE_SIZEOF_VOID_P = ${CMAKE_SIZEOF_VOID_P}")
 set(BASSMIDI_MIRROR "${PROJECT_SOURCE_DIR}/bassmidi-mirror")
+
+add_executable(test_model examples/test_model.cpp)
+target_link_libraries(test_model jdksmidi)
+
 add_executable(test_sequencer examples/test_sequencer.cpp)
 if(WIN32)
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
