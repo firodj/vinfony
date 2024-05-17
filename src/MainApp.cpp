@@ -16,7 +16,6 @@ static std::mutex g_mtxMainapp;
 
 struct MainApp::Impl {
   /* private implementations */
-  std::unique_ptr<DawMain> dawMain;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -82,8 +81,11 @@ void MainApp::RunImGui() {
   }
   ImGui::End();
 
-  if (m_impl->dawMain->Begin()) {
-  } m_impl->dawMain->End();
+  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+  if (ImGui::Begin("Vinfony Project")) {
+    vinfony::DawMain("untitled");
+  }
+  ImGui::End();
 
   if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
     if (ifd::FileDialog::Instance().HasResult()) {
@@ -101,8 +103,6 @@ void MainApp::Init() {
   // ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
-
-  m_impl->dawMain = std::make_unique<DawMain>();
 }
 
 void MainApp::ReadIniConfig() {
