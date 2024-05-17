@@ -73,6 +73,28 @@ add_executable(vinfony
 source_group("Source Files" FILES ${SOURCE})
 source_group("Header Files" FILES ${HEADERS})
 
+# ImFileDialog (ifd)
+list(APPEND ifd_SOURCES
+  ${VENDOR_DIR}/ifd/ImFileDialog.cpp
+  ${VENDOR_DIR}/ifd/ImFileDialog.hpp
+)
+
+if (APPLE)
+  list(APPEND ifd_SOURCES
+    ${VENDOR_DIR}/ifd/ImFileDialog_osx.mm
+    ${VENDOR_DIR}/ifd/ImFileDialog_osx.hpp
+  )
+endif()
+
+add_library(ifd STATIC ${ifd_SOURCES})
+
+if (APPLE)
+  # Cocoa
+  find_library(COCOA_LIBRARY Cocoa)
+  find_library(APPKIT_LIB AppKit)
+  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB})
+endif()
+
 if (MSVC)
 
   # Silence MSVC CRT security warnings
@@ -111,6 +133,7 @@ target_link_libraries(vinfony
   SDL2-static
   glad_gl_core_33
   jdksmidi
+  ifd
 )
 
 set_target_properties(vinfony PROPERTIES

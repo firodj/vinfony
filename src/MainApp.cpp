@@ -7,6 +7,8 @@
 #include "DawMain.hpp"
 
 #include <kosongg/INIReader.h>
+#include <ifd/ImFileDialog.hpp>
+#include <ifd/ImFileDialog_opengl.hpp>
 
 static std::unique_ptr<MainApp> g_mainapp;
 
@@ -47,6 +49,11 @@ void MainApp::RunImGui() {
     if (ImGui::BeginMenu("File"))
     {
       if (ImGui::MenuItem("New", "CTRL+N")) {}
+      if (ImGui::MenuItem("Open", "CTRL+O")) {
+        ifd::FileDialog::Instance().Open("MidiFileOpenDialog",
+          "Open a MIDI file", "Midi file (*.mid;*.rmi){.mid,.rmi},.*"
+        );
+      }
       ImGui::Separator();
       if (ImGui::MenuItem("Exit", "CTRL+W")) {}
       ImGui::EndMenu();
@@ -77,11 +84,24 @@ void MainApp::RunImGui() {
 
   if (m_impl->dawMain->Begin()) {
   } m_impl->dawMain->End();
+
+  if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
+    if (ifd::FileDialog::Instance().HasResult()) {
+      const std::vector<std::filesystem::path>& res = ifd::FileDialog::Instance().GetResults();
+      for (const auto& r : res) // MidiFileOpenDialog supports multiselection
+        printf("OPEN[%s]\n", r.u8string().c_str());
+    }
+    ifd::FileDialog::Instance().Close();
+  }
 }
 
 void MainApp::Init() {
   ReadIniConfig();
   EngineBase::Init();
+  // ImFileDialog requires you to set the CreateTexture and DeleteTexture
+	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
+	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
+
   m_impl->dawMain = std::make_unique<DawMain>();
 }
 
