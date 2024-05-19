@@ -3,9 +3,11 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
-#include <chrono>
+//#include <chrono>
 #include <memory>
 #include <thread>
+
+#include <SDL.h>
 
 #include "jdksmidi/world.h"
 #include "jdksmidi/track.h"
@@ -21,6 +23,107 @@
 #include "TsfDev.hpp"
 
 namespace vinfony {
+  class DawNotifier : public jdksmidi::MIDISequencerGUIEventNotifier
+  {
+  public:
+    /// The constructor. The class will send text messages to the FILE *f
+    DawNotifier(): en( true ), f(stdout)
+    {
+    }
+
+    /// The destructor
+    virtual ~DawNotifier()
+    {
+    }
+
+    virtual void Notify( const jdksmidi::MIDISequencer *seq, jdksmidi::MIDISequencerGUIEvent e );
+
+    virtual bool GetEnable() const
+    {
+      return en;
+    }
+
+    virtual void SetEnable( bool f )
+    {
+      en = f;
+    }
+
+  private:
+      FILE * f;
+      bool en;
+  };
+
+  void DawNotifier::Notify( const jdksmidi::MIDISequencer *seq, jdksmidi::MIDISequencerGUIEvent e )
+  {
+    if ( en )
+    {
+      if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_ALL )
+      {
+        fprintf( f, "GUI RESET\n" );
+      }
+      else if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRANSPORT )
+      {
+        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRANSPORT_BEAT )
+        {
+          fprintf( f, "MEAS %3d BEAT %3d MIDICLOCK:%6lu\n",
+            seq->GetCurrentMeasure() + 1,
+            seq->GetCurrentBeat() + 1,
+            seq->GetCurrentMIDIClockTime() );
+        }
+      }
+
+      else if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR )
+      {
+        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_TIMESIG )
+        {
+          fprintf( f,
+                    "TIMESIG: %d/%d\n",
+                    seq->GetState()->timesig_numerator,  /* NC */
+                    seq->GetState()->timesig_denominator /* NC */
+                  );
+        }
+
+        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_TEMPO )
+        {
+          fprintf( f, "TEMPO: %3.2f\n", seq->GetState()->tempobpm /* NC */ );
+        }
+        if ( /* NC new */
+          e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_KEYSIG )
+        {
+          fprintf( f, "KEYSIG: \n" ); /* NC : TODO: fix this */
+        }
+        if ( /* NC new */
+          e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_MARKER )
+        {
+          fprintf( f, "MARKER: %s\n", seq->GetState()->marker_name );
+        }
+      }
+      else if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK ) /* NC: NEW */
+      {
+        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK_NAME )
+        {
+          fprintf(
+            f, "TRACK %2d NAME: %s\n", e.GetEventSubGroup(), seq->GetTrackState( e.GetEventSubGroup() )->track_name );
+        }
+        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK_PG )
+        {
+          fprintf( f, "TRACK %2d PROGRAM: %d\n", e.GetEventSubGroup(), seq->GetTrackState( e.GetEventSubGroup() )->pg );
+        }
+        if ( /* NC new */
+          e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK_VOLUME )
+        {
+          fprintf(
+            f, "TRACK %2d VOLUME: %d\n", e.GetEventSubGroup(), seq->GetTrackState( e.GetEventSubGroup() )->volume );
+        }
+        // GROUP_TRACK_NOTE ignored!
+      }
+      else
+      {
+        fprintf( f, "GUI EVENT: G=%d, SG=%d, ITEM=%d\n", e.GetEventGroup(), e.GetEventSubGroup(), e.GetEventItem() );
+      }
+    }
+  }
+
   struct DawSeq::Impl {
     //std::unique_ptr<jdksmidi::MIDIFileReadStreamFile> rs{};
     std::unique_ptr<jdksmidi::MIDIMultiTrack> tracks{};
@@ -32,6 +135,8 @@ namespace vinfony {
     std::thread th_play_midi{};
     std::atomic<bool> th_play_midi_running{false};
     std::atomic<bool> request_stop_midi{false};
+    std::unique_ptr<DawNotifier> notifier{};
+    std::atomic<float> midi_time_beat{0};
   };
 
   DawSeq::DawSeq() {
@@ -64,15 +169,27 @@ namespace vinfony {
 
     jdksmidi::MIDIFileRead reader( &rs, &track_loader );
 
-    m_impl->seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get() );
-
     if ( !reader.Parse() )
     {
       fmt::println("Error parse file {}", filename);
       return false;
     }
 
+    m_impl->notifier = std::make_unique<DawNotifier>();
+    m_impl->seq      = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get(), m_impl->notifier.get() );
+    fmt::println("Clocks per beat = {}", m_impl->tracks->GetClksPerBeat());
+
     return true;
+  }
+
+  // from: AdvancedSequencer::GetCurrentMIDIClockTime
+  void DawSeq::CalcCurrentMIDITimeBeat(uint64_t now)
+  {
+    jdksmidi::MIDIClockTime time = m_impl->seq->GetCurrentMIDIClockTime();
+    double ms_offset = now - m_impl->seq->GetCurrentTimeInMs();
+    double ms_per_clock = 60000.0 / ( m_impl->seq->GetState()->tempobpm * m_impl->seq->GetCurrentTempoScale() * m_impl->tracks->GetClksPerBeat() );
+    time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
+    m_impl->midi_time_beat = (float)time/m_impl->tracks->GetClksPerBeat();
   }
 
   void DawSeq::AsyncReadMIDIFile(std::string filename) {
@@ -87,6 +204,10 @@ namespace vinfony {
       fmt::println("Done open midi file: {}", midifile);
       m_impl->th_read_midi_file_running = false;
     }, filename);
+  }
+
+  float DawSeq::GetMIDITimeBeat() {
+    return m_impl->midi_time_beat;
   }
 
   void DawSeq::AsyncPlayMIDI() {
@@ -106,40 +227,42 @@ namespace vinfony {
       auto dev = CreateTsfDev();
       if (!dev->Init()) return;
 
-      jdksmidi::MIDISequencer seq( m_impl->tracks.get() );
-      seq.GoToTimeMs( pretend_clock_time );
+      m_impl->seq->GoToTimeMs( pretend_clock_time );
 
-      if ( !seq.GetNextEventTimeMs( &next_event_time ) )
+      if ( !m_impl->seq->GetNextEventTimeMs( &next_event_time ) )
       {
         return;
       }
 
       // simulate a clock going forward with 10 ms resolution for 1 hour
       float max_time = 3600. * 1000.;
-      const auto start = std::chrono::high_resolution_clock::now();
-      for ( ; pretend_clock_time < max_time; pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count())
+      const auto start = SDL_GetTicks64();
+      for ( ; pretend_clock_time < max_time; pretend_clock_time = SDL_GetTicks64() - start)
       {
+        CalcCurrentMIDITimeBeat(pretend_clock_time);
+
         // find all events that came before or a the current time
         while ( next_event_time <= pretend_clock_time )
         {
-          if ( seq.GetNextEvent( &ev_track, &msg ) )
+          if ( m_impl->seq->GetNextEvent( &ev_track, &msg ) )
           {
             // found the event!
             // show it to stdout
-            fprintf( stdout, "tm=%06.0f : evtm=%06.0f :trk%02d : ", pretend_clock_time, next_event_time, ev_track );
+            //fprintf( stdout, "tm=%06.0f : evtm=%06.0f :trk%02d : ", pretend_clock_time, next_event_time, ev_track );
             if (!dev->HardwareMsgOut( msg )) return;
             // now find the next message
 
-            if ( !seq.GetNextEventTimeMs( &next_event_time ) )
+            if ( !m_impl->seq->GetNextEventTimeMs( &next_event_time ) )
             {
               // no events left so end
-              fprintf( stdout, "End\n" );
+              //fprintf( stdout, "End\n" );
               return;
             }
           }
         }
+
         // 10ms when using namespace std::chrono_literals;
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        SDL_Delay(10);
         if (m_impl->request_stop_midi) break;
       }
 
@@ -151,9 +274,9 @@ namespace vinfony {
   void DawSeq::StopMIDI() {
     if (m_impl->th_play_midi_running) {
       m_impl->request_stop_midi = true;
-      if (m_impl->th_play_midi.joinable()) {
-        m_impl->th_play_midi.join();
-      }
+    }
+    if (m_impl->th_play_midi.joinable()) {
+      m_impl->th_play_midi.join();
     }
   }
 }

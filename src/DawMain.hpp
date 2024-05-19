@@ -29,5 +29,5 @@ namespace vinfony {
     int h;
   };
 
-  void DawMain(const char *label);
+  void DawMain(const char *label, float play_cursor);
 };

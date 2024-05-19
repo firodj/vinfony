@@ -182,7 +182,7 @@ void MainApp::RunImGui() {
 
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Vinfony Project")) {
-    vinfony::DawMain("untitled");
+    vinfony::DawMain("untitled", m_impl->sequencer.GetMIDITimeBeat());
   }
   ImGui::End();
 

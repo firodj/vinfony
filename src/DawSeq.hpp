@@ -19,5 +19,7 @@ namespace vinfony {
     bool IsFileLoaded();
     void AsyncPlayMIDI();
     void StopMIDI();
+    float GetMIDITimeBeat();
+    void CalcCurrentMIDITimeBeat(uint64_t now);
   };
 };

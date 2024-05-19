@@ -189,7 +189,7 @@ namespace vinfony {
     draw_list->AddLine(rcmin, rcmax, color_border);
   }
 
-  void DawMain(const char *label) {
+  void DawMain(const char *label, float play_cursor) {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
@@ -352,7 +352,7 @@ namespace vinfony {
       // Cursor
       {
         int cursor_wd = 8;
-        static float cursor_x = wt * 2.0f;
+        float cursor_x = wt * play_cursor;
         ImGui::SetCursorPos({ cursor_x - (cursor_wd/2), 0.0f});
         ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0});
         auto rcmin = ImGui::GetItemRectMin();

@@ -123,10 +123,10 @@ namespace vinfony
     }
 
     bool HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) override {
-      char msgbuf[1024];
+      //char msgbuf[1024];
       if ( msg.IsBeatMarker() )
       {
-        fprintf( stdout, "%8ld : %s <------------------>", msg.GetTime(), msg.MsgToText( msgbuf ) );
+        //fprintf( stdout, "%8ld : %s <------------------>", msg.GetTime(), msg.MsgToText( msgbuf ) );
       }
       else if ( msg.IsChannelEvent() )
       {
@@ -138,18 +138,18 @@ namespace vinfony
           return false;
         }
 
-        fprintf( stdout, "%8ld : %s", msg.GetTime(), msg.MsgToText( msgbuf ) );
+        //fprintf( stdout, "%8ld : %s", msg.GetTime(), msg.MsgToText( msgbuf ) );
       }
       else if ( msg.IsSystemExclusive() )
       {
-        fprintf( stdout, "SYSEX length: %d", msg.GetSysEx()->GetLengthSE() );
+        //fprintf( stdout, "SYSEX length: %d", msg.GetSysEx()->GetLengthSE() );
       }
       else
       {
-        fprintf( stdout, "%8ld : %s (Skipped)", msg.GetTime(), msg.MsgToText( msgbuf ) );
+        //fprintf( stdout, "%8ld : %s (Skipped)", msg.GetTime(), msg.MsgToText( msgbuf ) );
       }
 
-      fprintf( stdout, "\n" );
+      //fprintf( stdout, "\n" );
       return true;
     }
 

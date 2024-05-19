@@ -15,6 +15,11 @@
 #ifndef CIRCULARFIFO_H_
 #define CIRCULARFIFO_H_
 
+#ifdef DEBUG
+#include <thread>
+#include <cassert>
+#endif
+
 /** Circular Fifo (a.k.a. Circular Buffer)
 * Thread safe for one reader, and one writer */
 template<typename Element, unsigned int Size>
@@ -39,9 +44,11 @@ private:
    volatile unsigned int head; // output index
 
    unsigned int increment(unsigned int idx_) const;
+#ifdef DEBUG
+   std::thread::id consumer_id{};
+   std::thread::id producer_id{};
+#endif
 };
-
-
 
 
 /** Producer only: Adds item to the circular queue.
@@ -53,6 +60,11 @@ private:
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::push(const Element& item_)
 {
+#ifdef DEBUG
+   if (producer_id == std::thread::id{}) producer_id = std::this_thread::get_id();
+   else { assert (producer_id == std::this_thread::get_id()); }
+#endif
+
    int nextTail = increment(tail);
    if(nextTail != head)
    {
@@ -74,6 +86,11 @@ bool CircularFifo<Element, Size>::push(const Element& item_)
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::pop(Element& item_)
 {
+#ifdef DEBUG
+   if (consumer_id == 0) consumer_id = std::this_thread::get_id();
+   else { assert (consumer_id == std::this_thread::get_id()); }
+#endif
+
    if(head == tail)
       return false;  // empty queue
 
@@ -87,6 +104,11 @@ bool CircularFifo<Element, Size>::pop(Element& item_)
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::peek(Element& item_)
 {
+#ifdef DEBUG
+   if (consumer_id == std::thread::id{}) consumer_id = std::this_thread::get_id();
+   else { assert (consumer_id == std::this_thread::get_id()); }
+#endif
+
    if(head == tail)
       return false;  // empty queue
 
@@ -100,6 +122,11 @@ bool CircularFifo<Element, Size>::peek(Element& item_)
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::skip()
 {
+#ifdef DEBUG
+   if (consumer_id == std::thread::id{}) consumer_id = std::this_thread::get_id();
+   else { assert (consumer_id == std::this_thread::get_id()); }
+#endif
+
    if(head == tail)
       return false;  // empty queue
 
