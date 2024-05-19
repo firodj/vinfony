@@ -5,6 +5,8 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
+#include "kosongg/Component.h"
+
 
 namespace ImGui {
   ImVec2 GetScroll()
@@ -397,7 +399,4 @@ namespace vinfony {
     ImGui::PopStyleColor();
     ImGui::PopStyleVar(2);
   }
-
-
-
 }

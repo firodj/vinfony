@@ -7,17 +7,22 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "DawMain.hpp"
+#include "DawSeq.hpp"
 
 #include <kosongg/INIReader.h>
 #include <ifd/ImFileDialog.hpp>
 #include <ifd/ImFileDialog_opengl.hpp>
 #include <kosongg/IconsFontAwesome6.h>
+#include "kosongg/Component.h"
+#include <fmt/core.h>
+
 static std::unique_ptr<MainApp> g_mainapp;
 
 static std::mutex g_mtxMainapp;
-
 struct MainApp::Impl {
-  /* private implementations */
+  vinfony::DawSeq sequencer;
+  float toolbarSize{50};
+  float menuBarHeight{0};
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -32,18 +37,18 @@ MainApp *MainApp::GetInstance(/* dependency */) {
 MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
   m_impl = std::make_unique<Impl>();
   m_windowTitle = "vinfony";
+  m_showDemoWindow = false;
 }
 
 MainApp::~MainApp() {
 }
-const float toolbarSize = 50;
-float  menuBarHeight = 0;
+
 // https://github.com/tpecholt/imrad/blob/main/src/imrad.cpp
-void DockSpaceUI()
+void MainApp::DockSpaceUI()
 {
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, toolbarSize));
-	ImGui::SetNextWindowSize(viewport->Size - ImVec2(0, toolbarSize));
+	ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, m_impl->toolbarSize));
+	ImGui::SetNextWindowSize(viewport->Size - ImVec2(0, m_impl->toolbarSize));
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGuiWindowFlags window_flags = 0
 		| ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking
@@ -58,26 +63,26 @@ void DockSpaceUI()
 	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
 
 	// Save off menu bar height for later.
-	menuBarHeight = ImGui::GetCurrentWindow()->MenuBarHeight();
+	m_impl->menuBarHeight = ImGui::GetCurrentWindow()->MenuBarHeight();
 
 	ImGui::DockSpace(dockspace_id);
 
-  ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
-	ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+  //ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
+	//ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
 
 
-  ImGui::DockBuilderFinish(dockspace_id);
+  //ImGui::DockBuilderFinish(dockspace_id);
 
 	ImGui::End();
 
 	ImGui::PopStyleVar(3);
 }
 
-void ToolbarUI()
+void MainApp::ToolbarUI()
 {
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + menuBarHeight));
-	ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, toolbarSize));
+	ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + m_impl->menuBarHeight));
+	ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, m_impl->toolbarSize));
 	ImGui::SetNextWindowViewport(viewport->ID);
 
 	ImGuiWindowFlags window_flags = 0
@@ -92,13 +97,35 @@ void ToolbarUI()
 	ImGui::Begin("TOOLBAR", NULL, window_flags);
 	ImGui::PopStyleVar();
 
-  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2);
-  ImGui::Button(ICON_FA_BACKWARD_FAST " Rewind");
+  const bool disabled = !m_impl->sequencer.IsFileLoaded();
+
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
+  ImGui::PushItemFlag(ImGuiItemFlags_Disabled, disabled);
+
+  if (disabled) {
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0xFF, 0xFF, 0xFF, 0x80));
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0x00, 0x00, 0x00, 0x40));
+  } else {
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0x00, 0x7A, 0xFF, 0xFF));
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
+  }
+
+  if (ImGui::ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
+    fmt::println("Rewind");
+  }
   ImGui::SameLine();
-	ImGui::Button(ICON_FA_PLAY " Play");
+	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {
+    m_impl->sequencer.AsyncPlayMIDI();
+  }
   ImGui::SameLine();
-  ImGui::Button(ICON_FA_STOP " Stop");
-  ImGui::PopStyleVar();
+  if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
+    m_impl->sequencer.StopMIDI();
+  }
+
+  ImGui::PopItemFlag();
+  ImGui::PopStyleColor(2);
+  ImGui::PopStyleVar(2);
 
 	ImGui::End();
 }
@@ -131,14 +158,14 @@ void MainApp::RunImGui() {
     if (ImGui::BeginMenu("Window"))
     {
         ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
-        ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
+        //ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
   }
 
+#if 0
   static int counter = 0;
-
   if (ImGui::Begin("Welcome to vinfony!")) {      // Create a window called "Hello, world!" and append into it.
     // Other Things
     ImGui::ColorEdit3("clear color", (float*)&clearColor.Value); // Edit 3 floats representing a color
@@ -151,6 +178,7 @@ void MainApp::RunImGui() {
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
   }
   ImGui::End();
+#endif
 
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Vinfony Project")) {
@@ -161,8 +189,10 @@ void MainApp::RunImGui() {
   if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
     if (ifd::FileDialog::Instance().HasResult()) {
       const std::vector<std::filesystem::path>& res = ifd::FileDialog::Instance().GetResults();
-      for (const auto& r : res) // MidiFileOpenDialog supports multiselection
-        printf("OPEN[%s]\n", r.u8string().c_str());
+      for (const auto& r : res) { // MidiFileOpenDialog supports multiselection
+        //printf("OPEN[%s]\n", r.u8string().c_str());
+        m_impl->sequencer.AsyncReadMIDIFile(r.u8string());
+      }
     }
     ifd::FileDialog::Instance().Close();
   }

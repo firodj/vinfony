@@ -23,6 +23,7 @@ set("IMGUI_DIR" "ext/imgui-docking")
 set("GLAD_SOURCES_DIR" "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
+add_subdirectory(ext/fmt)
 add_subdirectory(ext/jdksmidi)
 add_subdirectory(ext/tsf)
 
@@ -31,6 +32,7 @@ include_directories(SYSTEM
   ${SDL2_SOURCE_DIR}/include
   ${IMGUI_DIR}
   ${IMGUI_DIR}/backends
+  ${fmt_SOURCE_DIR}/include
 )
 
 set(SOURCE
@@ -48,6 +50,8 @@ set(SOURCE
 ## -- sources --
   src/MainApp.cpp
   src/DawMain.cpp
+  src/DawSeq.cpp
+  src/TsfDev.cpp
 ## -- endsources --
 )
 
@@ -58,6 +62,8 @@ set(HEADERS
 ## -- headers --
   src/MainApp.hpp
   src/DawMain.hpp
+  src/DawSeq.hpp
+  src/TsfDev.hpp
 ## -- endheaders --
 )
 
@@ -132,6 +138,7 @@ target_link_libraries(vinfony
   ${OPENGL_LIBRARIES}
   SDL2-static
   glad_gl_core_33
+  fmt
   jdksmidi
   ifd
 )
@@ -190,4 +197,6 @@ target_link_libraries(test_tsf2 SDL2-static tsf)
 
 add_executable(test_tsf3 "${PROJECT_SOURCE_DIR}/examples/tsf_example3.cpp")
 target_link_libraries(test_tsf3 SDL2-static tsf)
+
+target_link_libraries(vinfony tsf)
 ## -- endothers --
