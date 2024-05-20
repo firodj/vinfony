@@ -15,6 +15,7 @@
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"
 #include <fmt/core.h>
+#include "circularfifo1.h"
 
 static std::unique_ptr<MainApp> g_mainapp;
 
@@ -133,6 +134,17 @@ void MainApp::ToolbarUI()
 void MainApp::RunImGui() {
   ImGuiIO& io = ImGui::GetIO(); (void)io;
   ImColor clearColor(m_clearColor);
+  m_impl->sequencer.ProcessMessage([&](vinfony::SeqMsg &msg) -> bool {
+    switch ( msg.type ) {
+      case 1: // ThreadTerminate
+        m_impl->sequencer.StopMIDI();
+        fmt::println("message: ThreadTerminate");
+        break;
+      default:
+        fmt::println("unknown message {}", msg.type);
+    }
+    return true;
+  });
 
   DockSpaceUI();
 	ToolbarUI();

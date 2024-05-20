@@ -440,7 +440,7 @@ public:
       fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
       return 1;
     } else {
-      fprintf(stdout, "Buffer = %d\n", OutputAudioSpec.samples);
+      fprintf(stdout, "Audio Buffer = %d\n", OutputAudioSpec.samples);
     }
 
     // Start the actual audio playback here

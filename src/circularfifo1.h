@@ -15,7 +15,8 @@
 #ifndef CIRCULARFIFO_H_
 #define CIRCULARFIFO_H_
 
-#ifdef DEBUG
+// RACE_DEBUG is use to check this non-atomic buffer accessing from not 1-1 p-c
+#ifdef RACE_DEBUG
 #include <thread>
 #include <cassert>
 #endif
@@ -44,7 +45,7 @@ private:
    volatile unsigned int head; // output index
 
    unsigned int increment(unsigned int idx_) const;
-#ifdef DEBUG
+#ifdef RACE_DEBUG
    std::thread::id consumer_id{};
    std::thread::id producer_id{};
 #endif
@@ -60,7 +61,7 @@ private:
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::push(const Element& item_)
 {
-#ifdef DEBUG
+#ifdef RACE_DEBUG
    if (producer_id == std::thread::id{}) producer_id = std::this_thread::get_id();
    else { assert (producer_id == std::this_thread::get_id()); }
 #endif
@@ -86,8 +87,8 @@ bool CircularFifo<Element, Size>::push(const Element& item_)
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::pop(Element& item_)
 {
-#ifdef DEBUG
-   if (consumer_id == 0) consumer_id = std::this_thread::get_id();
+#ifdef RACE_DEBUG
+   if (consumer_id == std::thread::id{}) consumer_id = std::this_thread::get_id();
    else { assert (consumer_id == std::this_thread::get_id()); }
 #endif
 
@@ -104,7 +105,7 @@ bool CircularFifo<Element, Size>::pop(Element& item_)
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::peek(Element& item_)
 {
-#ifdef DEBUG
+#ifdef RACE_DEBUG
    if (consumer_id == std::thread::id{}) consumer_id = std::this_thread::get_id();
    else { assert (consumer_id == std::this_thread::get_id()); }
 #endif
@@ -122,7 +123,7 @@ bool CircularFifo<Element, Size>::peek(Element& item_)
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::skip()
 {
-#ifdef DEBUG
+#ifdef RACE_DEBUG
    if (consumer_id == std::thread::id{}) consumer_id = std::this_thread::get_id();
    else { assert (consumer_id == std::this_thread::get_id()); }
 #endif

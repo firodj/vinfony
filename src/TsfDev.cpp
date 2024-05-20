@@ -123,33 +123,26 @@ namespace vinfony
     }
 
     bool HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) override {
-      //char msgbuf[1024];
-      if ( msg.IsBeatMarker() )
-      {
-        //fprintf( stdout, "%8ld : %s <------------------>", msg.GetTime(), msg.MsgToText( msgbuf ) );
-      }
-      else if ( msg.IsChannelEvent() )
+      if ( msg.IsChannelEvent() )
       {
         TinyMIDIMessage tinymsg;
         tinymsg.msg = msg;
         tinymsg.SetTicks();
         if (!buffer.push(tinymsg)) {
-          fprintf(stderr, "circular fifo buffer is full\n");
-          return false;
+          // retry for 1 second
+          fprintf(stderr, "WARNING: circular fifo buffer is full, retrying...\n");
+          for ( int i = 1; i < 1000; i++ ) {
+            if ( !buffer.isFull() ) {
+              if (!buffer.push(tinymsg)) {
+                fprintf(stderr, "circular fifo buffer is full\n");
+                return false;
+              }
+              break;
+            }
+            SDL_Delay( 1 );
+          }
         }
-
-        //fprintf( stdout, "%8ld : %s", msg.GetTime(), msg.MsgToText( msgbuf ) );
       }
-      else if ( msg.IsSystemExclusive() )
-      {
-        //fprintf( stdout, "SYSEX length: %d", msg.GetSysEx()->GetLengthSE() );
-      }
-      else
-      {
-        //fprintf( stdout, "%8ld : %s (Skipped)", msg.GetTime(), msg.MsgToText( msgbuf ) );
-      }
-
-      //fprintf( stdout, "\n" );
       return true;
     }
 
@@ -168,7 +161,7 @@ namespace vinfony
 
         TinyMIDIMessage tinymsg;
         while (buffer.peek(tinymsg)) {
-          if (processingMarker > tinymsg.ticks) {
+          if (processingMarker >= tinymsg.ticks) {
             RealHardwareMsgOut(tinymsg.msg);
             buffer.skip();
           } else break;
@@ -204,6 +197,8 @@ namespace vinfony
       tsf_channel_note_off(g_TinySoundFont, msg.GetChannel(), msg.GetNote());
     } else if (msg.IsPitchBend()) {
       tsf_channel_set_pitchwheel(g_TinySoundFont, msg.GetChannel(), msg.GetBenderValue()+8192);
+    } else if (msg.IsAllNotesOff()) {
+      tsf_channel_note_off_all(g_TinySoundFont, msg.GetChannel());
     }
 
     else if ( msg.IsSystemExclusive() )

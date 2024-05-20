@@ -23,111 +23,13 @@
 #include "TsfDev.hpp"
 
 namespace vinfony {
-  class DawNotifier : public jdksmidi::MIDISequencerGUIEventNotifier
-  {
-  public:
-    /// The constructor. The class will send text messages to the FILE *f
-    DawNotifier(): en( true ), f(stdout)
-    {
-    }
-
-    /// The destructor
-    virtual ~DawNotifier()
-    {
-    }
-
-    virtual void Notify( const jdksmidi::MIDISequencer *seq, jdksmidi::MIDISequencerGUIEvent e );
-
-    virtual bool GetEnable() const
-    {
-      return en;
-    }
-
-    virtual void SetEnable( bool f )
-    {
-      en = f;
-    }
-
-  private:
-      FILE * f;
-      bool en;
-  };
-
-  void DawNotifier::Notify( const jdksmidi::MIDISequencer *seq, jdksmidi::MIDISequencerGUIEvent e )
-  {
-    if ( en )
-    {
-      if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_ALL )
-      {
-        fprintf( f, "GUI RESET\n" );
-      }
-      else if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRANSPORT )
-      {
-        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRANSPORT_BEAT )
-        {
-          fprintf( f, "MEAS %3d BEAT %3d MIDICLOCK:%6lu\n",
-            seq->GetCurrentMeasure() + 1,
-            seq->GetCurrentBeat() + 1,
-            seq->GetCurrentMIDIClockTime() );
-        }
-      }
-
-      else if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR )
-      {
-        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_TIMESIG )
-        {
-          fprintf( f,
-                    "TIMESIG: %d/%d\n",
-                    seq->GetState()->timesig_numerator,  /* NC */
-                    seq->GetState()->timesig_denominator /* NC */
-                  );
-        }
-
-        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_TEMPO )
-        {
-          fprintf( f, "TEMPO: %3.2f\n", seq->GetState()->tempobpm /* NC */ );
-        }
-        if ( /* NC new */
-          e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_KEYSIG )
-        {
-          fprintf( f, "KEYSIG: \n" ); /* NC : TODO: fix this */
-        }
-        if ( /* NC new */
-          e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_CONDUCTOR_MARKER )
-        {
-          fprintf( f, "MARKER: %s\n", seq->GetState()->marker_name );
-        }
-      }
-      else if ( e.GetEventGroup() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK ) /* NC: NEW */
-      {
-        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK_NAME )
-        {
-          fprintf(
-            f, "TRACK %2d NAME: %s\n", e.GetEventSubGroup(), seq->GetTrackState( e.GetEventSubGroup() )->track_name );
-        }
-        if ( e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK_PG )
-        {
-          fprintf( f, "TRACK %2d PROGRAM: %d\n", e.GetEventSubGroup(), seq->GetTrackState( e.GetEventSubGroup() )->pg );
-        }
-        if ( /* NC new */
-          e.GetEventItem() == jdksmidi::MIDISequencerGUIEvent::GROUP_TRACK_VOLUME )
-        {
-          fprintf(
-            f, "TRACK %2d VOLUME: %d\n", e.GetEventSubGroup(), seq->GetTrackState( e.GetEventSubGroup() )->volume );
-        }
-        // GROUP_TRACK_NOTE ignored!
-      }
-      else
-      {
-        fprintf( f, "GUI EVENT: G=%d, SG=%d, ITEM=%d\n", e.GetEventGroup(), e.GetEventSubGroup(), e.GetEventItem() );
-      }
-    }
-  }
 
   struct DawSeq::Impl {
     //std::unique_ptr<jdksmidi::MIDIFileReadStreamFile> rs{};
     std::unique_ptr<jdksmidi::MIDIMultiTrack> tracks{};
     std::unique_ptr<jdksmidi::MIDISequencer> seq{};
+
+    // Threading related
     std::thread th_read_midi_file{};
     std::atomic<bool> th_read_midi_file_done{false};
     std::atomic<bool> th_read_midi_file_running{false};
@@ -135,8 +37,9 @@ namespace vinfony {
     std::thread th_play_midi{};
     std::atomic<bool> th_play_midi_running{false};
     std::atomic<bool> request_stop_midi{false};
-    std::unique_ptr<DawNotifier> notifier{};
+
     std::atomic<float> midi_time_beat{0};
+    CircularFifo<SeqMsg, 8> seqMessaging{};
   };
 
   DawSeq::DawSeq() {
@@ -147,6 +50,16 @@ namespace vinfony {
     if (m_impl->th_read_midi_file.joinable())
         m_impl->th_read_midi_file.join();
     StopMIDI();
+  }
+
+  void DawSeq::ProcessMessage(std::function<bool(SeqMsg&)> proc) {
+    SeqMsg msg;
+    while (m_impl->seqMessaging.pop(msg)) {
+      // check msg is Display? otherwise...
+      if (proc) {
+        if (!proc(msg)) break;
+      }
+    }
   }
 
   bool DawSeq::IsFileLoaded() {
@@ -175,8 +88,7 @@ namespace vinfony {
       return false;
     }
 
-    m_impl->notifier = std::make_unique<DawNotifier>();
-    m_impl->seq      = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get(), m_impl->notifier.get() );
+    m_impl->seq      = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get() );
     fmt::println("Clocks per beat = {}", m_impl->tracks->GetClksPerBeat());
 
     return true;
@@ -214,11 +126,8 @@ namespace vinfony {
     if (m_impl->th_play_midi_running) return;
 
     m_impl->th_play_midi_running = true;
-    m_impl->th_play_midi = std::thread([this]() {
-      std::shared_ptr<void> _(nullptr, [this](...) {
-        m_impl->th_play_midi_running = false;
-      });
 
+    m_impl->th_play_midi = std::thread([this]() {
       float pretend_clock_time = 0.0;
       float next_event_time = 0.0;
       jdksmidi::MIDITimedBigMessage msg;
@@ -226,6 +135,13 @@ namespace vinfony {
 
       auto dev = CreateTsfDev();
       if (!dev->Init()) return;
+
+      std::shared_ptr<void> _(nullptr, [&](...) {
+        m_impl->th_play_midi_running = false;
+        m_impl->request_stop_midi = false;
+        m_impl->seqMessaging.push(SeqMsg::ThreadTerminate());
+        dev->Shutdown();
+      });
 
       m_impl->seq->GoToTimeMs( pretend_clock_time );
 
@@ -242,21 +158,35 @@ namespace vinfony {
         CalcCurrentMIDITimeBeat(pretend_clock_time);
 
         // find all events that came before or a the current time
-        while ( next_event_time <= pretend_clock_time )
-        {
+        while ( next_event_time <= pretend_clock_time ) {
           if ( m_impl->seq->GetNextEvent( &ev_track, &msg ) )
           {
             // found the event!
             // show it to stdout
-            //fprintf( stdout, "tm=%06.0f : evtm=%06.0f :trk%02d : ", pretend_clock_time, next_event_time, ev_track );
-            if (!dev->HardwareMsgOut( msg )) return;
+            //printf( "PUSH: tm=%06.0f : evtm=%06.0f :trk%02d : \n", pretend_clock_time, next_event_time, ev_track );
+            if (msg.IsTrackName()) {
+              char track_name[256];
+              // yes, copy the track name
+              int len = msg.GetSysEx()->GetLengthSE();
+              if ( len > (int)sizeof( track_name ) - 1 )
+                len = (int)sizeof( track_name ) - 1;
+
+              memcpy( track_name, msg.GetSysEx()->GetBuf(), len );
+              track_name[len] = '\0';
+              fmt::println("TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
+            } else {
+
+              if (!dev->HardwareMsgOut( msg )) return;
+
+            }
             // now find the next message
 
             if ( !m_impl->seq->GetNextEventTimeMs( &next_event_time ) )
             {
               // no events left so end
-              //fprintf( stdout, "End\n" );
-              return;
+              printf( "End\n" );
+              m_impl->request_stop_midi =  true;
+              break;
             }
           }
         }
@@ -266,8 +196,13 @@ namespace vinfony {
         if (m_impl->request_stop_midi) break;
       }
 
-      dev->Shutdown();
-      m_impl->request_stop_midi = false;
+      for (int chan=0; chan<16; ++chan) {
+        msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
+        dev->HardwareMsgOut( msg );
+        msg.SetAllNotesOff( (unsigned char)chan );
+        dev->HardwareMsgOut( msg );
+      }
+
     });
   }
 
