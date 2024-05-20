@@ -105,7 +105,7 @@ namespace vinfony
         fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
         return false;
       } else {
-        fprintf(stdout, "Buffer = %d\n", OutputAudioSpec.samples);
+        fprintf(stdout, "Audio Buffer = %d\n", OutputAudioSpec.samples);
       }
 
       // Start the actual audio playback here
@@ -132,7 +132,7 @@ namespace vinfony
           // retry for 1 second
           fprintf(stderr, "WARNING: circular fifo buffer is full, retrying...\n");
           for ( int i = 1; i < 1000; i++ ) {
-            if ( !buffer.isFull() ) {
+          if ( !buffer.isFull() ) {
               if (!buffer.push(tinymsg)) {
                 fprintf(stderr, "circular fifo buffer is full\n");
                 return false;

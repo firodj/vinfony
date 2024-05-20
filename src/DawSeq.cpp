@@ -38,7 +38,6 @@ namespace vinfony {
     std::atomic<bool> th_play_midi_running{false};
     std::atomic<bool> request_stop_midi{false};
 
-    std::atomic<float> midi_time_beat{0};
     CircularFifo<SeqMsg, 8> seqMessaging{};
   };
 
@@ -88,10 +87,37 @@ namespace vinfony {
       return false;
     }
 
-    m_impl->seq      = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get() );
+    m_impl->seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get() );
     fmt::println("Clocks per beat = {}", m_impl->tracks->GetClksPerBeat());
-
+    CalcDuration();
+    fmt::println("Duration {} ms / {} beat", displayState.duration_ms, displayState.play_duration);
     return true;
+  }
+
+  void DawSeq::CalcDuration() {
+    double event_time = 0.; // in milliseconds
+    jdksmidi::MIDIClockTime clk_time = 0;
+
+    jdksmidi::MIDITimedBigMessage ev;
+    int ev_track;
+
+    m_impl->seq->GoToZero();
+
+    while ( m_impl->seq->GetNextEvent( &ev_track, &ev ) )
+    {
+        // std::cout << EventAsText( ev ) << std::endl;
+
+        // skip these events
+        if ( ev.IsEndOfTrack() || ev.IsBeatMarker() )
+            continue;
+
+        // end of music is the time of last not end of track midi event!
+        event_time = m_impl->seq->GetCurrentTimeInMs();
+        clk_time   = m_impl->seq->GetCurrentMIDIClockTime();
+    }
+
+    displayState.duration_ms = event_time;
+    displayState.play_duration = clk_time / m_impl->tracks->GetClksPerBeat();
   }
 
   // from: AdvancedSequencer::GetCurrentMIDIClockTime
@@ -101,7 +127,8 @@ namespace vinfony {
     double ms_offset = now - m_impl->seq->GetCurrentTimeInMs();
     double ms_per_clock = 60000.0 / ( m_impl->seq->GetState()->tempobpm * m_impl->seq->GetCurrentTempoScale() * m_impl->tracks->GetClksPerBeat() );
     time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
-    m_impl->midi_time_beat = (float)time/m_impl->tracks->GetClksPerBeat();
+
+    displayState.play_cursor = (float)time/m_impl->tracks->GetClksPerBeat();
   }
 
   void DawSeq::AsyncReadMIDIFile(std::string filename) {
@@ -116,10 +143,6 @@ namespace vinfony {
       fmt::println("Done open midi file: {}", midifile);
       m_impl->th_read_midi_file_running = false;
     }, filename);
-  }
-
-  float DawSeq::GetMIDITimeBeat() {
-    return m_impl->midi_time_beat;
   }
 
   void DawSeq::AsyncPlayMIDI() {

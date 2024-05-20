@@ -6,7 +6,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include "kosongg/Component.h"
-
+#include <fmt/core.h>
 
 namespace ImGui {
   ImVec2 GetScroll()
@@ -94,54 +94,6 @@ namespace vinfony {
     NewTrack(storage, "Bass");
     NewTrack(storage, "Drum");
   }
-#if 0
-  struct DawMain::Impl {
-    std::map<int, std::unique_ptr<DawTrack>> tracks;
-    std::map<int, std::unique_ptr<DawProp>> props;
-    std::vector<int> track_nums;
-    std::vector<int> prop_nums;
-
-    float scroll_y = 0.0f;
-    float scroll_x0 = 0.0f;
-    float scroll_x1 = 0.0f;
-
-    int last_tracks_id = 0;
-    int last_props_id = 0;
-    bool main_opened = true;
-    float split_thick = 8;
-  };
-
-  DawMain::DawMain() {
-    m_impl = std::make_unique<Impl>();
-
-    NewProp("No", [](DawPropDrawParam * param) { ImGui::Text("%d", param->r); });
-    NewProp("Name", [](DawPropDrawParam * param) {
-      auto p1 = ImGui::GetCursorScreenPos();
-      auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
-      ImGui::PushClipRect(p1, p2, false);
-      // ImGui::GetWindowDrawList()->AddRectFilled(p1, p2, IM_COL32(255, 0,0, 255));
-      ImGui::Text("%s", param->track->name.c_str() );
-      ImGui::PopClipRect();
-    });
-    NewProp("Channel", [](DawPropDrawParam * param) {
-      auto p1 = ImGui::GetCursorScreenPos();
-      auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
-
-      const char* items[] = {"-", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
-      static int item_current = 0;
-      ImGui::SetNextItemWidth(param->self->w);
-      ImGui::PushID(param->track->id);
-      ImGui::Combo("##channel", &item_current, items, IM_ARRAYSIZE(items));
-      ImGui::PopID();
-    });
-    NewProp("Instrument", nullptr);
-
-    NewTrack("Piano");
-    NewTrack("Bass");
-    NewTrack("Drum");
-  }
-
-#endif
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
     auto draw_list     = ImGui::GetWindowDrawList();
@@ -189,7 +141,7 @@ namespace vinfony {
     draw_list->AddLine(rcmin, rcmax, color_border);
   }
 
-  void DawMain(const char *label, float play_cursor) {
+  void DawMain(const char *label, DawDisplayState *display) {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
@@ -301,17 +253,21 @@ namespace vinfony {
 
     ImGui::SameLine(0, 0);
 
+    int wt = 40;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
     ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
     ImGui::SetNextWindowScroll(ImVec2{storage.scroll_x1, storage.scroll_y});
     if (ImGui::BeginChild("child_2", {0, 0}, true, ImGuiWindowFlags_HorizontalScrollbar)) {
+      storage.scroll_x1 = ImGui::GetScrollX();
+      storage.scroll_y = ImGui::GetScrollY();
+
       auto draw_list = ImGui::GetWindowDrawList();
       auto timeline_pos = ImGui::GetCursorScreenPos();
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
-      ImGui::SetCursorPos({1500, 1500});
+      ImGui::SetCursorPos({display->play_duration * wt, 1500});
       ImGui::Dummy(ImVec2{1,1});
       ImGui::SetCursorPos(xy0);
 
@@ -321,21 +277,15 @@ namespace vinfony {
       // ImGui::GetWindowContentRegionMax = ImGui::GetContentRegionMax ? -> respect scrolled
       //
 
-      // Timeline
-
       auto wndpos = ImGui::GetWindowPos();
       auto wndsz = ImGui::GetWindowSize();
-#if false
-      auto sticky_p = wndpos; // OR timeline_pos + ImGui::GetScroll();
-      draw_list->AddRectFilled(sticky_p, sticky_p + ImVec2(wndsz.x, h0), IM_COL32(255,255,0,255));
-      ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
-      ImGui::Text("wndpos %.2f %.2f, wndsz %.2f %.2f", wndpos.x, wndpos.y, wndsz.x, wndsz.y);
-#endif
+      ImVec2 scrnmax = wndpos + wndsz;
+
+      // Timeline
       int t = 0;
-      int wt = 40;
 
       ImVec2 scrnpos = timeline_pos; // + ImVec2{(float)wt - ((int)ImGui::GetScrollX() % wt), 0.0f};
-      ImVec2 scrnmax = wndpos + wndsz;
+
       draw_list->AddLine({ timeline_pos.x, timeline_pos.y+h0/2}, ImVec2{scrnmax.x, timeline_pos.y+h0/2}, IM_COL32(255,128,0,255));
       while (scrnpos.x < scrnmax.x) {
         draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, scrnpos + ImVec2{0, h0}, IM_COL32(255,128,0,255));
@@ -350,9 +300,12 @@ namespace vinfony {
       }
 
       // Cursor
+      float cursor_x = wt * display->play_cursor;
       {
         int cursor_wd = 8;
-        float cursor_x = wt * play_cursor;
+        if ((cursor_x - storage.scroll_x1) > wndsz.x/2) {
+          storage.scroll_x1 = (cursor_x - wndsz.x/2);
+        }
         ImGui::SetCursorPos({ cursor_x - (cursor_wd/2), 0.0f});
         ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0});
         auto rcmin = ImGui::GetItemRectMin();
@@ -362,7 +315,7 @@ namespace vinfony {
           // color_border = color_hover;
         }
         if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-          cursor_x = ImClamp(cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, 1500.0f);
+          cursor_x = ImClamp(cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, display->play_duration *  wt);
           // color_border = color_active;
         }
 
@@ -386,14 +339,15 @@ namespace vinfony {
 
         ImGui::PushID(r);
         pos_y += track->h;
-        HSplitter({pos_x, pos_y}, avail.x + 1500, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
+        HSplitter({pos_x, pos_y}, display->play_duration*wt, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
         ImGui::PopID();
         pos_y += 8;
       }
 
-
-      storage.scroll_y = ImGui::GetScrollY();
-      storage.scroll_x1 = ImGui::GetScrollX();
+      auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
+      draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
+      ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
+      ImGui::Text("cursor_x = %.1f | scroll_x = %.1f | wndsz.x = %.1f", cursor_x, storage.scroll_x1, wndsz.x);
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();

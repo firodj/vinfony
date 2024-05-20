@@ -4,6 +4,8 @@
 #include <string>
 #include <functional>
 
+#include "DawDisplay.hpp"
+
 namespace vinfony {
   struct DawProp;
   struct DawTrack;
@@ -29,5 +31,5 @@ namespace vinfony {
     int h;
   };
 
-  void DawMain(const char *label, float play_cursor);
+  void DawMain(const char *label, DawDisplayState * display);
 };
