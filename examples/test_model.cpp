@@ -90,15 +90,28 @@ static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
 void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
 {
   MIDIMultiTrackIterator i( mlt );
-  const MIDITimedBigMessage *msg;
-  fprintf( stdout, "Clocks per beat: %d\n\n", mlt->GetClksPerBeat() );
-  fprintf( stdout, "Tracks with events: %d\n\n", mlt->GetNumTracksWithEvents() );
 
+  fmt::println("Clocks per beat: {}", mlt->GetClksPerBeat() );
+  fmt::println("Tracks with events: {}", mlt->GetNumTracksWithEvents() );
+  fmt::println("Num Tracks {}", mlt->GetNumTracks());
+
+  for (int trk_num = 0; trk_num < mlt->GetNumTracks(); trk_num++) {
+    auto midi_track = mlt->GetTrack(trk_num);
+    if (midi_track->IsTrackEmpty()) continue;
+
+     for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
+        const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
+        if (msg->IsTrackName()) {
+          fmt::println(msg->GetSysExString());
+        }
+      }
+  }
+#if 0
   i.GoToTime( 0 );
-
   do
   {
     int trk_num;
+    const MIDITimedBigMessage *msg;
 
     if ( i.GetCurEvent( &trk_num, &msg ) )
     {
@@ -107,6 +120,7 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
     }
   }
   while ( i.GoToNextEvent() );
+#endif
 }
 
 int LoadUsingTML(const char * def_midpath) {

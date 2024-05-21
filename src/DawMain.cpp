@@ -143,6 +143,8 @@ namespace vinfony {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
     ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
     ImGui::SetNextWindowScroll(ImVec2{storage.scroll_x0, storage.scroll_y});
+    float tot_h = 0;
+
     if (ImGui::BeginChild("child_1", {w, 0.0f}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar)) {
       auto draw_list = ImGui::GetWindowDrawList();
 
@@ -153,6 +155,7 @@ namespace vinfony {
       auto avail = ImGui::GetContentRegionAvail();
 
       // Row 0: Header
+      float tot_w = 0;
       float pos_x = xy0.x;
       for (int c=0; c<storage.prop_nums.size(); c++) {
         int prop_id = storage.prop_nums[c];
@@ -162,13 +165,15 @@ namespace vinfony {
         ImGui::Button(prop->name.c_str(), {(float)prop->w, h0});
         pos_x += prop->w + SplitterThickness;
       }
+      tot_w = pos_x;
 
       // Row N: Track
+
       if (seq->IsFileLoaded()) {
         float pos_y = xy0.y + h0;
         for (int r=0; r<seq->GetNumTracks(); r++) {
           DawTrack * track = seq->GetTrack(r);
-          pos_x = xy0.x;
+          float pos_x = xy0.x;
           ImGui::SetCursorPosY(pos_y);
 
           for (int c=0; c<storage.prop_nums.size(); c++) {
@@ -189,8 +194,18 @@ namespace vinfony {
 
             pos_x += prop->w + SplitterThickness;
           }
-          pos_y += track->h + SplitterThickness;
+
+          // Draw Border R-Left
+          pos_x = xy0.x;
+          pos_y += track->h;
+          ImGui::PushID(r);
+          HSplitter({pos_x, pos_y}, tot_w, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
+          ImGui::PopID();
+
+          // Move to Next Row
+          pos_y += SplitterThickness;
         }
+        tot_h = pos_y;
       }
 
       //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
@@ -205,27 +220,13 @@ namespace vinfony {
           DawProp * prop = storage.props[prop_id].get();
           pos_x += prop->w;
           ImGui::PushID(c);
-          VSplitter({pos_x, pos_y}, avail.y, [&]() { prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f); });
+          VSplitter({pos_x, pos_y}, tot_h, [&]() { prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f); });
           ImGui::PopID();
           pos_x += SplitterThickness;
         }
       }
 
-      // Borders R-L
-      if (seq->IsFileLoaded()) {
-        float pos_x = xy0.x;
-        float pos_y = xy0.y + h0;
-        for (int r=0; r<seq->GetNumTracks(); r++) {
-          DawTrack * track = seq->GetTrack(r);
-          pos_y += track->h;
-          ImGui::PushID(r);
-          HSplitter({pos_x, pos_y}, avail.x, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
-          ImGui::PopID();
-          pos_y += SplitterThickness;
-        }
-      }
-
-      ImGui::SetCursorPos({0, 1500});
+      //ImGui::SetCursorPos({0, 1500});
       storage.scroll_y = ImGui::GetScrollY();
       storage.scroll_x0 = ImGui::GetScrollX();
     }
@@ -249,8 +250,9 @@ namespace vinfony {
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
-      ImGui::SetCursorPos({seq->displayState.play_duration * wt, 1500});
+      ImGui::SetCursorPos({seq->displayState.play_duration * wt, 0});
       ImGui::Dummy(ImVec2{1,1});
+
       ImGui::SetCursorPos(xy0);
 
       // ImGui::GetCursorScreenPos -> respect  scrolled  because translated from GetCursorPos.
@@ -310,6 +312,7 @@ namespace vinfony {
         };
 
         draw_list->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
+        draw_list->AddLine({ rcmin.x + (cursor_wd/2), rcmax.y}, { rcmin.x + (cursor_wd/2), rcmax.y + tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
       }
 
       // Contents and Borders R-R

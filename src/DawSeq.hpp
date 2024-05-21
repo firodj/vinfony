@@ -45,7 +45,6 @@ namespace vinfony {
     void ProcessMessage(std::function<bool(SeqMsg&)> proc);
     void CalcDuration();
     DawTrack * GetTrack(int track_num);
-    int AddNewTrack(std::string name);
     int GetNumTracks();
 
     DawDisplayState displayState;

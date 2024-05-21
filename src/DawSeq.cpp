@@ -29,7 +29,7 @@ namespace vinfony {
   struct DawSeq::Impl {
     //std::unique_ptr<jdksmidi::MIDIFileReadStreamFile> rs{};
     std::unique_ptr<jdksmidi::MIDIMultiTrack> midi_multi_tracks{};
-    std::unique_ptr<jdksmidi::MIDISequencer> seq{};
+    std::unique_ptr<jdksmidi::MIDISequencer> midi_seq{};
 
     // Threading related
     std::thread th_read_midi_file{};
@@ -44,10 +44,15 @@ namespace vinfony {
     std::map<int, std::unique_ptr<DawTrack>> tracks;
     int last_tracks_id{0};
     std::vector<int> track_nums;
+
+    DawSeq * self;
+
+    Impl(DawSeq * owner): self(owner) {};
+    int AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track);
   };
 
   DawSeq::DawSeq() {
-    m_impl = std::make_unique<Impl>();
+    m_impl = std::make_unique<Impl>(this);
   }
 
   DawSeq::~DawSeq() {
@@ -73,11 +78,26 @@ namespace vinfony {
       if (m_impl->th_read_midi_file.joinable())
         m_impl->th_read_midi_file.join();
 
+      m_impl->track_nums.clear();
+      m_impl->tracks.clear();
+      m_impl->last_tracks_id = 0;
 
-      // Tracks;
-      AddNewTrack("Piano");
-      AddNewTrack("Bass");
-      AddNewTrack("Drum");
+      for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
+        auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
+        if (midi_track->IsTrackEmpty()) continue;
+
+        auto track_name = fmt::format("Track {}", i);
+
+        for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
+          const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
+          if (msg->IsTrackName()) {
+            track_name = msg->GetSysExString();
+            break;
+          }
+        }
+
+        m_impl->AddNewTrack(track_name, m_impl->midi_multi_tracks->GetTrack(i));
+      }
     }
 
     return m_impl->th_read_midi_file_running ? false : m_impl->midi_file_loaded;
@@ -108,7 +128,7 @@ namespace vinfony {
       m_impl->midi_multi_tracks->AssignEventsToTracks(0);
     }
 
-    m_impl->seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->midi_multi_tracks.get() );
+    m_impl->midi_seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->midi_multi_tracks.get() );
     fmt::println("Clocks per beat = {}", m_impl->midi_multi_tracks->GetClksPerBeat());
     CalcDuration();
     fmt::println("Duration {} ms / {} beat", displayState.duration_ms, displayState.play_duration);
@@ -122,9 +142,9 @@ namespace vinfony {
     jdksmidi::MIDITimedBigMessage ev;
     int ev_track;
 
-    m_impl->seq->GoToZero();
+    m_impl->midi_seq->GoToZero();
 
-    while ( m_impl->seq->GetNextEvent( &ev_track, &ev ) )
+    while ( m_impl->midi_seq->GetNextEvent( &ev_track, &ev ) )
     {
         // std::cout << EventAsText( ev ) << std::endl;
 
@@ -133,8 +153,8 @@ namespace vinfony {
             continue;
 
         // end of music is the time of last not end of track midi event!
-        event_time = m_impl->seq->GetCurrentTimeInMs();
-        clk_time   = m_impl->seq->GetCurrentMIDIClockTime();
+        event_time = m_impl->midi_seq->GetCurrentTimeInMs();
+        clk_time   = m_impl->midi_seq->GetCurrentMIDIClockTime();
     }
 
     displayState.duration_ms = event_time;
@@ -144,9 +164,9 @@ namespace vinfony {
   // from: AdvancedSequencer::GetCurrentMIDIClockTime
   void DawSeq::CalcCurrentMIDITimeBeat(uint64_t now)
   {
-    jdksmidi::MIDIClockTime time = m_impl->seq->GetCurrentMIDIClockTime();
-    double ms_offset = now - m_impl->seq->GetCurrentTimeInMs();
-    double ms_per_clock = 60000.0 / ( m_impl->seq->GetState()->tempobpm * m_impl->seq->GetCurrentTempoScale() * m_impl->midi_multi_tracks->GetClksPerBeat() );
+    jdksmidi::MIDIClockTime time = m_impl->midi_seq->GetCurrentMIDIClockTime();
+    double ms_offset = now - m_impl->midi_seq->GetCurrentTimeInMs();
+    double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->midi_multi_tracks->GetClksPerBeat() );
     time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
 
     displayState.play_cursor = (float)time/m_impl->midi_multi_tracks->GetClksPerBeat();
@@ -154,7 +174,7 @@ namespace vinfony {
 
   void DawSeq::CloseMIDIFile() {
     m_impl->midi_file_loaded = false;
-    m_impl->seq.reset();
+    m_impl->midi_seq.reset();
     m_impl->midi_multi_tracks.reset();
   }
 
@@ -196,9 +216,9 @@ namespace vinfony {
         dev->Shutdown();
       });
 
-      m_impl->seq->GoToTimeMs( pretend_clock_time );
+      m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
 
-      if ( !m_impl->seq->GetNextEventTimeMs( &next_event_time ) )
+      if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) )
       {
         return;
       }
@@ -212,7 +232,7 @@ namespace vinfony {
 
         // find all events that came before or a the current time
         while ( next_event_time <= pretend_clock_time ) {
-          if ( m_impl->seq->GetNextEvent( &ev_track, &msg ) )
+          if ( m_impl->midi_seq->GetNextEvent( &ev_track, &msg ) )
           {
             // found the event!
             // show it to stdout
@@ -234,7 +254,7 @@ namespace vinfony {
             }
             // now find the next message
 
-            if ( !m_impl->seq->GetNextEventTimeMs( &next_event_time ) )
+            if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) )
             {
               // no events left so end
               printf( "End\n" );
@@ -273,17 +293,18 @@ namespace vinfony {
     return m_impl->tracks[track_id].get();
   }
 
-  int DawSeq::AddNewTrack(std::string name) {
-    m_impl->last_tracks_id++;
-    m_impl->tracks[m_impl->last_tracks_id] = std::make_unique<DawTrack>();
+  int DawSeq::Impl::AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track) {
+    last_tracks_id++;
+    tracks[last_tracks_id] = std::make_unique<DawTrack>();
 
-    auto track = m_impl->tracks[m_impl->last_tracks_id].get();
-    track->id = m_impl->last_tracks_id;
+    auto track = tracks[last_tracks_id].get();
+    track->id = last_tracks_id;
     track->name = name;
     float ht = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
     track->h = ht;
+    track->midi_track = midi_track;
 
-    m_impl->track_nums.push_back(track->id);
+    track_nums.push_back(track->id);
 
     return track->id;
   }
