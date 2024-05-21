@@ -24,31 +24,14 @@ namespace vinfony {
     float scroll_x0 = 0.0f;
     float scroll_x1 = 0.0f;
 
-    int last_tracks_id = 0;
     int last_props_id = 0;
 
-    std::map<int, std::unique_ptr<DawTrack>> tracks;
     std::map<int, std::unique_ptr<DawProp>> props;
-    std::vector<int> track_nums;
     std::vector<int> prop_nums;
   };
 
   std::vector<DawMainStorage> g_storages;
 
-  int NewTrack(DawMainStorage & storage, std::string name) {
-    storage.last_tracks_id++;
-    storage.tracks[storage.last_tracks_id] = std::make_unique<DawTrack>();
-
-    auto track = storage.tracks[storage.last_tracks_id].get();
-    track->id = storage.last_tracks_id;
-    track->name = name;
-    float ht = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
-    track->h = ht;
-
-    storage.track_nums.push_back(track->id);
-
-    return track->id;
-  }
 
   int NewProp(DawMainStorage & storage, std::string name, DawPropDrawFunc func) {
     storage.last_props_id++;
@@ -88,11 +71,6 @@ namespace vinfony {
       ImGui::PopID();
     });
     NewProp(storage, "Instrument", nullptr);
-
-    // Tracks;
-    NewTrack(storage, "Piano");
-    NewTrack(storage, "Bass");
-    NewTrack(storage, "Drum");
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
@@ -141,7 +119,7 @@ namespace vinfony {
     draw_list->AddLine(rcmin, rcmax, color_border);
   }
 
-  void DawMain(const char *label, DawDisplayState *display) {
+  void DawMain(const char *label, DawSeq *seq) {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
@@ -186,61 +164,65 @@ namespace vinfony {
       }
 
       // Row N: Track
-      float pos_y = xy0.y + h0;
-      for (int r=0; r<storage.track_nums.size(); r++) {
-        int track_id = storage.track_nums[r];
-        DawTrack * track = storage.tracks[track_id].get();
-        pos_x = xy0.x;
-        ImGui::SetCursorPosY(pos_y);
+      if (seq->IsFileLoaded()) {
+        float pos_y = xy0.y + h0;
+        for (int r=0; r<seq->GetNumTracks(); r++) {
+          DawTrack * track = seq->GetTrack(r);
+          pos_x = xy0.x;
+          ImGui::SetCursorPosY(pos_y);
 
-        for (int c=0; c<storage.prop_nums.size(); c++) {
-          int prop_id = storage.prop_nums[c];
-          DawProp * prop = storage.props[prop_id].get();
+          for (int c=0; c<storage.prop_nums.size(); c++) {
+            int prop_id = storage.prop_nums[c];
+            DawProp * prop = storage.props[prop_id].get();
 
-          DawPropDrawParam param{};
-          param.self = prop;
-          param.track = track;
-          param.r = r;
-          param.c = c;
+            DawPropDrawParam param{};
+            param.self = prop;
+            param.track = track;
+            param.r = r;
+            param.c = c;
 
-          if (prop->DrawTrack) {
-            if (c > 0) ImGui::SameLine();
-            ImGui::SetCursorPosX(pos_x);
-            prop->DrawTrack(&param);
+            if (prop->DrawTrack) {
+              if (c > 0) ImGui::SameLine();
+              ImGui::SetCursorPosX(pos_x);
+              prop->DrawTrack(&param);
+            }
+
+            pos_x += prop->w + SplitterThickness;
           }
-
-          pos_x += prop->w + SplitterThickness;
+          pos_y += track->h + SplitterThickness;
         }
-        pos_y += track->h + SplitterThickness;
       }
 
       //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
 
       // Borders C
-      pos_x = xy0.x;
-      pos_y = xy0.y;
-      ImGui::SetCursorPosY(xy0.y);
-      for (int c=0; c<storage.prop_nums.size(); c++) {
-        int prop_id = storage.prop_nums[c];
-        DawProp * prop = storage.props[prop_id].get();
-        pos_x += prop->w;
-        ImGui::PushID(c);
-        VSplitter({pos_x, pos_y}, avail.y, [&]() { prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f); });
-        ImGui::PopID();
-        pos_x += SplitterThickness;
+      {
+        float pos_x = xy0.x;
+        float pos_y = xy0.y;
+        ImGui::SetCursorPosY(xy0.y);
+        for (int c=0; c<storage.prop_nums.size(); c++) {
+          int prop_id = storage.prop_nums[c];
+          DawProp * prop = storage.props[prop_id].get();
+          pos_x += prop->w;
+          ImGui::PushID(c);
+          VSplitter({pos_x, pos_y}, avail.y, [&]() { prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f); });
+          ImGui::PopID();
+          pos_x += SplitterThickness;
+        }
       }
 
       // Borders R-L
-      pos_x = xy0.x;
-      pos_y = xy0.y + h0;
-      for (int r=0; r<storage.track_nums.size(); r++) {
-        int track_id = storage.track_nums[r];
-        DawTrack * track = storage.tracks[track_id].get();
-        pos_y += track->h;
-        ImGui::PushID(r);
-        HSplitter({pos_x, pos_y}, avail.x, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
-        ImGui::PopID();
-        pos_y += SplitterThickness;
+      if (seq->IsFileLoaded()) {
+        float pos_x = xy0.x;
+        float pos_y = xy0.y + h0;
+        for (int r=0; r<seq->GetNumTracks(); r++) {
+          DawTrack * track = seq->GetTrack(r);
+          pos_y += track->h;
+          ImGui::PushID(r);
+          HSplitter({pos_x, pos_y}, avail.x, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
+          ImGui::PopID();
+          pos_y += SplitterThickness;
+        }
       }
 
       ImGui::SetCursorPos({0, 1500});
@@ -267,7 +249,7 @@ namespace vinfony {
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
-      ImGui::SetCursorPos({display->play_duration * wt, 1500});
+      ImGui::SetCursorPos({seq->displayState.play_duration * wt, 1500});
       ImGui::Dummy(ImVec2{1,1});
       ImGui::SetCursorPos(xy0);
 
@@ -300,7 +282,7 @@ namespace vinfony {
       }
 
       // Cursor
-      float cursor_x = wt * display->play_cursor;
+      float cursor_x = wt * seq->displayState.play_cursor;
       {
         int cursor_wd = 10;
         if ((cursor_x - storage.scroll_x1) > wndsz.x/2) {
@@ -315,7 +297,7 @@ namespace vinfony {
           // color_border = color_hover;
         }
         if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-          cursor_x = ImClamp(cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, display->play_duration *  wt);
+          cursor_x = ImClamp(cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, seq->displayState.play_duration *  wt);
           // color_border = color_active;
         }
 
@@ -330,18 +312,19 @@ namespace vinfony {
         draw_list->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
       }
 
-      // Borders R-R
-      float pos_x = xy0.x;
-      float pos_y = xy0.y + h0;
-      for (int r=0; r<storage.track_nums.size(); r++) {
-        int track_id = storage.track_nums[r];
-        DawTrack * track = storage.tracks[track_id].get();
+      // Contents and Borders R-R
+      if (seq->IsFileLoaded()) {
+        float pos_x = xy0.x;
+        float pos_y = xy0.y + h0;
+        for (int r=0; r<seq->GetNumTracks(); r++) {
+          DawTrack * track = seq->GetTrack(r);
 
-        ImGui::PushID(r);
-        pos_y += track->h;
-        HSplitter({pos_x, pos_y}, display->play_duration*wt, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
-        ImGui::PopID();
-        pos_y += 8;
+          ImGui::PushID(r);
+          pos_y += track->h;
+          HSplitter({pos_x, pos_y}, seq->displayState.play_duration*wt, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
+          ImGui::PopID();
+          pos_y += 8;
+        }
       }
 
       auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();

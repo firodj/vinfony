@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "DawDisplay.hpp"
+#include "DawSeq.hpp"
 
 namespace vinfony {
   struct DawProp;
@@ -25,11 +26,5 @@ namespace vinfony {
     DawPropDrawFunc DrawTrack{};
   };
 
-  struct DawTrack {
-    int id;
-    std::string name;
-    int h;
-  };
-
-  void DawMain(const char *label, DawDisplayState * display);
+  void DawMain(const char *label, DawSeq * seq);
 };

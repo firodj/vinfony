@@ -194,7 +194,7 @@ void MainApp::RunImGui() {
 
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Vinfony Project")) {
-    vinfony::DawMain("untitled", &m_impl->sequencer.displayState);
+    vinfony::DawMain("untitled", &m_impl->sequencer);
   }
   ImGui::End();
 
