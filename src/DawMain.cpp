@@ -1,6 +1,7 @@
 #include "DawMain.hpp"
 
 #include <map>
+#include <memory>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
@@ -16,6 +17,13 @@ namespace ImGui {
   }
 };
 
+template <typename K, typename V>
+struct nothrow_map : std::map<K, V> {
+  nothrow_map() = default;
+  nothrow_map(nothrow_map&& other) noexcept : std::map<K, V>(std::move(other)) {}
+};
+
+
 namespace vinfony {
   const int SplitterThickness = 8;
 
@@ -26,7 +34,7 @@ namespace vinfony {
 
     int last_props_id = 0;
 
-    std::map<int, std::unique_ptr<DawProp>> props;
+    nothrow_map<int, std::unique_ptr<DawProp>> props;
     std::vector<int> prop_nums;
   };
 
@@ -35,7 +43,7 @@ namespace vinfony {
 
   int NewProp(DawMainStorage & storage, std::string name, DawPropDrawFunc func) {
     storage.last_props_id++;
-    storage.props[storage.last_props_id] = std::make_unique<DawProp>();
+    storage.props.emplace(storage.last_props_id, std::make_unique<DawProp>());
 
     auto prop = storage.props[storage.last_props_id].get();
     prop->id = storage.last_props_id;

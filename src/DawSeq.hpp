@@ -2,8 +2,11 @@
 
 #include <string>
 #include <functional>
+#include <memory>
+
 #include "circularfifo1.h"
 #include "DawDisplay.hpp"
+
 namespace jdksmidi {
   class MIDITrack;
 };

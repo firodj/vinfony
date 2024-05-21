@@ -91,6 +91,12 @@ if (APPLE)
     ${VENDOR_DIR}/ifd/ImFileDialog_osx.hpp
   )
 endif()
+if (WIN32)
+  list(APPEND ifd_SOURCES
+    ${VENDOR_DIR}/ifd/ImFileDialog_win32.cpp
+    ${VENDOR_DIR}/ifd/ImFileDialog_win32.hpp
+  )
+endif()
 
 add_library(ifd STATIC ${ifd_SOURCES})
 

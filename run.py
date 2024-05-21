@@ -40,7 +40,9 @@ if len(args) >= 1:
       case _:
         raise Exception("invalid cmd %s" % (cmd,))
 
-subprocess.run("cmake --build %s --target \"%s\" --config %s" % (build_name, target, build_mode), shell=True, check=True)
+shellcmd = "cmake --build %s --target \"%s\" --config %s" % (build_name, target, build_mode)
+print(shellcmd)
+subprocess.run(shellcmd, shell=True, check=True)
 
 shellcmd = "./%s" % (executable,)
 if os.name == 'nt':
