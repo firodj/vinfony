@@ -156,7 +156,7 @@ message(STATUS "CMAKE_SIZEOF_VOID_P = ${CMAKE_SIZEOF_VOID_P}")
 set(BASSMIDI_MIRROR "${PROJECT_SOURCE_DIR}/bassmidi-mirror")
 
 add_executable(test_model examples/test_model.cpp)
-target_link_libraries(test_model jdksmidi)
+target_link_libraries(test_model jdksmidi tsf fmt)
 
 add_executable(test_sequencer examples/test_sequencer.cpp)
 if(WIN32)

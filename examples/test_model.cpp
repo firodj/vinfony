@@ -8,11 +8,15 @@
 #include "RtMidi/RtMidi.h"
 using namespace jdksmidi;
 
+#include <tml.h>
+
 #include <iostream>
 #include <thread>
 #include <chrono>
 #include <signal.h>
 using namespace std;
+
+#include <fmt/core.h>
 
 static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
 {
@@ -36,6 +40,48 @@ static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
     {
       fprintf( stdout, "SYSEX length: %d", msg->GetSysEx()->GetLengthSE() );
     }
+    else if ( msg->IsMetaEvent() ) {
+      if ( msg->IsKeySig() ) {
+        fmt::print("Key Signature  ");
+        msg->GetKeySigSharpFlats();
+        const char * keynmes[] = {
+          "F", "G♭", "G", "A♭", "A", "B♭", "B" ,"C", "C♯", "D", "D♯", "E", "F", "F#", "G",
+        };
+        int i = msg->GetKeySigSharpFlats();
+        if (i >= -7 && i <= 7) {
+          fmt::print(keynmes[i+7]);
+        }
+        if (msg->GetKeySigMajorMinor() == 1)
+          fmt::print(" Minor");
+        else
+          fmt::print(" Major");
+      } else if ( msg->IsTimeSig() ) {
+
+        fmt::print("Time Signature  {}/{}  Clks/Metro.={} 32nd/Quarter={}",
+          (int)msg->GetTimeSigNumerator(),
+          (int)msg->GetTimeSigDenominator(),
+          (int)msg->GetTimeSigMidiClocksPerMetronome(),
+          (int)msg->GetTimeSigNum32ndPerMidiQuarterNote()
+        );
+
+      } else if (msg->IsTempo()) {
+        fmt::print("Tempo    {} BPM ({} usec/beat)", msg->GetTempo32()/32.0, msg->GetTempo());
+      } else if (msg->IsEndOfTrack()) {
+        fmt::print("End of Track");
+      }
+
+      else
+      if (msg->GetSysEx()) {
+        const unsigned char *buf = msg->GetSysEx()->GetBuf();
+        int len = msg->GetSysEx()->GetLengthSE();
+        std::string str;
+        for ( int i = 0; i < len; ++i ) {
+          if (buf[i] >= 0x20 && buf[i] <= 0x7F)
+            str.push_back( (char)buf[i] );
+        }
+        fmt::print(" Data: {}", str);
+      }
+    }
 
     fprintf( stdout, "\n" );
   }
@@ -46,6 +92,8 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
   MIDIMultiTrackIterator i( mlt );
   const MIDITimedBigMessage *msg;
   fprintf( stdout, "Clocks per beat: %d\n\n", mlt->GetClksPerBeat() );
+  fprintf( stdout, "Tracks with events: %d\n\n", mlt->GetNumTracksWithEvents() );
+
   i.GoToTime( 0 );
 
   do
@@ -61,6 +109,81 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
   while ( i.GoToNextEvent() );
 }
 
+int LoadUsingTML(const char * def_midpath) {
+  //Venture (Original WIP) by Ximon
+	tml_message* g_MidiMessage = tml_load_filename(def_midpath);
+	if (!g_MidiMessage)
+	{
+		fprintf(stderr, "Could not load MIDI file: %s\n", def_midpath);
+		return 1;
+	}
+
+	//Set up the global MidiMessage pointer to the first MIDI message
+  for (; g_MidiMessage; g_MidiMessage = g_MidiMessage->next)
+  {
+    switch (g_MidiMessage->type)
+    {
+    default:
+      case TML_PROGRAM_CHANGE: //channel program (preset) change (special handling for 10th MIDI channel with drums)
+					printf( "evtm=%06d : Ch %2d PROG CHANGE    PG %3d\n", g_MidiMessage->time, g_MidiMessage->channel, g_MidiMessage->program);
+					break;
+    }
+  }
+
+  return 0;
+}
+
+int LoadUsingJDKSMIDI(const char * def_midpath) {
+  MIDIFileReadStreamFile rs( def_midpath );
+
+#if 0
+  {
+    MIDIFileShow shower( stdout, /* sqspecific_as_text */ true);
+    MIDIFileRead reader( &rs, &shower );
+    // load the midifile into the multitrack object
+    if ( !reader.Parse() )
+    {
+      cerr << "\nError parse file " << def_midpath << endl;
+      return -1;
+    }
+  }
+#else
+  {
+    MIDIMultiTrack tracks;
+    MIDIFileReadMultiTrack track_loader( &tracks );
+    MIDIFileRead reader( &rs, &track_loader );
+
+    // set amount of tracks equal to midifile
+    tracks.Clear(); //AndResize( reader.ReadNumTracks() );
+
+    // load the midifile into the multitrack object
+    if ( !reader.Parse() )
+    {
+      cerr << "\nError parse file " << def_midpath << endl;
+      return -1;
+    }
+
+    if ( tracks.GetNumTracksWithEvents() == 1 ) {//
+      fmt::println("all events in one track: format 0, separated them!");
+      // redistributes channel events in separate tracks
+      tracks.AssignEventsToTracks(0);
+    }
+
+    //      MIDISequencerGUIEventNotifierText notifier( stdout );
+    //      MIDISequencer seq( &tracks, &notifier );
+    MIDISequencer seq( &tracks );
+
+    DumpMIDIMultiTrack( &tracks );
+    //      cout << MultiTrackAsText( tracks ); // new util fun
+
+    double dt = seq.GetMusicDurationInSeconds();
+
+    printf("Music duration = %.3f", dt);
+  }
+#endif
+  return 0;
+}
+
 int main( int argc, char **argv )
 {
   const char *app_name = argv[0];
@@ -74,35 +197,7 @@ int main( int argc, char **argv )
 	//License: Creative Commons copyright waiver (CC0)
   const char * infile_name = argc >= 2 ? argv[1] : "ext/tsf/examples/venture.mid";
 
-  MIDIFileReadStreamFile rs( infile_name );
-  MIDIMultiTrack tracks;
-  MIDIFileReadMultiTrack track_loader( &tracks );
-
-  MIDIFileShow shower( stdout, /* sqspecific_as_text */ true);
-
-  MIDIFileRead reader( &rs, &shower );
-
-  // set amount of tracks equal to midifile
-  tracks.ClearAndResize( reader.ReadNumTracks() );
-
-  //      MIDISequencerGUIEventNotifierText notifier( stdout );
-  //      MIDISequencer seq( &tracks, &notifier );
-  MIDISequencer seq( &tracks );
-
-  // load the midifile into the multitrack object
-  if ( !reader.Parse() )
-  {
-    cerr << "\nError parse file " << infile_name << endl;
-    return -1;
-  }
-
-  DumpMIDIMultiTrack( &tracks );
-
-  //      cout << MultiTrackAsText( tracks ); // new util fun
-
-  double dt = seq.GetMisicDurationInSeconds();
-
-  cout << "\nMusic duration = " << dt << endl;
+  LoadUsingJDKSMIDI(infile_name);
 
   return 0;
 }

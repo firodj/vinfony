@@ -286,14 +286,14 @@ namespace vinfony {
 
       ImVec2 scrnpos = timeline_pos; // + ImVec2{(float)wt - ((int)ImGui::GetScrollX() % wt), 0.0f};
 
-      draw_list->AddLine({ timeline_pos.x, timeline_pos.y+h0/2}, ImVec2{scrnmax.x, timeline_pos.y+h0/2}, IM_COL32(255,128,0,255));
+      //draw_list->AddLine({ timeline_pos.x, timeline_pos.y+h0/2}, ImVec2{scrnmax.x, timeline_pos.y+h0/2}, IM_COL32(255,128,0,255));
       while (scrnpos.x < scrnmax.x) {
-        draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, scrnpos + ImVec2{0, h0}, IM_COL32(255,128,0,255));
+        draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, scrnpos + ImVec2{0, h0}, ImGui::GetColorU32(ImGuiCol_Border));
         if (t % 4 == 0) {
-          draw_list->AddLine(scrnpos, scrnpos + ImVec2(0, h0/2), IM_COL32(255,128,0,255));
+          draw_list->AddLine(scrnpos, scrnpos + ImVec2(0, h0/2), ImGui::GetColorU32(ImGuiCol_Border));
           char tmps[512];
-          ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", t);
-          draw_list->AddText(scrnpos, IM_COL32_BLACK, tmps);
+          ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (t/4));
+          draw_list->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
         }
         scrnpos.x += wt;
         t++;
@@ -302,12 +302,12 @@ namespace vinfony {
       // Cursor
       float cursor_x = wt * display->play_cursor;
       {
-        int cursor_wd = 8;
+        int cursor_wd = 10;
         if ((cursor_x - storage.scroll_x1) > wndsz.x/2) {
           storage.scroll_x1 = (cursor_x - wndsz.x/2);
         }
-        ImGui::SetCursorPos({ cursor_x - (cursor_wd/2), 0.0f});
-        ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0});
+        ImGui::SetCursorPos({ cursor_x - (cursor_wd/2), h0/2});
+        ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0/2});
         auto rcmin = ImGui::GetItemRectMin();
         auto rcmax = ImGui::GetItemRectMax();
         if (ImGui::IsItemHovered()) {
@@ -327,7 +327,7 @@ namespace vinfony {
           { rcmax.x, rcmin.y},
         };
 
-        draw_list->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), IM_COL32(128, 64, 0, 255));
+        draw_list->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
       }
 
       // Borders R-R

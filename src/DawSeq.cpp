@@ -87,6 +87,12 @@ namespace vinfony {
       return false;
     }
 
+    if ( m_impl->tracks->GetNumTracksWithEvents() == 1 ) {//
+      fmt::println("all events in one track: format 0, separated them!");
+      // redistributes channel events in separate tracks
+      m_impl->tracks->AssignEventsToTracks(0);
+    }
+
     m_impl->seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->tracks.get() );
     fmt::println("Clocks per beat = {}", m_impl->tracks->GetClksPerBeat());
     CalcDuration();
