@@ -115,7 +115,7 @@ void MainApp::ToolbarUI()
   }
 
   if (ImGui::ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
-    fmt::println("Rewind");
+    m_impl->sequencer.SetPlayClockTime(0);
   }
   ImGui::SameLine();
 	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {

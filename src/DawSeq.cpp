@@ -45,6 +45,7 @@ namespace vinfony {
     int last_tracks_id{0};
     std::vector<int> track_nums;
     BaseMidiOutDevice * audioDevice{};
+    jdksmidi::MIDIClockTime clk_play_start_time{0};
 
     DawSeq * self;
 
@@ -72,6 +73,14 @@ namespace vinfony {
     }
   }
 
+  void DawSeq::SetPlayClockTime(unsigned long clk_time) {
+    m_impl->clk_play_start_time = clk_time;
+    if (m_impl->midi_multi_tracks->GetClksPerBeat())
+      displayState.play_cursor = (float)clk_time/m_impl->midi_multi_tracks->GetClksPerBeat();
+    else
+      displayState.play_cursor = 0;
+  }
+
   bool DawSeq::IsFileLoaded() {
     if (m_impl->th_read_midi_file_done) {
       m_impl->th_read_midi_file_done = false;
@@ -82,7 +91,7 @@ namespace vinfony {
       m_impl->track_nums.clear();
       m_impl->tracks.clear();
       m_impl->last_tracks_id = 0;
-      displayState.play_cursor = 0;
+      SetPlayClockTime(0);
 
       for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
         auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
@@ -172,6 +181,7 @@ namespace vinfony {
     double ms_offset = now - m_impl->midi_seq->GetCurrentTimeInMs();
     double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->midi_multi_tracks->GetClksPerBeat() );
     time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
+    m_impl->clk_play_start_time = time;
 
     displayState.play_cursor = (float)time/m_impl->midi_multi_tracks->GetClksPerBeat();
   }
@@ -205,11 +215,9 @@ namespace vinfony {
     m_impl->th_play_midi_running = true;
 
     m_impl->th_play_midi = std::thread([this]() {
-      float pretend_clock_time = 0.0;
       float next_event_time = 0.0;
       jdksmidi::MIDITimedBigMessage msg;
       int ev_track;
-
 
       std::shared_ptr<void> _(nullptr, [&](...) {
         m_impl->th_play_midi_running = false;
@@ -217,7 +225,9 @@ namespace vinfony {
         m_impl->seqMessaging.push(SeqMsg::ThreadTerminate());
       });
 
-      m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
+      m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
+      //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
+      float pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
 
       if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) )
       {
@@ -226,7 +236,7 @@ namespace vinfony {
 
       // simulate a clock going forward with 10 ms resolution for 1 hour
       float max_time = 3600. * 1000.;
-      const auto start = SDL_GetTicks64();
+      const auto start = SDL_GetTicks64() - pretend_clock_time;
       for ( ; pretend_clock_time < max_time; pretend_clock_time = SDL_GetTicks64() - start)
       {
         CalcCurrentMIDITimeBeat(pretend_clock_time);
