@@ -23,4 +23,5 @@ public:
     static MainApp *GetInstance(/* dependency */);
 
     void Init() override;
+    void Clean() override;
 };

@@ -44,6 +44,7 @@ namespace vinfony {
     std::map<int, std::unique_ptr<DawTrack>> tracks;
     int last_tracks_id{0};
     std::vector<int> track_nums;
+    BaseMidiOutDevice * audioDevice{};
 
     DawSeq * self;
 
@@ -81,6 +82,7 @@ namespace vinfony {
       m_impl->track_nums.clear();
       m_impl->tracks.clear();
       m_impl->last_tracks_id = 0;
+      displayState.play_cursor = 0;
 
       for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
         auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
@@ -98,6 +100,8 @@ namespace vinfony {
 
         m_impl->AddNewTrack(track_name, m_impl->midi_multi_tracks->GetTrack(i));
       }
+
+
     }
 
     return m_impl->th_read_midi_file_running ? false : m_impl->midi_file_loaded;
@@ -206,14 +210,11 @@ namespace vinfony {
       jdksmidi::MIDITimedBigMessage msg;
       int ev_track;
 
-      auto dev = CreateTsfDev();
-      if (!dev->Init()) return;
 
       std::shared_ptr<void> _(nullptr, [&](...) {
         m_impl->th_play_midi_running = false;
         m_impl->request_stop_midi = false;
         m_impl->seqMessaging.push(SeqMsg::ThreadTerminate());
-        dev->Shutdown();
       });
 
       m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
@@ -249,7 +250,7 @@ namespace vinfony {
               fmt::println("TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
             } else {
 
-              if (!dev->HardwareMsgOut( msg )) return;
+              if (!m_impl->audioDevice->HardwareMsgOut( msg )) return;
 
             }
             // now find the next message
@@ -271,9 +272,9 @@ namespace vinfony {
 
       for (int chan=0; chan<16; ++chan) {
         msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
-        dev->HardwareMsgOut( msg );
+        m_impl->audioDevice->HardwareMsgOut( msg );
         msg.SetAllNotesOff( (unsigned char)chan );
-        dev->HardwareMsgOut( msg );
+        m_impl->audioDevice->HardwareMsgOut( msg );
       }
 
     });
@@ -307,6 +308,10 @@ namespace vinfony {
     track_nums.push_back(track->id);
 
     return track->id;
+  }
+
+  void DawSeq::SetDevice(BaseMidiOutDevice * dev) {
+    m_impl->audioDevice = dev;
   }
 
 }

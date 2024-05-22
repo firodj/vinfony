@@ -16,12 +16,14 @@
 #include "kosongg/Component.h"
 #include <fmt/core.h>
 #include "circularfifo1.h"
+#include "TsfDev.hpp"
 
 static std::unique_ptr<MainApp> g_mainapp;
 
 static std::mutex g_mtxMainapp;
 struct MainApp::Impl {
   vinfony::DawSeq sequencer;
+  std::unique_ptr<vinfony::BaseMidiOutDevice> audiodevice;
   float toolbarSize{50};
   float menuBarHeight{0};
 };
@@ -37,7 +39,7 @@ MainApp *MainApp::GetInstance(/* dependency */) {
 
 MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
   m_impl = std::make_unique<Impl>();
-  m_windowTitle = "vinfony";
+  m_windowTitle = "Vinfony";
   m_showDemoWindow = false;
 }
 
@@ -216,6 +218,17 @@ void MainApp::Init() {
   // ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
+  m_impl->audiodevice = vinfony::CreateTsfDev();
+  if (!m_impl->audiodevice->Init()) {
+    fmt::println("Error init audio device");
+    return;
+  }
+  m_impl->sequencer.SetDevice( m_impl->audiodevice.get() );
+}
+
+void MainApp::Clean() {
+  EngineBase::Clean();
+  if (m_impl->audiodevice) m_impl->audiodevice->Shutdown();
 }
 
 void MainApp::ReadIniConfig() {

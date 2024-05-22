@@ -51,6 +51,7 @@ set(SOURCE
   src/MainApp.cpp
   src/DawMain.cpp
   src/DawSeq.cpp
+  src/BaseMidiOut.cpp
   src/TsfDev.cpp
 ## -- endsources --
 )
@@ -63,6 +64,7 @@ set(HEADERS
   src/MainApp.hpp
   src/DawMain.hpp
   src/DawSeq.hpp
+  src/BaseMidiOut.hpp
   src/TsfDev.hpp
 ## -- endheaders --
 )

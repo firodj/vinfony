@@ -12,6 +12,8 @@ namespace jdksmidi {
 };
 
 namespace vinfony {
+  class BaseMidiOutDevice;
+
   struct DawTrack {
     int id;
     std::string name;
@@ -51,5 +53,7 @@ namespace vinfony {
     int GetNumTracks();
 
     DawDisplayState displayState;
+
+    void SetDevice(BaseMidiOutDevice *dev);
   };
 };

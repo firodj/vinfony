@@ -294,10 +294,39 @@ namespace vinfony {
       // Cursor
       float cursor_x = wt * seq->displayState.play_cursor;
       {
-        int cursor_wd = 10;
-        if ((cursor_x - storage.scroll_x1) > wndsz.x/2) {
-          storage.scroll_x1 = (cursor_x - wndsz.x/2);
+        const int cursor_wd = 10; // TODO: moving to syling
+static int scroll_animate = 0;
+static float scroll_target = 0;
+#if 0
+        // Follow Cursor
+        if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
+          storage.scroll_x1 = (cursor_x - (wndsz.x*1/4)) - 4;
+        } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
+          storage.scroll_x1 = 4 + (cursor_x - (wndsz.x*1/4));
         }
+#else
+        // Follow Cursor with Animation
+        if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
+          scroll_animate = 10;
+          scroll_target = (cursor_x - (wndsz.x*1/4)) - 4;
+          if (scroll_target < 0) scroll_target = 0;
+        } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
+          scroll_animate = 10;
+          scroll_target = 4 + (cursor_x - (wndsz.x*1/4));
+        }
+
+        if (scroll_animate == 1) {
+          scroll_animate = 0;
+          storage.scroll_x1 = scroll_target;
+        } else if (scroll_animate > 1) {
+          scroll_animate--;
+          float direction = scroll_target - storage.scroll_x1;
+          if (direction <= -1.0 || direction >= 1.0) {
+            storage.scroll_x1 += direction*0.5;
+          }
+        }
+#endif
+        // Draw
         ImGui::SetCursorPos({ cursor_x - (cursor_wd/2), h0/2});
         ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0/2});
         auto rcmin = ImGui::GetItemRectMin();
