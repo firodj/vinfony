@@ -23,9 +23,15 @@ struct nothrow_map : std::map<K, V> {
   nothrow_map(nothrow_map&& other) noexcept : std::map<K, V>(std::move(other)) {}
 };
 
-
 namespace vinfony {
   const int SplitterThickness = 8;
+
+  struct DawUIStyle {
+    int cursorWd     = 10;
+    int beatWd       = 40;
+    int leftPadding  = 40;
+    int rightPadding = 40;
+  };
 
   struct DawMainStorage {
     float scroll_y = 0.0f;
@@ -35,9 +41,13 @@ namespace vinfony {
     int last_props_id = 0;
     int scroll_animate = 0;
     float scroll_target = 0;
+    bool is_cursor_dragging = false;
+    float dragging_cursor_x = 0;
 
     nothrow_map<int, std::unique_ptr<DawProp>> props;
     std::vector<int> prop_nums;
+
+    DawUIStyle uiStyle;
   };
 
   std::vector<DawMainStorage> g_storages;
@@ -246,7 +256,6 @@ namespace vinfony {
 
     ImGui::SameLine(0, 0);
 
-    int wt = 40;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
     ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
@@ -261,7 +270,7 @@ namespace vinfony {
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
-      float far_x = wt + (seq->displayState.play_duration * wt) + wt; // TODO: styleing padding
+      float far_x = storage.uiStyle.leftPadding + (seq->displayState.play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding;
       ImGui::SetCursorPos({far_x, 0});
       ImGui::Dummy(ImVec2{1,1});
 
@@ -280,8 +289,8 @@ namespace vinfony {
       // Timeline
       int t = 0;
 
-      ImVec2 scrnpos = timeline_pos; // + ImVec2{(float)wt - ((int)ImGui::GetScrollX() % wt), 0.0f};
-      scrnpos.x += wt; // TODO: padding-left
+      ImVec2 scrnpos = timeline_pos;
+      scrnpos.x += storage.uiStyle.leftPadding;
 
       //draw_list->AddLine({ timeline_pos.x, timeline_pos.y+h0/2}, ImVec2{scrnmax.x, timeline_pos.y+h0/2}, IM_COL32(255,128,0,255));
       while (scrnpos.x < scrnmax.x) {
@@ -292,27 +301,18 @@ namespace vinfony {
           ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (t/4));
           draw_list->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
         }
-        scrnpos.x += wt;
+        scrnpos.x += storage.uiStyle.beatWd;
         t++;
       }
 
       // Cursor
-static bool is_cursor_dragging = false;  // TODO: move to storage
-static float dragging_cursor_x = 0;
 
-      float cursor_x = is_cursor_dragging ? dragging_cursor_x : wt * seq->displayState.play_cursor;
+
+      float cursor_x = storage.is_cursor_dragging ?
+        storage.dragging_cursor_x :
+        storage.uiStyle.beatWd * seq->displayState.play_cursor;
 
       {
-        const int cursor_wd = 10; // TODO: moving to syling
-#if 0
-        // Follow Cursor
-        if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
-          storage.scroll_x1 = (cursor_x - (wndsz.x*1/4)) - 4;
-        } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
-          storage.scroll_x1 = 4 + (cursor_x - (wndsz.x*1/4));
-        }
-#else
-        // Follow Cursor with Animation
         if (seq->IsPlaying()) {
           if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
             storage.scroll_animate = 10;
@@ -335,43 +335,43 @@ static float dragging_cursor_x = 0;
             storage.scroll_x1 += direction*0.5;
           }
         }
-#endif
+
         // Draw
-        ImGui::SetCursorPos({ wt + cursor_x - (cursor_wd/2), h0/2}); // TODO: styling left-padding
-        ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0/2});
+        ImGui::SetCursorPos({ storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
+        ImGui::InvisibleButton("cursor", ImVec2{(float)storage.uiStyle.cursorWd, h0/2});
         auto rcmin = ImGui::GetItemRectMin();
         auto rcmax = ImGui::GetItemRectMax();
         if (ImGui::IsItemHovered()) {
           ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-          // color_border = color_hover;
         }
         if(ImGui::IsItemActive()) {
           if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-            if (!is_cursor_dragging) dragging_cursor_x = cursor_x;
-            dragging_cursor_x = ImClamp(dragging_cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, seq->displayState.play_duration * wt);
-            // color_border = color_active;
-            is_cursor_dragging = true;
+            if (!storage.is_cursor_dragging)
+              storage.dragging_cursor_x = cursor_x;
+            storage.dragging_cursor_x =
+              ImClamp(storage.dragging_cursor_x + ImGui::GetIO().MouseDelta.x,
+                0.0f,
+                seq->displayState.play_duration * storage.uiStyle.beatWd);
+            storage.is_cursor_dragging = true;
           }
         }
         if (ImGui::IsItemDeactivated()) {
-          if (is_cursor_dragging) {
-            is_cursor_dragging = false;
-            //float cursor_x = wt * seq->displayState.play_cursor;
-            seq->SetMIDITimeBeat(dragging_cursor_x / wt);
+          if (storage.is_cursor_dragging) {
+            storage.is_cursor_dragging = false;
+            seq->SetMIDITimeBeat(storage.dragging_cursor_x / storage.uiStyle.beatWd);
           }
-          //
         }
 
         ImVec2 points[] = {
           { rcmin.x, rcmin.y},
-          { rcmin.x, rcmax.y - (cursor_wd/2)},
-          { rcmin.x + (cursor_wd/2), rcmax.y},
-          { rcmax.x, rcmax.y - (cursor_wd/2)},
+          { rcmin.x, rcmax.y - (storage.uiStyle.cursorWd/2)},
+          { rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y},
+          { rcmax.x, rcmax.y - (storage.uiStyle.cursorWd/2)},
           { rcmax.x, rcmin.y},
         };
 
         draw_list->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
-        draw_list->AddLine({ rcmin.x + (cursor_wd/2), rcmax.y}, { rcmin.x + (cursor_wd/2), rcmax.y + tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
+        draw_list->AddLine({ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y}, { rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y + tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
       }
 
       // Contents and Borders R-R
@@ -383,7 +383,7 @@ static float dragging_cursor_x = 0;
 
           ImGui::PushID(r);
           pos_y += track->h;
-          HSplitter({pos_x, pos_y}, seq->displayState.play_duration*wt, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
+          HSplitter({pos_x, pos_y}, seq->displayState.play_duration * storage.uiStyle.beatWd, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
           ImGui::PopID();
           pos_y += 8;
         }
@@ -393,8 +393,8 @@ static float dragging_cursor_x = 0;
       draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
       ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
       ImGui::Text("cursor_x = %.1f, drag = %.1f | scroll_x = %.1f max_x = %.1f | dragging = %d",
-        cursor_x, dragging_cursor_x,
-         storage.scroll_x1, scroll_max_x1, is_cursor_dragging);
+        cursor_x, storage.dragging_cursor_x,
+         storage.scroll_x1, scroll_max_x1, storage.is_cursor_dragging);
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
