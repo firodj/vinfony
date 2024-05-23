@@ -261,7 +261,8 @@ namespace vinfony {
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
-      ImGui::SetCursorPos({seq->displayState.play_duration * wt, 0});
+      float far_x = wt + (seq->displayState.play_duration * wt) + wt; // TODO: styleing padding
+      ImGui::SetCursorPos({far_x, 0});
       ImGui::Dummy(ImVec2{1,1});
 
       ImGui::SetCursorPos(xy0);
@@ -280,6 +281,7 @@ namespace vinfony {
       int t = 0;
 
       ImVec2 scrnpos = timeline_pos; // + ImVec2{(float)wt - ((int)ImGui::GetScrollX() % wt), 0.0f};
+      scrnpos.x += wt; // TODO: padding-left
 
       //draw_list->AddLine({ timeline_pos.x, timeline_pos.y+h0/2}, ImVec2{scrnmax.x, timeline_pos.y+h0/2}, IM_COL32(255,128,0,255));
       while (scrnpos.x < scrnmax.x) {
@@ -295,7 +297,11 @@ namespace vinfony {
       }
 
       // Cursor
-      float cursor_x = wt * seq->displayState.play_cursor;
+static bool is_cursor_dragging = false;  // TODO: move to storage
+static float dragging_cursor_x = 0;
+
+      float cursor_x = is_cursor_dragging ? dragging_cursor_x : wt * seq->displayState.play_cursor;
+
       {
         const int cursor_wd = 10; // TODO: moving to syling
 #if 0
@@ -331,7 +337,7 @@ namespace vinfony {
         }
 #endif
         // Draw
-        ImGui::SetCursorPos({ cursor_x - (cursor_wd/2), h0/2});
+        ImGui::SetCursorPos({ wt + cursor_x - (cursor_wd/2), h0/2}); // TODO: styling left-padding
         ImGui::InvisibleButton("cursor", ImVec2{(float)cursor_wd, h0/2});
         auto rcmin = ImGui::GetItemRectMin();
         auto rcmax = ImGui::GetItemRectMax();
@@ -339,9 +345,21 @@ namespace vinfony {
           ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
           // color_border = color_hover;
         }
-        if(ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-          cursor_x = ImClamp(cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, seq->displayState.play_duration *  wt);
-          // color_border = color_active;
+        if(ImGui::IsItemActive()) {
+          if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+            if (!is_cursor_dragging) dragging_cursor_x = cursor_x;
+            dragging_cursor_x = ImClamp(dragging_cursor_x + ImGui::GetIO().MouseDelta.x, 0.0f, seq->displayState.play_duration * wt);
+            // color_border = color_active;
+            is_cursor_dragging = true;
+          }
+        }
+        if (ImGui::IsItemDeactivated()) {
+          if (is_cursor_dragging) {
+            is_cursor_dragging = false;
+            //float cursor_x = wt * seq->displayState.play_cursor;
+            seq->SetMIDITimeBeat(dragging_cursor_x / wt);
+          }
+          //
         }
 
         ImVec2 points[] = {
@@ -374,7 +392,9 @@ namespace vinfony {
       auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
       draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
       ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
-      ImGui::Text("cursor_x = %.1f | scroll_x = %.1f max_x = %.1f | wndsz.x = %.1f", cursor_x, storage.scroll_x1, scroll_max_x1, wndsz.x);
+      ImGui::Text("cursor_x = %.1f, drag = %.1f | scroll_x = %.1f max_x = %.1f | dragging = %d",
+        cursor_x, dragging_cursor_x,
+         storage.scroll_x1, scroll_max_x1, is_cursor_dragging);
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();

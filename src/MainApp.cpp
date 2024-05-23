@@ -115,7 +115,7 @@ void MainApp::ToolbarUI()
   }
 
   if (ImGui::ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
-    m_impl->sequencer.SetPlayClockTime(0);
+    m_impl->sequencer.SetMIDITimeBeat(0);
   }
   ImGui::SameLine();
 	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {
@@ -138,8 +138,8 @@ void MainApp::RunImGui() {
   ImColor clearColor(m_clearColor);
   m_impl->sequencer.ProcessMessage([&](vinfony::SeqMsg &msg) -> bool {
     switch ( msg.type ) {
-      case 1: // ThreadTerminate
-        m_impl->sequencer.StopMIDI();
+      case vinfony::IsAsyncPlayMIDITerminated: // ThreadTerminate
+        m_impl->sequencer.AsyncPlayMIDIStopped();
         fmt::println("message: ThreadTerminate");
         break;
       default:

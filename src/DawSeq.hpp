@@ -21,11 +21,14 @@ namespace vinfony {
     jdksmidi::MIDITrack * midi_track;
   };
 
+  enum {
+    IsAsyncPlayMIDITerminated = 1,
+  };
   struct SeqMsg {
     int type{};
 
-    static SeqMsg ThreadTerminate() {
-      return SeqMsg{1};
+    static SeqMsg OnAsyncPlayMIDITerminated() {
+      return SeqMsg{IsAsyncPlayMIDITerminated};
     }
   };
 
@@ -44,9 +47,11 @@ namespace vinfony {
     void AsyncReadMIDIFile(std::string filename);
     bool IsFileLoaded();
     void AsyncPlayMIDI();
+    void AsyncPlayMIDIStopped();
     void StopMIDI();
     void CloseMIDIFile();
-    void CalcCurrentMIDITimeBeat(uint64_t now);
+    void CalcCurrentMIDITimeBeat(uint64_t now_ms);
+    void SetMIDITimeBeat(float time_beat);
     void ProcessMessage(std::function<bool(SeqMsg&)> proc);
     void CalcDuration();
     DawTrack * GetTrack(int track_num);

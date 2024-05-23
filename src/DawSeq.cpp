@@ -109,8 +109,6 @@ namespace vinfony {
 
         m_impl->AddNewTrack(track_name, m_impl->midi_multi_tracks->GetTrack(i));
       }
-
-
     }
 
     return m_impl->th_read_midi_file_running ? false : m_impl->midi_file_loaded;
@@ -175,15 +173,23 @@ namespace vinfony {
   }
 
   // from: AdvancedSequencer::GetCurrentMIDIClockTime
-  void DawSeq::CalcCurrentMIDITimeBeat(uint64_t now)
+  void DawSeq::CalcCurrentMIDITimeBeat(uint64_t now_ms)
   {
     jdksmidi::MIDIClockTime time = m_impl->midi_seq->GetCurrentMIDIClockTime();
-    double ms_offset = now - m_impl->midi_seq->GetCurrentTimeInMs();
+    double ms_offset = now_ms - m_impl->midi_seq->GetCurrentTimeInMs();
     double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->midi_multi_tracks->GetClksPerBeat() );
     time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
     m_impl->clk_play_start_time = time;
 
     displayState.play_cursor = (float)time/m_impl->midi_multi_tracks->GetClksPerBeat();
+  }
+
+  void DawSeq::SetMIDITimeBeat(float time_beat) {
+    bool playing_before = IsPlaying();
+    if (playing_before) StopMIDI();
+
+    // TODO:
+    SetPlayClockTime( time_beat * m_impl->midi_multi_tracks->GetClksPerBeat() );
   }
 
   void DawSeq::CloseMIDIFile() {
@@ -209,6 +215,14 @@ namespace vinfony {
     }, filename);
   }
 
+  // AsyncPlayMIDIStopped being calledd by OnAsyncPlayMIDITerminated
+  void DawSeq::AsyncPlayMIDIStopped() {
+    if (m_impl->th_play_midi.joinable()) {
+      m_impl->th_play_midi.join();
+      fmt::println("DEBUG: AsyncPlayMIDIStopped done joinded.");
+    }
+  }
+
   void DawSeq::AsyncPlayMIDI() {
     if (m_impl->th_play_midi_running) return;
 
@@ -222,15 +236,16 @@ namespace vinfony {
       std::shared_ptr<void> _(nullptr, [&](...) {
         m_impl->th_play_midi_running = false;
         m_impl->request_stop_midi = false;
-        m_impl->seqMessaging.push(SeqMsg::ThreadTerminate());
+        fmt::println("DEBUG: defer and push OnAsyncPlayMIDITerminated");
+        m_impl->seqMessaging.push(SeqMsg::OnAsyncPlayMIDITerminated());
       });
 
       m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
       //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
       float pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
 
-      if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) )
-      {
+      if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
+        fmt::println("DEBUG: empty next event");
         return;
       }
 
@@ -257,18 +272,18 @@ namespace vinfony {
 
               memcpy( track_name, msg.GetSysEx()->GetBuf(), len );
               track_name[len] = '\0';
-              fmt::println("TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
+              // fmt::println("DEBUG: TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
             } else {
-
-              if (!m_impl->audioDevice->HardwareMsgOut( msg )) return;
-
+              if (!m_impl->audioDevice->HardwareMsgOut( msg )) {
+                fmt::println("DEBUG: fail HardwareMsgOut");
+                return;
+              }
             }
             // now find the next message
 
-            if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) )
-            {
+            if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
               // no events left so end
-              printf( "End\n" );
+              fmt::println( "End" );
               m_impl->request_stop_midi =  true;
               break;
             }
@@ -277,8 +292,13 @@ namespace vinfony {
 
         // 10ms when using namespace std::chrono_literals;
         SDL_Delay(10);
-        if (m_impl->request_stop_midi) break;
+        if (m_impl->request_stop_midi) {
+          fmt::println("DEBUG: reqested to  stop MIDI");
+          break;
+        }
       }
+
+      fmt::println("DEBUG: --exit play loop");
 
       for (int chan=0; chan<16; ++chan) {
         msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
@@ -286,16 +306,12 @@ namespace vinfony {
         msg.SetAllNotesOff( (unsigned char)chan );
         m_impl->audioDevice->HardwareMsgOut( msg );
       }
-
     });
   }
 
   void DawSeq::StopMIDI() {
     if (m_impl->th_play_midi_running) {
       m_impl->request_stop_midi = true;
-    }
-    if (m_impl->th_play_midi.joinable()) {
-      m_impl->th_play_midi.join();
     }
   }
 
