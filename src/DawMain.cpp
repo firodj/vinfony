@@ -33,6 +33,8 @@ namespace vinfony {
     float scroll_x1 = 0.0f;
 
     int last_props_id = 0;
+    int scroll_animate = 0;
+    float scroll_target = 0;
 
     nothrow_map<int, std::unique_ptr<DawProp>> props;
     std::vector<int> prop_nums;
@@ -252,6 +254,7 @@ namespace vinfony {
     if (ImGui::BeginChild("child_2", {0, 0}, true, ImGuiWindowFlags_HorizontalScrollbar)) {
       storage.scroll_x1 = ImGui::GetScrollX();
       storage.scroll_y = ImGui::GetScrollY();
+      float scroll_max_x1 = ImGui::GetScrollMaxX();
 
       auto draw_list = ImGui::GetWindowDrawList();
       auto timeline_pos = ImGui::GetCursorScreenPos();
@@ -295,8 +298,6 @@ namespace vinfony {
       float cursor_x = wt * seq->displayState.play_cursor;
       {
         const int cursor_wd = 10; // TODO: moving to syling
-static int scroll_animate = 0;
-static float scroll_target = 0;
 #if 0
         // Follow Cursor
         if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
@@ -306,21 +307,24 @@ static float scroll_target = 0;
         }
 #else
         // Follow Cursor with Animation
-        if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
-          scroll_animate = 10;
-          scroll_target = (cursor_x - (wndsz.x*1/4)) - 4;
-          if (scroll_target < 0) scroll_target = 0;
-        } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
-          scroll_animate = 10;
-          scroll_target = 4 + (cursor_x - (wndsz.x*1/4));
+        if (seq->IsPlaying()) {
+          if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
+            storage.scroll_animate = 10;
+            storage.scroll_target = (cursor_x - (wndsz.x*1/4)) - 4;
+            if (storage.scroll_target < 0) storage.scroll_target = 0;
+          } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
+            storage.scroll_animate = 10;
+            storage.scroll_target = 4 + (cursor_x - (wndsz.x*1/4));
+            if (storage.scroll_target > scroll_max_x1) storage.scroll_target = scroll_max_x1;
+          }
         }
 
-        if (scroll_animate == 1) {
-          scroll_animate = 0;
-          storage.scroll_x1 = scroll_target;
-        } else if (scroll_animate > 1) {
-          scroll_animate--;
-          float direction = scroll_target - storage.scroll_x1;
+        if (storage.scroll_animate == 1) {
+          storage.scroll_animate = 0;
+          storage.scroll_x1 = storage.scroll_target;
+        } else if (storage.scroll_animate > 1) {
+          storage.scroll_animate--;
+          float direction = storage.scroll_target - storage.scroll_x1;
           if (direction <= -1.0 || direction >= 1.0) {
             storage.scroll_x1 += direction*0.5;
           }
@@ -370,7 +374,7 @@ static float scroll_target = 0;
       auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
       draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
       ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
-      ImGui::Text("cursor_x = %.1f | scroll_x = %.1f | wndsz.x = %.1f", cursor_x, storage.scroll_x1, wndsz.x);
+      ImGui::Text("cursor_x = %.1f | scroll_x = %.1f max_x = %.1f | wndsz.x = %.1f", cursor_x, storage.scroll_x1, scroll_max_x1, wndsz.x);
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();

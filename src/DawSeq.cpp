@@ -299,6 +299,10 @@ namespace vinfony {
     }
   }
 
+  bool DawSeq::IsPlaying() {
+    return m_impl->th_play_midi_running;
+  }
+
   DawTrack * DawSeq::GetTrack(int track_num) {
     const int track_id = m_impl->track_nums[track_num];
     return m_impl->tracks[track_id].get();

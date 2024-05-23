@@ -52,6 +52,7 @@ namespace vinfony {
     DawTrack * GetTrack(int track_num);
     int GetNumTracks();
     void SetPlayClockTime(unsigned long clk_time);
+    bool IsPlaying();
 
     DawDisplayState displayState;
 
