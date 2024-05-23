@@ -61,6 +61,7 @@ namespace vinfony {
     if (m_impl->th_read_midi_file.joinable())
         m_impl->th_read_midi_file.join();
     StopMIDI();
+    AsyncPlayMIDIStopped();
   }
 
   void DawSeq::ProcessMessage(std::function<bool(SeqMsg&)> proc) {
@@ -185,10 +186,6 @@ namespace vinfony {
   }
 
   void DawSeq::SetMIDITimeBeat(float time_beat) {
-    bool playing_before = IsPlaying();
-    if (playing_before) StopMIDI();
-
-    // TODO:
     SetPlayClockTime( time_beat * m_impl->midi_multi_tracks->GetClksPerBeat() );
   }
 
