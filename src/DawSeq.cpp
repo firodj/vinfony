@@ -46,6 +46,7 @@ namespace vinfony {
     std::vector<int> track_nums;
     BaseMidiOutDevice * audioDevice{};
     jdksmidi::MIDIClockTime clk_play_start_time{0};
+    bool read_clk_play_start{true};
 
     DawSeq * self;
 
@@ -76,10 +77,13 @@ namespace vinfony {
 
   void DawSeq::SetPlayClockTime(unsigned long clk_time) {
     m_impl->clk_play_start_time = clk_time;
+
     if (m_impl->midi_multi_tracks->GetClksPerBeat())
       displayState.play_cursor = (float)clk_time/m_impl->midi_multi_tracks->GetClksPerBeat();
     else
       displayState.play_cursor = 0;
+
+    m_impl->read_clk_play_start =  true;
   }
 
   bool DawSeq::IsFileLoaded() {
@@ -216,7 +220,16 @@ namespace vinfony {
   void DawSeq::AsyncPlayMIDIStopped() {
     if (m_impl->th_play_midi.joinable()) {
       m_impl->th_play_midi.join();
-      fmt::println("DEBUG: AsyncPlayMIDIStopped done joinded.");
+    }
+  }
+
+  void DawSeq::AllMIDINoteOff() {
+    jdksmidi::MIDITimedBigMessage msg;
+    for (int chan=0; chan<16; ++chan) {
+      msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
+      m_impl->audioDevice->HardwareMsgOut( msg );
+      msg.SetAllNotesOff( (unsigned char)chan );
+      m_impl->audioDevice->HardwareMsgOut( msg );
     }
   }
 
@@ -224,33 +237,43 @@ namespace vinfony {
     if (m_impl->th_play_midi_running) return;
 
     m_impl->th_play_midi_running = true;
+    m_impl->read_clk_play_start = true;
 
     m_impl->th_play_midi = std::thread([this]() {
-      float next_event_time = 0.0;
+      float next_event_time;
       jdksmidi::MIDITimedBigMessage msg;
       int ev_track;
 
       std::shared_ptr<void> _(nullptr, [&](...) {
         m_impl->th_play_midi_running = false;
         m_impl->request_stop_midi = false;
-        fmt::println("DEBUG: defer and push OnAsyncPlayMIDITerminated");
         m_impl->seqMessaging.push(SeqMsg::OnAsyncPlayMIDITerminated());
       });
 
-      m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
-      //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
-      float pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
-
-      if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
-        fmt::println("DEBUG: empty next event");
-        return;
-      }
-
+      float pretend_clock_time = 0;
       // simulate a clock going forward with 10 ms resolution for 1 hour
-      float max_time = 3600. * 1000.;
-      const auto start = SDL_GetTicks64() - pretend_clock_time;
+      const float max_time = 3600. * 1000.;
+      float start = SDL_GetTicks64();
+
       for ( ; pretend_clock_time < max_time; pretend_clock_time = SDL_GetTicks64() - start)
       {
+        if (m_impl->read_clk_play_start) {
+          AllMIDINoteOff();
+
+          m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
+          //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
+          pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
+
+          if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
+            fmt::println("DEBUG: empty next event, stop!");
+            return;
+          }
+
+          // simulate a clock going forward with 10 ms resolution for 1 hour
+          start = SDL_GetTicks64() - pretend_clock_time;
+
+          m_impl->read_clk_play_start = false;
+        }
         CalcCurrentMIDITimeBeat(pretend_clock_time);
 
         // find all events that came before or a the current time
@@ -272,7 +295,6 @@ namespace vinfony {
               // fmt::println("DEBUG: TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
             } else {
               if (!m_impl->audioDevice->HardwareMsgOut( msg )) {
-                fmt::println("DEBUG: fail HardwareMsgOut");
                 return;
               }
             }
@@ -290,19 +312,11 @@ namespace vinfony {
         // 10ms when using namespace std::chrono_literals;
         SDL_Delay(10);
         if (m_impl->request_stop_midi) {
-          fmt::println("DEBUG: reqested to  stop MIDI");
           break;
         }
       }
 
-      fmt::println("DEBUG: --exit play loop");
-
-      for (int chan=0; chan<16; ++chan) {
-        msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
-        m_impl->audioDevice->HardwareMsgOut( msg );
-        msg.SetAllNotesOff( (unsigned char)chan );
-        m_impl->audioDevice->HardwareMsgOut( msg );
-      }
+      AllMIDINoteOff();
     });
   }
 
