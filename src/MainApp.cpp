@@ -15,6 +15,7 @@
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"
 #include <fmt/core.h>
+#include <regex>
 #include "circularfifo1.h"
 #include "TsfDev.hpp"
 
@@ -233,6 +234,9 @@ void MainApp::Clean() {
 }
 
 void MainApp::ReadIniConfig() {
+  // Default Config
+  m_impl->soundfontPath = "./data/Arachno SoundFont - Version 1.0.sf2";
+
   const char * homepath = nullptr;
 #ifdef _WIN32
   homepath = std::getenv("USERPROFILE");
@@ -253,6 +257,8 @@ void MainApp::ReadIniConfig() {
   std::set<std::string> sections = reader.Sections();
   for (std::set<std::string>::iterator it = sections.begin(); it != sections.end(); ++it)
     std::cout << "Section:" << *it << std::endl;
-  m_impl->soundfontPath = reader.Get("", "SOUNDFONT", "./data/Arachno SoundFont - Version 1.0.sf2");
+
+  m_impl->soundfontPath = std::regex_replace(reader.Get("", "SOUNDFONT", m_impl->soundfontPath), std::regex("^~"), homepath);
+
   std::cout << "SOUNDFONT=" << m_impl->soundfontPath << std::endl;
 }
