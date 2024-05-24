@@ -37,8 +37,13 @@ protected:
   CircularFifo<TinyMIDIMessage, 8> buffer;
   Uint64 startingTicks{};
   Uint64 processingSamples{};
+  std::string m_soundfontPath;
 
 public:
+  TinySoundFontDevice(std::string soundfontPath):
+    m_soundfontPath(soundfontPath) {
+  }
+
   bool Init() override {
     // Define the desired audio output format we request
     OutputAudioSpec.freq = 44100;
@@ -49,20 +54,10 @@ public:
     OutputAudioSpec.callback = TinySoundFontAudioCallback;
 
     // Load the SoundFont from a file
-    const char * def_sfpath;
-    const char * homepath;
-#ifdef _WIN32
-    homepath = std::getenv("USERPROFILE");
-    def_sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
-#else
-    homepath = std::getenv("HOME");
-    std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
-    def_sfpath = sfpathstr.c_str();
-#endif
-    g_TinySoundFont = tsf_load_filename(def_sfpath);
+    g_TinySoundFont = tsf_load_filename(m_soundfontPath.c_str());
     if (!g_TinySoundFont)
     {
-      fprintf(stderr, "Could not load SoundFont: %s\n", def_sfpath);
+      fprintf(stderr, "Could not load SoundFont: %s\n", m_soundfontPath.c_str());
       return false;
     }
 
@@ -183,8 +178,8 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
   return true;
 }
 
-std::unique_ptr<BaseMidiOutDevice> CreateTsfDev() {
-  return std::make_unique<TinySoundFontDevice>();
+std::unique_ptr<BaseMidiOutDevice> CreateTsfDev(std::string soundfontPath) {
+  return std::make_unique<TinySoundFontDevice>(soundfontPath);
 }
 
 }

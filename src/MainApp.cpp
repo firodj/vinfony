@@ -26,6 +26,7 @@ struct MainApp::Impl {
   std::unique_ptr<vinfony::BaseMidiOutDevice> audiodevice;
   float toolbarSize{50};
   float menuBarHeight{0};
+  std::string soundfontPath;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -218,7 +219,7 @@ void MainApp::Init() {
   // ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
-  m_impl->audiodevice = vinfony::CreateTsfDev();
+  m_impl->audiodevice = vinfony::CreateTsfDev(m_impl->soundfontPath);
   if (!m_impl->audiodevice->Init()) {
     fmt::println("Error init audio device");
     return;
@@ -252,4 +253,6 @@ void MainApp::ReadIniConfig() {
   std::set<std::string> sections = reader.Sections();
   for (std::set<std::string>::iterator it = sections.begin(); it != sections.end(); ++it)
     std::cout << "Section:" << *it << std::endl;
+  m_impl->soundfontPath = reader.Get("", "SOUNDFONT", "./data/Arachno SoundFont - Version 1.0.sf2");
+  std::cout << "SOUNDFONT=" << m_impl->soundfontPath << std::endl;
 }
