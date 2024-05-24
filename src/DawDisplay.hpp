@@ -8,5 +8,6 @@ namespace vinfony {
     float play_cursor{};
     float duration_ms{};
     float play_duration{};
+    int ppqn{24}; // default to midi time clock
   };
 };

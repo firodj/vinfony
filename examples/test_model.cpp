@@ -29,11 +29,11 @@ static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
     // see MIDISequencer::beat_marker_msg.SetBeatMarker()
     if ( msg->IsBeatMarker() )
     {
-      fprintf( stdout, "%8ld : %s <------------------>", msg->GetTime(), msg->MsgToText( msgbuf ) );
+      fprintf( stdout, "%8ld : %s <------------------>", msg->GetTime(), msg->MsgToText( msgbuf, 1024 ) );
     }
     else
     {
-      fprintf( stdout, "%8ld : %s", msg->GetTime(), msg->MsgToText( msgbuf ) );
+      fprintf( stdout, "%8ld : %s", msg->GetTime(), msg->MsgToText( msgbuf, 1024 ) );
     }
 
     if ( msg->IsSystemExclusive() )
@@ -104,6 +104,7 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
         if (msg->IsTrackName()) {
           fmt::println(msg->GetSysExString());
         }
+        fmt::println("time: {}", msg->GetTime());
       }
   }
 #if 0

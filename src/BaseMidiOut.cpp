@@ -19,7 +19,7 @@ void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg )
     }
     else
     {
-      fprintf( stdout, "%8ld : %s", msg->GetTime(), msg->MsgToText( msgbuf ) );
+      fprintf( stdout, "%8ld : %s", msg->GetTime(), msg->MsgToText( msgbuf, 1024 ) );
     }
 
     if ( msg->IsSystemExclusive() )

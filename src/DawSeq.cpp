@@ -98,6 +98,8 @@ namespace vinfony {
       m_impl->last_tracks_id = 0;
       SetPlayClockTime(0);
 
+      displayState.ppqn = m_impl->midi_multi_tracks->GetClksPerBeat();
+
       for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
         auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
         if (midi_track->IsTrackEmpty()) continue;
@@ -112,7 +114,7 @@ namespace vinfony {
           }
         }
 
-        m_impl->AddNewTrack(track_name, m_impl->midi_multi_tracks->GetTrack(i));
+        m_impl->AddNewTrack(track_name, midi_track);
       }
     }
 

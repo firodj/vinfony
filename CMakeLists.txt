@@ -24,6 +24,7 @@ set("GLAD_SOURCES_DIR" "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
 add_subdirectory(ext/fmt)
+add_subdirectory(ext/libassert)
 add_subdirectory(ext/jdksmidi)
 add_subdirectory(ext/tsf)
 
@@ -147,6 +148,7 @@ target_link_libraries(vinfony
   SDL2-static
   glad_gl_core_33
   fmt
+  libassert::assert
   jdksmidi
   ifd
 )
