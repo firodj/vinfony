@@ -291,8 +291,6 @@ namespace vinfony {
       // ImGui::GetWindowContentRegionMax = ImGui::GetContentRegionMax ? -> respect scrolled
       //
 
-
-
       // Timeline
       int t = 0;
 
@@ -301,12 +299,14 @@ namespace vinfony {
 
       draw_list->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
       while (scrnpos.x < scrnmax.x) {
-        draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, scrnpos + ImVec2{0, h0}, ImGui::GetColorU32(ImGuiCol_Border));
+
         if (t % 4 == 0) {
-          draw_list->AddLine(scrnpos, scrnpos + ImVec2(0, h0/2), ImGui::GetColorU32(ImGuiCol_Border));
+          draw_list->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
           char tmps[512];
           ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (t/4));
           draw_list->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
+        } else {
+          draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
         }
         scrnpos.x += storage.uiStyle.beatWd;
         t++;
@@ -550,6 +550,7 @@ namespace vinfony {
       trackNotes.displayState = &seq->displayState;
       trackNotes.uiStyle = &storage.uiStyle;
 
+      draw_list->PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
       if (seq->IsFileLoaded()) {
         float pos_x = 0;
         float pos_y = 0 + h0;
@@ -583,6 +584,7 @@ namespace vinfony {
           pos_y += 8;
         }
       }
+      draw_list->PopClipRect();
 
       // Debug
       auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
