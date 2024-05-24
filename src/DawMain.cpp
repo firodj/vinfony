@@ -268,17 +268,22 @@ namespace vinfony {
       storage.scroll_x1 = ImGui::GetScrollX();
       storage.scroll_y = ImGui::GetScrollY();
       float scroll_max_x1 = ImGui::GetScrollMaxX();
+      auto wndpos = ImGui::GetWindowPos();
+      auto wndsz = ImGui::GetWindowSize();
+      ImVec2 scrnmax = wndpos + wndsz;
 
       auto draw_list = ImGui::GetWindowDrawList();
-      auto timeline_pos = ImGui::GetCursorScreenPos();
-      auto xy0 = ImGui::GetCursorPos();
+      //auto timeline_pos = ImGui::GetCursorScreenPos();
+
       auto avail = ImGui::GetContentRegionAvail();
 
       float far_x = storage.uiStyle.leftPadding + (seq->displayState.play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding;
-      ImGui::SetCursorPos({far_x, 0});
-      ImGui::Dummy(ImVec2{1,1});
-
-      ImGui::SetCursorPos(xy0);
+      {
+        auto xy0 = ImGui::GetCursorPos();
+        ImGui::SetCursorPos({far_x, 0});
+        ImGui::Dummy(ImVec2{1,1});
+        ImGui::SetCursorPos(xy0);
+      }
 
       // ImGui::GetCursorScreenPos -> respect  scrolled  because translated from GetCursorPos.
       // ImGui::GetContentRegionAvail -> a viewable portion only, dontcare scrolled.
@@ -286,17 +291,15 @@ namespace vinfony {
       // ImGui::GetWindowContentRegionMax = ImGui::GetContentRegionMax ? -> respect scrolled
       //
 
-      auto wndpos = ImGui::GetWindowPos();
-      auto wndsz = ImGui::GetWindowSize();
-      ImVec2 scrnmax = wndpos + wndsz;
+
 
       // Timeline
       int t = 0;
 
-      ImVec2 scrnpos = timeline_pos;
-      scrnpos.x += storage.uiStyle.leftPadding;
+      ImVec2 scrnpos = wndpos;
+      scrnpos.x += storage.uiStyle.leftPadding - storage.scroll_x1;
 
-      //draw_list->AddLine({ timeline_pos.x, timeline_pos.y+h0/2}, ImVec2{scrnmax.x, timeline_pos.y+h0/2}, IM_COL32(255,128,0,255));
+      draw_list->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
       while (scrnpos.x < scrnmax.x) {
         draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, scrnpos + ImVec2{0, h0}, ImGui::GetColorU32(ImGuiCol_Border));
         if (t % 4 == 0) {
@@ -310,7 +313,7 @@ namespace vinfony {
       }
 
       scrnpos.y += h0;
-      scrnpos.x = timeline_pos.x;
+      scrnpos.x = wndpos.x;
 
       // Cursor
       float cursor_x = storage.is_cursor_dragging ?
@@ -318,28 +321,7 @@ namespace vinfony {
         storage.uiStyle.beatWd * seq->displayState.play_cursor;
 
       {
-        if (seq->IsPlaying()) {
-          if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
-            storage.scroll_animate = 10;
-            storage.scroll_target = (cursor_x - (wndsz.x*1/4)) - 4;
-            if (storage.scroll_target < 0) storage.scroll_target = 0;
-          } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
-            storage.scroll_animate = 10;
-            storage.scroll_target = 4 + (cursor_x - (wndsz.x*1/4));
-            if (storage.scroll_target > scroll_max_x1) storage.scroll_target = scroll_max_x1;
-          }
-        }
 
-        if (storage.scroll_animate == 1) {
-          storage.scroll_animate = 0;
-          storage.scroll_x1 = storage.scroll_target;
-        } else if (storage.scroll_animate > 1) {
-          storage.scroll_animate--;
-          float direction = storage.scroll_target - storage.scroll_x1;
-          if (direction <= -1.0 || direction >= 1.0) {
-            storage.scroll_x1 += direction*0.5;
-          }
-        }
 
         // Draw Cursor
         ImGui::SetCursorPos({ storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
@@ -569,8 +551,8 @@ namespace vinfony {
       trackNotes.uiStyle = &storage.uiStyle;
 
       if (seq->IsFileLoaded()) {
-        float pos_x = xy0.x;
-        float pos_y = xy0.y + h0;
+        float pos_x = 0;
+        float pos_y = 0 + h0;
 
         for (int r=0; r<seq->GetNumTracks(); r++) {
           DawTrack * track = seq->GetTrack(r);
@@ -602,12 +584,37 @@ namespace vinfony {
         }
       }
 
+      // Debug
       auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
       draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
       ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
       auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
       ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d",
         visible_clk_p1, visible_clk_p2, trackNotes.notes_to_draw, trackNotes.notes_to_hide, trackNotes.notes_processed);
+
+      // Auto Scroll
+      if (seq->IsPlaying()) {
+        if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
+          storage.scroll_animate = 10;
+          storage.scroll_target = (cursor_x - (wndsz.x*1/4)) - 4;
+          if (storage.scroll_target < 0) storage.scroll_target = 0;
+        } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
+          storage.scroll_animate = 10;
+          storage.scroll_target = 4 + (cursor_x - (wndsz.x*1/4));
+          if (storage.scroll_target > scroll_max_x1) storage.scroll_target = scroll_max_x1;
+        }
+      }
+
+      if (storage.scroll_animate == 1) {
+        storage.scroll_animate = 0;
+        storage.scroll_x1 = storage.scroll_target;
+      } else if (storage.scroll_animate > 1) {
+        storage.scroll_animate--;
+        float direction = storage.scroll_target - storage.scroll_x1;
+        if (direction <= -1.0 || direction >= 1.0) {
+          storage.scroll_x1 += direction*0.5;
+        }
+      }
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
