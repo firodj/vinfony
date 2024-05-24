@@ -228,6 +228,8 @@ namespace vinfony {
   void DawSeq::AllMIDINoteOff() {
     jdksmidi::MIDITimedBigMessage msg;
     for (int chan=0; chan<16; ++chan) {
+      msg.SetPitchBend( chan, 0 );
+      m_impl->audioDevice->HardwareMsgOut( msg );
       msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
       m_impl->audioDevice->HardwareMsgOut( msg );
       msg.SetAllNotesOff( (unsigned char)chan );
