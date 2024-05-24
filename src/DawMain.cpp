@@ -171,7 +171,9 @@ namespace vinfony {
 
     if (ImGui::BeginChild("child_1", {w, 0.0f}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar)) {
       auto draw_list = ImGui::GetWindowDrawList();
-
+      auto wndpos = ImGui::GetWindowPos();
+      auto wndsz = ImGui::GetWindowSize();
+      auto scrnmax = wndpos + wndsz;
       auto cursor = ImGui::GetCursorScreenPos();
       auto legend = ImGui::GetWindowSize();
 
@@ -181,6 +183,7 @@ namespace vinfony {
       // Row 0: Header
       float tot_w = 0;
       float pos_x = xy0.x;
+      ImGui::SetCursorScreenPos(wndpos);
       for (int c=0; c<storage.prop_nums.size(); c++) {
         int prop_id = storage.prop_nums[c];
         DawProp * prop = storage.props[prop_id].get();
@@ -192,7 +195,7 @@ namespace vinfony {
       tot_w = pos_x;
 
       // Row N: Track
-
+      draw_list->PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
       if (seq->IsFileLoaded()) {
         float pos_y = xy0.y + h0;
         for (int r=0; r<seq->GetNumTracks(); r++) {
@@ -231,6 +234,7 @@ namespace vinfony {
         }
         tot_h = pos_y;
       }
+      draw_list->PopClipRect();
 
       //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
 
@@ -321,10 +325,9 @@ namespace vinfony {
         storage.uiStyle.beatWd * seq->displayState.play_cursor;
 
       {
-
-
         // Draw Cursor
-        ImGui::SetCursorPos({ storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
+        //ImGui::SetCursorPos({ storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
+        ImGui::SetCursorScreenPos({ wndpos.x - storage.scroll_x1 + storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2) , wndpos.y + h0/2 });
         ImGui::InvisibleButton("cursor", ImVec2{(float)storage.uiStyle.cursorWd, h0/2});
         auto rcmin = ImGui::GetItemRectMin();
         auto rcmax = ImGui::GetItemRectMax();
