@@ -4,6 +4,7 @@
 #include <iostream>
 #define IMGUI_DEFINE_MATH_OPERATORS
 
+#include <SDL.h>
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "DawMain.hpp"
@@ -143,6 +144,9 @@ void MainApp::RunImGui() {
       case vinfony::IsAsyncPlayMIDITerminated: // ThreadTerminate
         m_impl->sequencer.AsyncPlayMIDIStopped();
         fmt::println("message: ThreadTerminate");
+        break;
+      case vinfony::IsMIDIFileLoaded:
+        SDL_SetWindowTitle(m_sdlWindow, msg.str.c_str() );
         break;
       default:
         fmt::println("unknown message {}", msg.type);

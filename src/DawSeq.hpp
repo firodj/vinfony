@@ -23,12 +23,19 @@ namespace vinfony {
 
   enum {
     IsAsyncPlayMIDITerminated = 1,
+    IsMIDIFileLoaded,
   };
   struct SeqMsg {
     int type{};
+    std::string str{};
 
     static SeqMsg OnAsyncPlayMIDITerminated() {
       return SeqMsg{IsAsyncPlayMIDITerminated};
+    }
+    static SeqMsg OnMIDIFileLoaded(std::string midifile) {
+      auto seqMsg = SeqMsg{IsMIDIFileLoaded};
+      seqMsg.str = midifile;
+      return seqMsg;
     }
   };
 

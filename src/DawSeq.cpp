@@ -214,6 +214,8 @@ namespace vinfony {
       m_impl->midi_file_loaded = ReadMIDIFile(midifile);
       m_impl->th_read_midi_file_done = true;
       fmt::println("Done open midi file: {}", midifile);
+      
+      m_impl->seqMessaging.push(SeqMsg::OnMIDIFileLoaded(midifile));
       m_impl->th_read_midi_file_running = false;
     }, filename);
   }

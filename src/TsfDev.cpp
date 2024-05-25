@@ -149,6 +149,8 @@ public:
 
   void Reset() override {
     tsf_reset(g_TinySoundFont);
+    tsf_channel_set_bank_preset(g_TinySoundFont, 9, 128, 0);
+    tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, OutputAudioSpec.freq, 0.0f);
   };
 };
 
