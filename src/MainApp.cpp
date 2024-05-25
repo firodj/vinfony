@@ -146,7 +146,10 @@ void MainApp::RunImGui() {
         fmt::println("message: ThreadTerminate");
         break;
       case vinfony::IsMIDIFileLoaded:
-        SDL_SetWindowTitle(m_sdlWindow, msg.str.c_str() );
+        {
+          std::string base_filename = "Vinfony - " + msg.str.substr(msg.str.find_last_of("/\\") + 1);
+          SDL_SetWindowTitle(m_sdlWindow, base_filename.c_str() );
+        }
         break;
       default:
         fmt::println("unknown message {}", msg.type);
