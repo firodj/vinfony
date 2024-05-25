@@ -59,6 +59,7 @@ namespace vinfony {
     void SetPlayClockTime(unsigned long clk_time);
     bool IsPlaying();
     void AllMIDINoteOff();
+    void Reset();
 
     DawDisplayState displayState;
 

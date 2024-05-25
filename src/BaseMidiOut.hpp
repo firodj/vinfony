@@ -22,6 +22,7 @@ public:
     DumpMIDITimedBigMessage( &msg );
     return true;
   }
+  virtual void Reset() {};
 };
 
 }

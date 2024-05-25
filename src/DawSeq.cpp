@@ -237,6 +237,10 @@ namespace vinfony {
     }
   }
 
+  void DawSeq::Reset() {
+    m_impl->audioDevice->Reset();
+  }
+
   void DawSeq::AsyncPlayMIDI() {
     if (m_impl->th_play_midi_running) return;
 
@@ -253,6 +257,8 @@ namespace vinfony {
         m_impl->request_stop_midi = false;
         m_impl->seqMessaging.push(SeqMsg::OnAsyncPlayMIDITerminated());
       });
+
+      m_impl->audioDevice->Reset();
 
       float pretend_clock_time = 0;
       // simulate a clock going forward with 10 ms resolution for 1 hour

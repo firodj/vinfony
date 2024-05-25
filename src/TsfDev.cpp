@@ -146,6 +146,10 @@ public:
       SampleMarker += TSF_RENDER_EFFECTSAMPLEBLOCK;
     }
   }
+
+  void Reset() override {
+    tsf_reset(g_TinySoundFont);
+  };
 };
 
 void TinySoundFontAudioCallback(void* data, Uint8 *stream, int len)
@@ -177,6 +181,7 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
   }
   return true;
 }
+
 
 std::unique_ptr<BaseMidiOutDevice> CreateTsfDev(std::string soundfontPath) {
   return std::make_unique<TinySoundFontDevice>(soundfontPath);
