@@ -86,17 +86,17 @@ namespace vinfony {
       ImGui::PopClipRect();
     });
     NewProp(storage, "Channel", [](DawPropDrawParam * param) {
-      auto p1 = ImGui::GetCursorScreenPos();
-      auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
+      //auto p1 = ImGui::GetCursorScreenPos();
+      //auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
 
       const char* items[] = {"-", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
-      static int item_current = 0;
+
       ImGui::SetNextItemWidth(param->self->w);
       ImGui::PushID(param->track->id);
-      ImGui::Combo("##channel", &item_current, items, IM_ARRAYSIZE(items));
+      ImGui::Combo("##channel", &param->track->ch, items, IM_ARRAYSIZE(items));
       ImGui::PopID();
     });
-    NewProp(storage, "Instrument", nullptr);
+    NewProp(storage, "Instrument", [](DawPropDrawParam * param) { ImGui::Text("%d", param->track->pg); });
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {

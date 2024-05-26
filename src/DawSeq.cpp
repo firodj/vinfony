@@ -51,7 +51,7 @@ namespace vinfony {
     DawSeq * self;
 
     Impl(DawSeq * owner): self(owner) {};
-    int AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track);
+    DawTrack * AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track);
   };
 
   DawSeq::DawSeq() {
@@ -104,17 +104,34 @@ namespace vinfony {
         auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
         if (midi_track->IsTrackEmpty()) continue;
 
-        auto track_name = fmt::format("Track {}", i);
-
+        std::string track_name;
+        int channel = -1;
+        int pg = -1;
+        int channel_events = 0;
         for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
           const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
           if (msg->IsTrackName()) {
-            track_name = msg->GetSysExString();
-            break;
+            if (track_name.empty()) track_name = msg->GetSysExString();
+            else if (track_name != msg->GetSysExString()) fmt::println("WARNING: track has more than track names");
+          } else
+          if (msg->IsChannelEvent()) {
+            channel_events++;
+            if (channel == -1) channel = msg->GetChannel();
+            else if (channel != msg->GetChannel()) fmt::println("WARNING: track has more than channels");
+
+            if (msg->IsProgramChange()) {
+              if (pg == -1) pg = msg->GetPGValue();
+            }
           }
         }
 
-        m_impl->AddNewTrack(track_name, midi_track);
+        if (channel_events == 0) continue;
+
+        if (track_name.empty()) track_name = fmt::format("Track {}", i);
+
+        DawTrack * track = m_impl->AddNewTrack(track_name, midi_track);
+        track->ch = 1 + channel;
+        track->pg = 1 + pg;
       }
     }
 
@@ -214,7 +231,7 @@ namespace vinfony {
       m_impl->midi_file_loaded = ReadMIDIFile(midifile);
       m_impl->th_read_midi_file_done = true;
       fmt::println("Done open midi file: {}", midifile);
-      
+
       m_impl->seqMessaging.push(SeqMsg::OnMIDIFileLoaded(midifile));
       m_impl->th_read_midi_file_running = false;
     }, filename);
@@ -347,11 +364,11 @@ namespace vinfony {
     return m_impl->tracks[track_id].get();
   }
 
-  int DawSeq::Impl::AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track) {
+  DawTrack * DawSeq::Impl::AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track) {
     last_tracks_id++;
     tracks[last_tracks_id] = std::make_unique<DawTrack>();
 
-    auto track = tracks[last_tracks_id].get();
+    DawTrack * track = tracks[last_tracks_id].get();
     track->id = last_tracks_id;
     track->name = name;
     float ht = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
@@ -360,7 +377,7 @@ namespace vinfony {
 
     track_nums.push_back(track->id);
 
-    return track->id;
+    return track;
   }
 
   void DawSeq::SetDevice(BaseMidiOutDevice * dev) {

@@ -15,10 +15,12 @@ namespace vinfony {
   class BaseMidiOutDevice;
 
   struct DawTrack {
-    int id;
+    int id{0};
     std::string name;
-    int h;
-    jdksmidi::MIDITrack * midi_track;
+    int h{20};
+    int ch{0};  // MIDI channel, 0=none, (1..16)=channel
+    int pg{0};  // Program value, 0=nonoe, (1..128)=program
+    jdksmidi::MIDITrack * midi_track{nullptr};
   };
 
   enum {
