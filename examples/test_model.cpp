@@ -1,4 +1,5 @@
 #include "jdksmidi/world.h"
+#include "jdksmidi/midi.h"
 #include "jdksmidi/track.h"
 #include "jdksmidi/multitrack.h"
 #include "jdksmidi/filereadmultitrack.h"
@@ -6,7 +7,6 @@
 #include "jdksmidi/fileshow.h"
 #include "jdksmidi/sequencer.h"
 #include "RtMidi/RtMidi.h"
-using namespace jdksmidi;
 
 #include <tml.h>
 
@@ -14,11 +14,116 @@ using namespace jdksmidi;
 #include <thread>
 #include <chrono>
 #include <signal.h>
-using namespace std;
+#include <memory>
+#include <map>
 
 #include <fmt/core.h>
+#include <fmt/color.h>
 
-static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
+#include "DawSeq.hpp"
+
+namespace vinfony {
+  struct DawDoc {
+    std::map<int, std::unique_ptr<DawTrack>> tracks;
+    int last_tracks_id{0};
+    std::vector<int> track_nums;
+
+    DawTrack * AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track);
+  };
+
+  DawTrack * DawDoc::AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track)
+  {
+    last_tracks_id++;
+    tracks[last_tracks_id] = std::make_unique<DawTrack>();
+
+    DawTrack * track = tracks[last_tracks_id].get();
+    track->id = last_tracks_id;
+    track->name = name;
+    float ht = 120; // FIXME: view/style
+    track->h = ht;
+    track->midi_track = midi_track;
+
+    track_nums.push_back(track->id);
+
+    return track;
+  }
+};
+
+
+int LoadUsingJDKSMIDI(const char * def_midipath);
+void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt );
+void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg );
+
+int main( int argc, char **argv )
+{
+  const char *app_name = argv[0];
+
+  if (argc <= 1) {
+    fmt::print(fmt::fg(fmt::color::crimson), "\nusage:\n    {} FILE.mid\n", app_name);
+  }
+
+  //Venture (Original WIP) by Ximon
+	//https://musescore.com/user/2391686/scores/841451
+	//License: Creative Commons copyright waiver (CC0)
+  const char * infile_name = argc >= 2 ? argv[1] : "ext/tsf/examples/venture.mid";
+
+  LoadUsingJDKSMIDI(infile_name);
+
+  return 0;
+}
+
+int LoadUsingJDKSMIDI(const char * def_midipath) {
+  jdksmidi::MIDIFileReadStreamFile rs( def_midipath );
+
+#if 0
+  {
+    MIDIFileShow shower( stdout, /* sqspecific_as_text */ true);
+    MIDIFileRead reader( &rs, &shower );
+    // load the midifile into the multitrack object
+    if ( !reader.Parse() )
+    {
+      fmt::print(fmt::fg(fmt::color::crimson), "\nError parse file {}", def_midipath);
+      return -1;
+    }
+  }
+#else
+  {
+    jdksmidi::MIDIMultiTrack tracks;
+    jdksmidi::MIDIFileReadMultiTrack track_loader( &tracks );
+    jdksmidi::MIDIFileRead reader( &rs, &track_loader );
+
+    // set amount of tracks equal to midifile
+    tracks.Clear(); //AndResize( reader.ReadNumTracks() );
+
+    // load the midifile into the multitrack object
+    if ( !reader.Parse() )
+    {
+      fmt::print(fmt::fg(fmt::color::crimson), "\nError parse file {}", def_midipath);
+      return -1;
+    }
+
+    if ( tracks.GetNumTracksWithEvents() == 1 ) {//
+      fmt::println("all events in one track: format 0, separated them!");
+      // redistributes channel events in separate tracks
+      tracks.AssignEventsToTracks(0);
+    }
+
+    //      MIDISequencerGUIEventNotifierText notifier( stdout );
+    //      MIDISequencer seq( &tracks, &notifier );
+    jdksmidi::MIDISequencer seq( &tracks );
+
+    DumpMIDIMultiTrack( &tracks );
+    //      fmt::print(fmt::fg(fmt::color::floral_white), "Dump {}\n", MultiTrackAsText( tracks ));
+
+    double dt = seq.GetMusicDurationInSeconds();
+
+    printf("Music duration = %.3f", dt);
+  }
+#endif
+  return 0;
+}
+
+static void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg )
 {
   if ( msg )
   {
@@ -87,27 +192,32 @@ static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
   }
 }
 
-void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
+void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
 {
-  MIDIMultiTrackIterator i( mlt );
-
   fmt::println("Clocks per beat: {}", mlt->GetClksPerBeat() );
   fmt::println("Tracks with events: {}", mlt->GetNumTracksWithEvents() );
   fmt::println("Num Tracks {}", mlt->GetNumTracks());
 
   for (int trk_num = 0; trk_num < mlt->GetNumTracks(); trk_num++) {
     auto midi_track = mlt->GetTrack(trk_num);
-    if (midi_track->IsTrackEmpty()) continue;
+     if (midi_track->IsTrackEmpty()) continue;
 
      for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
         const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
         if (msg->IsTrackName()) {
           fmt::println(msg->GetSysExString());
+        } else if (msg->IsControlChange()) {
+          switch (msg->GetController()) {
+            case jdksmidi::C_GM_BANK: break;
+            case jdksmidi::C_GM_BANK_LSB: break;
+          }
+          DumpMIDITimedBigMessage(msg);
         }
-        fmt::println("time: {}", msg->GetTime());
+        //fmt::println("time: {}", msg->GetTime());
       }
   }
 #if 0
+  jdksmidi::MIDIMultiTrackIterator i( mlt );
   i.GoToTime( 0 );
   do
   {
@@ -124,12 +234,12 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
 #endif
 }
 
-int LoadUsingTML(const char * def_midpath) {
+int LoadUsingTML(const char * def_midipath) {
   //Venture (Original WIP) by Ximon
-	tml_message* g_MidiMessage = tml_load_filename(def_midpath);
+	tml_message* g_MidiMessage = tml_load_filename(def_midipath);
 	if (!g_MidiMessage)
 	{
-		fprintf(stderr, "Could not load MIDI file: %s\n", def_midpath);
+		fprintf(stderr, "Could not load MIDI file: %s\n", def_midipath);
 		return 1;
 	}
 
@@ -148,71 +258,3 @@ int LoadUsingTML(const char * def_midpath) {
   return 0;
 }
 
-int LoadUsingJDKSMIDI(const char * def_midpath) {
-  MIDIFileReadStreamFile rs( def_midpath );
-
-#if 0
-  {
-    MIDIFileShow shower( stdout, /* sqspecific_as_text */ true);
-    MIDIFileRead reader( &rs, &shower );
-    // load the midifile into the multitrack object
-    if ( !reader.Parse() )
-    {
-      cerr << "\nError parse file " << def_midpath << endl;
-      return -1;
-    }
-  }
-#else
-  {
-    MIDIMultiTrack tracks;
-    MIDIFileReadMultiTrack track_loader( &tracks );
-    MIDIFileRead reader( &rs, &track_loader );
-
-    // set amount of tracks equal to midifile
-    tracks.Clear(); //AndResize( reader.ReadNumTracks() );
-
-    // load the midifile into the multitrack object
-    if ( !reader.Parse() )
-    {
-      cerr << "\nError parse file " << def_midpath << endl;
-      return -1;
-    }
-
-    if ( tracks.GetNumTracksWithEvents() == 1 ) {//
-      fmt::println("all events in one track: format 0, separated them!");
-      // redistributes channel events in separate tracks
-      tracks.AssignEventsToTracks(0);
-    }
-
-    //      MIDISequencerGUIEventNotifierText notifier( stdout );
-    //      MIDISequencer seq( &tracks, &notifier );
-    MIDISequencer seq( &tracks );
-
-    DumpMIDIMultiTrack( &tracks );
-    //      cout << MultiTrackAsText( tracks ); // new util fun
-
-    double dt = seq.GetMusicDurationInSeconds();
-
-    printf("Music duration = %.3f", dt);
-  }
-#endif
-  return 0;
-}
-
-int main( int argc, char **argv )
-{
-  const char *app_name = argv[0];
-
-  if (argc <= 1) {
-    cerr << "\nusage:\n    " << app_name << " FILE.mid\n";
-  }
-
-  //Venture (Original WIP) by Ximon
-	//https://musescore.com/user/2391686/scores/841451
-	//License: Creative Commons copyright waiver (CC0)
-  const char * infile_name = argc >= 2 ? argv[1] : "ext/tsf/examples/venture.mid";
-
-  LoadUsingJDKSMIDI(infile_name);
-
-  return 0;
-}
