@@ -579,7 +579,7 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                 }
               }
             }
-          #endif
+#endif
           fmt::print(fmt::fg(fmt::color::aqua), " {:02X}", *buf);
         }
 

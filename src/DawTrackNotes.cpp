@@ -36,7 +36,6 @@ void DawTrackNotes::Reset() {
 
   note_used_head = -1;
   note_used_tail = -1;
-  visible_start_clk = 0;
 
   for (int i=0; i<128; i++) {
     note_free_slot[i] = (128 - 1) - i;
@@ -46,8 +45,6 @@ void DawTrackNotes::Reset() {
 
 void DawTrackNotes::ResetStats() {
   notes_processed = 0;
-  notes_to_draw = 0;
-  notes_to_hide = 0;
 }
 
 bool DawTrackNotes::NewNote(long t, char n) {
@@ -166,30 +163,6 @@ void DawTrackNotes::ClipOff(long t) {
 }
 
 void DawTrackNotes::DrawNote(int slot) {
-  if (note_actives[slot].stop >= visible_start_clk) {
-#if 0
-    float y0 = (track_h * (float)(127 - note_actives[slot].note)/ 128);
-    assert (note_actives[slot].note >= 0 && note_actives[slot].note <= 127);
-    float nh = (float)track_h/128;
-    float x0 = (note_actives[slot].time - visible_start_clk);
-    float x1 = (note_actives[slot].stop - visible_start_clk);
-
-    x0 = x0 * uiStyle->beatWd / displayState->ppqn;
-    x1 = x1 * uiStyle->beatWd / displayState->ppqn;
-
-    ImVec2 p1{scrnpos_x + x0, scrnpos_y + y0};
-    ImVec2 p2{scrnpos_x + x1, scrnpos_y + y0};
-    if (nh >= 1.0) {
-      p2.y  += nh;
-      draw_list->AddRectFilled(p1, p2, IM_COL32(255,64,64, 255));
-    } else {
-      draw_list->AddLine(p1, p2, IM_COL32(255,64,64, 255));
-    }
-#endif
-    notes_to_draw++;
-  } else {
-    notes_to_hide++;
-  }
 }
 
 }

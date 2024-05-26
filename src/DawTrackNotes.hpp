@@ -21,22 +21,9 @@ public:
   int num_free_slot;
   int note_used_head;
   int note_used_tail;
-  long visible_start_clk;
-
-  // UI
-#if 0
-  int scrnpos_x{0};
-  int scrnpos_y{0};
-  int track_h{0};
-  DawDisplayState * displayState {nullptr};
-  ImDrawList * draw_list{nullptr};
-  DawUIStyle * uiStyle {nullptr};
-#endif
 
   // Statistics
   int notes_processed{0};
-  int notes_to_draw{0};
-  int notes_to_hide{0};
 
   DawTrackNotes();
   void NoteOn(long t, char n, char v) ;
@@ -46,7 +33,7 @@ public:
 
   virtual void DrawNote(int slot);
   void Reset();
-  void ResetStats();
+  virtual void ResetStats();
 
 protected:
   bool NewNote(long t, char n);

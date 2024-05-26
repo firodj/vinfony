@@ -11,6 +11,8 @@
 #include "jdksmidi/track.h"
 #include <libassert/assert.hpp>
 
+#include "DawTrackNotes.hpp"
+
 namespace ImGui {
   ImVec2 GetScroll()
   {
@@ -371,6 +373,9 @@ namespace vinfony {
       long visible_clk_p1 = v_p1 * (float) seq->displayState.ppqn  / (storage.uiStyle.beatWd);
       long visible_clk_p2 = v_p2 * (float) seq->displayState.ppqn  / (storage.uiStyle.beatWd);
 
+      class DawTrackNotesUI: public DawTrackNotes {
+        public:
+#if 0
       struct DawNote {
         long time;
         long stop;
@@ -378,13 +383,6 @@ namespace vinfony {
         int used_prev;
         int used_next;
       };
-#if 0
-      static bool init_free_slot = true;
-      static int note_free_slot_init[128];
-      if (init_free_slot) {
-        init_free_slot = false;
-      }
-#endif
 
       struct DawTrackNotes {
         int note_value_to_slot[128];
@@ -395,6 +393,13 @@ namespace vinfony {
         int note_used_tail{-1};
         long visible_start_clk{0};
 
+        // Statistics
+        int notes_processed{0};
+        int notes_to_draw{0};
+        int notes_to_hide{0};
+
+#endif
+
         // UI
         int scrnpos_x{0};
         int scrnpos_y{0};
@@ -402,125 +407,13 @@ namespace vinfony {
         ImDrawList * draw_list{nullptr};
         DawDisplayState * displayState {nullptr};
         DawUIStyle * uiStyle {nullptr};
+        long visible_start_clk;
 
         // Statistics
-        int notes_processed{0};
         int notes_to_draw{0};
         int notes_to_hide{0};
 
-        DawTrackNotes() {
-          for (int i=0; i<128; i++) {
-            note_free_slot[i] = (128 - 1) - i;
-            note_value_to_slot[i] = -1;
-          }
-          //memcpy(note_free_slot, note_free_slot_init, sizeof(note_free_slot));
-        }
-        bool NewNote(long t, char n) {
-          notes_processed++;
-
-          if (note_value_to_slot[n] != -1) return false;
-          if (num_free_slot == 0) return false;
-          --num_free_slot;
-          int slot = note_free_slot[num_free_slot];
-          note_free_slot[num_free_slot] = -1;
-          note_value_to_slot[n] = slot;
-
-          auto &note_active = note_actives[slot];
-          note_active.time = t;
-          note_active.stop = -1;
-          note_active.note = n;
-          note_active.used_prev = -1;
-          note_active.used_next = -1;
-
-          if (note_used_head == -1) {
-            note_used_head = slot;
-            note_used_tail = slot;
-          } else {
-            auto &note_used_prev = note_actives[note_used_tail];
-            note_used_prev.used_next = slot;
-            note_active.used_prev = note_used_tail;
-            note_used_tail = slot;
-          }
-
-          return true;
-        }
-
-        void NoteOn(long t, char n, char v) {
-          NoteOff(t, n);
-          if (v > 0) NewNote(t, n);
-        }
-
-        void DumpDbg() {
-          fmt::println("free = {}, used = {}", num_free_slot, 128-num_free_slot);
-          fmt::print("note slot:\t");
-          for (int n = 0; n<128; n++) {
-            if (note_value_to_slot[n] != -1)
-            fmt::print("{} -> {}\t", n, note_value_to_slot[n]);
-          }
-          fmt::print("\nfree slot:\t");
-          for (int i = 0; i<128; i++) {
-            if (note_free_slot[i] != -1)
-            fmt::print("{} -> {}\t", i, note_free_slot[i]);
-          }
-
-          fmt::println("\nhead = {}, tail = {}\n", note_used_head, note_used_tail);
-          DawNote dummy{};
-          dummy.used_next = -1;
-          auto * note_active = &dummy;
-          for (int slot = note_used_head; slot != -1; slot = note_active->used_next) {
-            note_active = &note_actives[slot];
-            fmt::println("\t{} -> {} -> {};",  note_active->used_prev, slot, note_active->used_next );
-          }
-
-          fmt::println("");
-        }
-        void NoteOff(long t, char n) {
-          int slot = note_value_to_slot[n];
-          if (slot == -1) return;
-          auto &note_active = note_actives[slot];
-
-          DEBUG_ASSERT(note_active.stop == -1);
-          note_active.stop = t;
-          DEBUG_ASSERT((int)note_active.note == (int)n);
-          note_value_to_slot[n] = -1;
-
-          DrawNote(slot);
-
-          if (note_active.used_prev != -1) {
-            auto &note_used_prev = note_actives[note_active.used_prev];
-            note_used_prev.used_next = note_active.used_next;
-          } else {
-            DEBUG_ASSERT(note_used_head == slot);
-            note_used_head = note_active.used_next;
-          }
-
-          if (note_active.used_next != -1) {
-            auto &note_used_next = note_actives[note_active.used_next];
-            note_used_next.used_prev = note_active.used_prev;
-          } else {
-            DEBUG_ASSERT(note_used_tail == slot);
-            note_used_tail = note_active.used_prev;
-          }
-
-          DEBUG_ASSERT(num_free_slot < 128);
-          DEBUG_ASSERT(note_free_slot[num_free_slot] == -1 );
-          note_free_slot[num_free_slot] = slot;
-          num_free_slot++;
-        }
-
-        void ClipOff(long t) {
-          DawNote dummy{};
-          dummy.used_next = -1;
-          auto * note_active = &dummy;
-          for (int slot = note_used_head; slot != -1; slot = note_active->used_next) {
-            note_active = &note_actives[slot];
-
-            DEBUG_ASSERT(note_value_to_slot[note_active->note] != -1);
-            NoteOff(t, note_active->note);
-          }
-        }
-
-        void DrawNote(int slot) {
+        void DrawNote(int slot) override {
           if (note_actives[slot].stop >= visible_start_clk) {
             float y0 = (track_h * (float)(127 - note_actives[slot].note)/ 128);
             assert (note_actives[slot].note >= 0 && note_actives[slot].note <= 127);
@@ -547,7 +440,7 @@ namespace vinfony {
         }
       };
 
-      DawTrackNotes trackNotes{};
+      DawTrackNotesUI trackNotes{};
       trackNotes.visible_start_clk = visible_clk_p1;
       trackNotes.draw_list = draw_list;
       trackNotes.displayState = &seq->displayState;
@@ -590,12 +483,19 @@ namespace vinfony {
       draw_list->PopClipRect();
 
       // Debug
-      auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
-      draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
-      ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
-      auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
-      ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d",
-        visible_clk_p1, visible_clk_p2, trackNotes.notes_to_draw, trackNotes.notes_to_hide, trackNotes.notes_processed);
+static bool show_debug = true;
+      if (show_debug) {
+        auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
+        draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
+        ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
+        if (ImGui::Button("X")) {
+          show_debug = false;
+        }
+        ImGui::SameLine();
+        auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
+        ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d",
+          visible_clk_p1, visible_clk_p2, trackNotes.notes_to_draw, trackNotes.notes_to_hide, trackNotes.notes_processed);
+      }
 
       // Auto Scroll
       if (seq->IsPlaying()) {

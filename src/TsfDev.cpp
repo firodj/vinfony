@@ -15,7 +15,11 @@
 #include <thread>
 #include <chrono>
 
+#include <fmt/core.h>
+#include <fmt/color.h>
+
 #include "circularfifo1.h"
+#include "DawSysEx.hpp"
 
 namespace vinfony
 {
@@ -91,7 +95,7 @@ public:
   }
 
   bool HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) override {
-    if ( msg.IsChannelEvent() )
+    if ( msg.IsChannelEvent() || msg.IsSystemExclusive())
     {
       TinyMIDIMessage tinymsg;
       tinymsg.msg = msg;
@@ -177,9 +181,28 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
 
   else if ( msg.IsSystemExclusive() )
   {
+    {
+      std::unique_ptr<GMSysEx> gmsyx(GMSysEx::Create(msg.GetSysEx()));
+      if (gmsyx)
+        fmt::print(fmt::fg(fmt::color::wheat), "GM: {}\n", gmsyx->Info());
+    }
+
+    {
+      std::unique_ptr<GSSysEx> gssyx(GSSysEx::Create(msg.GetSysEx()));
+      if (gssyx) {
+        fmt::print(fmt::fg(fmt::color::wheat), "GS: {}\n", gssyx->Info());
+        if (gssyx->IsUseRhythmPart()) {
+          int drumgrp = gssyx->GetUseRhythmPart();
+          tsf_channel_set_bank_preset(g_TinySoundFont, gssyx->GetPart()-1, 128, 0);
+        }
+      }
+    }
+
+#if  0
     std::vector<unsigned char> sysexmessage((size_t)1+msg.GetSysEx()->GetLength());
     sysexmessage[0] = msg.GetStatus();
     memcpy( &sysexmessage[1], msg.GetSysEx()->GetBuf(), msg.GetSysEx()->GetLength() );
+#endif
   }
   return true;
 }
