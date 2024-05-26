@@ -26,6 +26,155 @@
 #include "DawTrackNotes.hpp"
 
 namespace vinfony {
+  class GMSysEx {
+  public:
+    GMSysEx(const  jdksmidi::MIDISystemExclusive *midi_sysex): m_midi_sysex(midi_sysex) {
+      Parse();
+    };
+
+    static GMSysEx * Create(const jdksmidi::MIDISystemExclusive *midi_sysex) {
+      if (midi_sysex->GetLength() < 5) return nullptr;
+      if (midi_sysex->GetData(0) == 0x7E)
+        return new GMSysEx(midi_sysex);
+      return nullptr;
+    }
+
+    bool IsGMReset() {
+      return (m_devID == 0x7F &&
+        m_subID1 == 0x09 &&
+        m_subID2 == 0x01 &&
+        m_eoxAt == 5);
+    }
+
+    void Parse() {
+      m_devID  = m_midi_sysex->GetData(1);
+      m_subID1 = m_midi_sysex->GetData(2);
+      m_subID2 = m_midi_sysex->GetData(3);
+
+      m_eoxAt = m_midi_sysex->GetData( m_midi_sysex->GetLength() - 1 ) == 0xF7 ? m_midi_sysex->GetLength() : 0;
+    }
+
+  private:
+    const jdksmidi::MIDISystemExclusive * m_midi_sysex;
+    unsigned char m_devID{}, m_subID1{}, m_subID2{};
+    int m_eoxAt{};
+  };
+
+  class GSSysEx {
+  public:
+    enum {
+      CMD_RQ1 = 0x11,
+      CMD_DT1 = 0x12,
+
+      MDL_GS = 0x42,
+    };
+
+    GSSysEx(const  jdksmidi::MIDISystemExclusive *midi_sysex): m_midi_sysex(midi_sysex) {
+      Parse();
+    };
+
+    static GSSysEx * Create(const jdksmidi::MIDISystemExclusive *midi_sysex) {
+      if (midi_sysex->GetLength() < 10) return nullptr;
+      if (midi_sysex->GetData(0) == 0x41)
+        return new GSSysEx(midi_sysex);
+      return nullptr;
+    }
+
+    void Parse() {
+      m_devID  = m_midi_sysex->GetData(1);
+      m_mdlID  = m_midi_sysex->GetData(2);
+      m_cmdID  = m_midi_sysex->GetData(3); // 0x11=RQ1 / 0x12=DT1
+      m_cmdAddr = ( m_midi_sysex->GetData(4) << 16 ) |
+        ( m_midi_sysex->GetData(5) << 8 ) |
+        ( m_midi_sysex->GetData(6) );
+      m_chkHash = m_midi_sysex->GetData(4) + m_midi_sysex->GetData(5) + m_midi_sysex->GetData(6);
+      m_buf = m_midi_sysex->GetBuf() + 7;
+      m_bufLen = m_midi_sysex->GetLength() - 9;
+    }
+
+    bool IsPartPatch() {
+      return ((m_cmdAddr & 0xFF0000) == 0x400000 && (m_cmdAddr & 0x00F000) != 0);
+    }
+
+    bool IsModelGS() {
+      return MDL_GS == m_mdlID;
+    }
+
+    int GetPart() {
+      if (!IsPartPatch()) return 0;
+      unsigned char part = (m_cmdAddr & 0x000F00) >> 8;
+      return part == 0 ? 10 : part >= 10 ? part + 1 : part;
+    }
+
+    int GetPartAddress() {
+      if (!IsPartPatch()) return 0;
+      return m_cmdAddr & 0x00F0FF;
+    }
+
+    unsigned char GetData(int i) const {
+      return m_buf[i];
+    }
+
+    size_t GetDataLen() const {
+      return m_bufLen;
+    }
+
+    bool IsGSReset() {
+      return IsModelGS() && IsDataSet() && m_cmdAddr == 0x40007F && GetDataLen() == 1 && GetData(0) == 0x00;
+    }
+
+    bool IsDataSet() {
+      return m_cmdID = CMD_DT1;
+    }
+
+    bool IsRequestData() {
+      return m_cmdID = CMD_RQ1;
+    }
+
+    bool IsSystemMode() {
+      return IsModelGS() && IsDataSet() && m_cmdAddr == 0x00007F && GetDataLen() == 1;
+    }
+
+    bool IsUseRhythmPart() {
+      if (!IsPartPatch()) return false;
+      return GetPartAddress() == 0x1015;
+    }
+
+    int GetUseRhythmPart() {
+      if (!IsUseRhythmPart()) return 0;
+      return GetData(0);
+    }
+
+    unsigned char GetSystemMode() {
+      if (!IsSystemMode()) return 0;
+      if (GetData(0) == 0) return 1;
+      if (GetData(0) == 1) return 2;
+      return 0;
+    }
+
+    std::string Info() {
+      if (IsGSReset()) {
+        return "GS Reset";
+      } else if (IsSystemMode()) {
+        return fmt::format("System Mode {}", GetSystemMode());
+      } else if (IsPartPatch()) {
+        if (IsUseRhythmPart()) {
+          return fmt::format("Part Patch {} Use Rhythm Part {}", GetPart(), GetUseRhythmPart());
+        }
+        return fmt::format("Part Patch {} Address {:04X}h", GetPart(), GetPartAddress());
+      }
+      return "??";
+    }
+
+  private:
+    const jdksmidi::MIDISystemExclusive * m_midi_sysex;
+    unsigned char m_devID{}, m_mdlID{}, m_cmdID{}, m_chkSum;
+    unsigned int m_cmdAddr{};
+    int m_chkHash{};
+    const unsigned char *m_buf;
+    int m_bufLen;
+  };
+
   struct DawDoc {
     std::map<int, std::unique_ptr<DawTrack>> tracks;
     int last_tracks_id{0};
@@ -126,7 +275,7 @@ int LoadUsingJDKSMIDI(const char * def_midipath) {
   return 0;
 }
 
-static void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg )
+void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg )
 {
   if ( msg )
   {
@@ -203,57 +352,59 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
 
   for (int trk_num = 0; trk_num < mlt->GetNumTracks(); trk_num++) {
     auto midi_track = mlt->GetTrack(trk_num);
-      if (midi_track->IsTrackEmpty()) continue;
-      vinfony::DawTrackNotes trackNotes{};
+    if (midi_track->IsTrackEmpty()) continue;
+    vinfony::DawTrackNotes trackNotes{};
 
-      bool eot = false;
-      long stop_time = 0;
-      int bank_msb = 0, bank_lsb = 0;
+    bool eot = false;
+    long stop_time = 0;
+    int bank_msb = 0, bank_lsb = 0;
 
-      for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
-        const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
-        if (eot) {
-          fmt::print(fmt::fg(fmt::color::wheat), "WARNING: events exist after eot\n");
-        } else {
-          stop_time = msg->GetTime();
+    for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
+      const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
+      if (eot) {
+        fmt::print(fmt::fg(fmt::color::wheat), "WARNING: events exist after eot\n");
+      } else {
+        stop_time = msg->GetTime();
+      }
+
+      if (msg->IsTrackName()) {
+        fmt::println(msg->GetSysExString());
+      } else if (msg->IsControlChange()) {
+        switch (msg->GetController()) {
+          case jdksmidi::C_GM_BANK:
+            bank_msb = msg->GetControllerValue();
+            break;
+          case jdksmidi::C_GM_BANK_LSB:
+            bank_lsb = msg->GetControllerValue();
+            break;
         }
+      } else if (msg->IsNoteOn()) {
+        trackNotes.NoteOn( msg->GetTime(), msg->GetNote(), msg->GetVelocity() );
+      } else if (msg->IsNoteOff()) {
+        trackNotes.NoteOff( msg->GetTime(), msg->GetNote() );
+      } else if (msg->IsProgramChange()) {
+        fmt::print("Time:{} ", msg->GetTime());
+        fmt::println("Program Change CH {} {}:{}:{}", msg->GetChannel()+1, bank_msb, bank_lsb, msg->GetPGValue());
+      } else if (msg->IsEndOfTrack()) {
+        eot = true;
+      } else if (msg->IsSystemExclusive()) {
+        fmt::print("Time:{} ", msg->GetTime());
+        fmt::print(fmt::fg(fmt::color::aqua), "SYSEX CH{}, Data {} =", msg->GetChannel()+1, msg->GetSysEx()->GetLength());
 
-        if (msg->IsTrackName()) {
-          fmt::println(msg->GetSysExString());
-        } else if (msg->IsControlChange()) {
-          switch (msg->GetController()) {
-            case jdksmidi::C_GM_BANK:
-              bank_msb = msg->GetControllerValue();
-              break;
-            case jdksmidi::C_GM_BANK_LSB:
-              bank_lsb = msg->GetControllerValue();
-              break;
-          }
-        } else if (msg->IsNoteOn()) {
-          trackNotes.NoteOn( msg->GetTime(), msg->GetNote(), msg->GetVelocity() );
-        } else if (msg->IsNoteOff()) {
-          trackNotes.NoteOff( msg->GetTime(), msg->GetNote() );
-        } else if (msg->IsProgramChange()) {
-          fmt::print("Time:{} ", msg->GetTime());
-          fmt::println("Program Change CH {} {}:{}:{}", msg->GetChannel()+1, bank_msb, bank_lsb, msg->GetPGValue());
-        } else if (msg->IsEndOfTrack()) {
-          eot = true;
-        } else if (msg->IsSystemExclusive()) {
-          fmt::print("Time:{} ", msg->GetTime());
-          fmt::print(fmt::fg(fmt::color::aqua), "SYSEX CH{}, Data {} =", msg->GetChannel()+1, msg->GetSysEx()->GetLength());
-          unsigned char * buf = (unsigned char *)msg->GetSysEx()->GetBuf();
-          unsigned char mfgID{}, devID{}, cmdID{}, mdlID{}, subID1{}, subID2{}, chkSum{};
-          unsigned int cmdAddr{};
-          std::vector<unsigned char> data{};
-          int chkHash{};
+        unsigned char * buf = (unsigned char *)msg->GetSysEx()->GetBuf();
+        //unsigned char mfgID{}, devID{}, cmdID{}, mdlID{}, subID1{}, subID2{}, chkSum{};
+        //unsigned int cmdAddr{};
+        //std::vector<unsigned char> data{};
+        //int chkHash{};
 
-          std::string description;
-          bool gm_reset_test = true;
-          bool gs_reset_test = true;
-          bool gm_reset = false;
-          bool gs_reset = false;
+        std::string description;
+        bool gm_reset_test = true;
+        bool gs_reset_test = true;
+        bool gm_reset = false;
+        bool gs_reset = false;
 
-          for (int i=0; i<msg->GetSysEx()->GetLength(); i++, buf++) {
+        for (int i=0; i<msg->GetSysEx()->GetLength(); i++, buf++) {
+#if 0
             if (i == 0) { // ID_number
               mfgID = *buf;
               switch (mfgID) {
@@ -329,7 +480,7 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                 cmdID = *buf;
                 switch (cmdID) {
                 case 0x11:
-                  description += "CMD:RQ1 "; 
+                  description += "CMD:RQ1 ";
                   gs_reset_test = false;
                   break;
                 case 0x12:
@@ -366,10 +517,10 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                   }
 
                   // if (gs_reset_test) {
-                  description += fmt::format("DATA-LEN:{} CHKSUM:{:02x}h ", data.size(), chkSum); 
-                  
+                  description += fmt::format("DATA-LEN:{} CHKSUM:{:02x}h ", data.size(), chkSum);
+
                   if (cmdAddr != 0x40007F) gs_reset_test = false;
-        
+
                   if ((cmdAddr & 0xFF0000) == 0x400000 && (cmdAddr & 0x00F000) != 0) {
                     int fixaddr = cmdAddr & 0xF0FF;
                     char part = (cmdAddr & 0x0F00) >> 8;
@@ -384,7 +535,7 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                     }
                   }
 
-                  switch (cmdAddr) {  
+                  switch (cmdAddr) {
                   case 0x400000:  description += "MASTER-TUNE "; break;
                   case 0x400004:  description += "MASTER-VOL "; break;
                   case 0x400005:  description += "MASTER-KEYSHIFT "; break;
@@ -421,32 +572,37 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                   case 0x400137:
                     description += "REVERB-PERDLY-TIME "; break;
                   }
-                  
+
                 } else {
                   data.push_back(*buf);
                   //description += "WARN:unhandled ";
                 }
               }
             }
-            fmt::print(fmt::fg(fmt::color::aqua), " {:02X}", *buf);
-          }
-
-          if (gm_reset) description += " GM-RESET";
-          if (gs_reset) description += " GS-RESET";
-          fmt::print("\n=> {}\n", description);
+          #endif
+          fmt::print(fmt::fg(fmt::color::aqua), " {:02X}", *buf);
         }
-        //fmt::println("time: {}", msg->GetTime());
-      }
 
-      if (!eot) {
-        fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track without eot\n");
-      }
-      trackNotes.ClipOff(stop_time);
-      fmt::println("notes show {} hide {} process {}",
-      trackNotes.notes_to_draw,
-      trackNotes.notes_to_hide,
-      trackNotes.notes_processed);
+        //if (gm_reset)
+        //if (gs_reset) description += " GS-RESET";
 
+        std::unique_ptr<vinfony::GMSysEx> gmsysex(vinfony::GMSysEx::Create(msg->GetSysEx()));
+        if (gmsysex) if (gmsysex->IsGMReset()) description += " GM-RESET";
+        std::unique_ptr<vinfony::GSSysEx> gssysex(vinfony::GSSysEx::Create(msg->GetSysEx()));
+        if (gssysex) description += gssysex->Info();
+        fmt::print("\n=> {}\n", description);
+      }
+      //fmt::println("time: {}", msg->GetTime());
+    }
+
+    if (!eot) {
+      fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track without eot\n");
+    }
+    trackNotes.ClipOff(stop_time);
+    fmt::println("notes show {} hide {} process {}",
+    trackNotes.notes_to_draw,
+    trackNotes.notes_to_hide,
+    trackNotes.notes_processed);
   }
 #if 0
   jdksmidi::MIDIMultiTrackIterator i( mlt );
@@ -489,4 +645,3 @@ int LoadUsingTML(const char * def_midipath) {
 
   return 0;
 }
-
