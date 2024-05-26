@@ -208,7 +208,7 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
 
       bool eot = false;
       long stop_time = 0;
-      int bank_msb, bank_lsb = 0;
+      int bank_msb = 0, bank_lsb = 0;
 
       for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
         const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
@@ -242,8 +242,10 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
           fmt::print("Time:{} ", msg->GetTime());
           fmt::print(fmt::fg(fmt::color::aqua), "SYSEX CH{}, Data {} =", msg->GetChannel()+1, msg->GetSysEx()->GetLength());
           unsigned char * buf = (unsigned char *)msg->GetSysEx()->GetBuf();
-          unsigned char mfgID{}, devID{}, cmdID{}, mdlID{}, subID1{}, subID2{};
+          unsigned char mfgID{}, devID{}, cmdID{}, mdlID{}, subID1{}, subID2{}, chkSum{};
           unsigned int cmdAddr{};
+          std::vector<unsigned char> data{};
+          int chkHash{};
 
           std::string description;
           bool gm_reset_test = true;
@@ -302,13 +304,13 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                   gm_reset_test = false;
                 }
               }
-              if (i == 4) {
+              if (i >= 4) {
                 if (0xF7 == *buf) {
                   description += "EOX";
-                  gm_reset = true;
-                  if (gm_reset) description += " GM-RESET";
+                  if (gm_reset_test) gm_reset = true;
                 } else {
-                  description += "WARN:unhandled";
+                  description += "WARN:unhandled ";
+                  gm_reset_test = false;
                 }
               }
             }
@@ -320,39 +322,117 @@ void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
                   description += "MDL:GS "; break;
                 default:
                   description += fmt::format("MDL:{} ", mdlID);
+                  gs_reset_test = false;
                 }
               }
               if (i == 3) {
                 cmdID = *buf;
                 switch (cmdID) {
                 case 0x11:
-                  description += "CMD:RQ1 "; break;
+                  description += "CMD:RQ1 "; 
+                  gs_reset_test = false;
+                  break;
                 case 0x12:
                   description += "CMD:DT1 "; break;
                 default:
-                  description += fmt::format("CMD:{} ", cmdID);
+                  description += fmt::format("CMD:{:02x}h ", cmdID);
+                  gs_reset_test = false;
                 }
               }
               if (i == 4) {
                 cmdAddr = *buf << 16;
+                chkHash = *buf;
               }
               if (i == 5) {
                 cmdAddr |= *buf << 8;
+                chkHash += *buf;
               }
               if (i == 6) {
                 cmdAddr |= *buf;
+                chkHash += *buf;
+                description += fmt::format("CMD-ADDR:{:06X}h ", cmdAddr);
               }
               if (i >= 7) {
                 if (0xF7 == *buf) {
-                  description += "EOX";
-                  if (gs_reset) description += " GS-RESET";
+                  description += "EOX ";
+                  if (data.size() >= 1) {
+                    chkSum = data.back();
+                    data.pop_back();
+
+                    for (auto & d : data) {
+                      chkHash += d;
+                    }
+                    description += fmt::format("ACTCHKSUM:{:02X}h ", 128 - (chkHash % 128));
+                  }
+
+                  // if (gs_reset_test) {
+                  description += fmt::format("DATA-LEN:{} CHKSUM:{:02x}h ", data.size(), chkSum); 
+                  
+                  if (cmdAddr != 0x40007F) gs_reset_test = false;
+        
+                  if ((cmdAddr & 0xFF0000) == 0x400000 && (cmdAddr & 0x00F000) != 0) {
+                    int fixaddr = cmdAddr & 0xF0FF;
+                    char part = (cmdAddr & 0x0F00) >> 8;
+                    part = part == 0 ? 10 : part >= 10 ? part + 1 : part;
+                    description += fmt::format("PART {} ", (int)part);
+                    if (fixaddr == 0x1015) {
+                      if (data.size() == 1) {
+                        description += fmt::format("USE-RHY-PART {}", (int)data[0]);
+                      }
+                    } else {
+                      description += fmt::format("ADDR {:04X}h", fixaddr);
+                    }
+                  }
+
+                  switch (cmdAddr) {  
+                  case 0x400000:  description += "MASTER-TUNE "; break;
+                  case 0x400004:  description += "MASTER-VOL "; break;
+                  case 0x400005:  description += "MASTER-KEYSHIFT "; break;
+                  case 0x400006:  description += "MASTER-PAN "; break;
+                  case 0x40007F:
+                    if (data.size() == 1 && data[0] == 0x00) {
+                      if (gs_reset_test) gs_reset = true;
+                    } else {
+                      gs_reset_test = false;
+                    }
+                    break;
+                  case 0x00007F:
+                    if (data.size() == 1 && data[0] == 0x00) {
+                      description += "MODE-1 ";
+                      // chksum == 1
+                    } else
+                    if (data.size() == 1 && data[0] == 0x01) {
+                      description += "MODE-2 ";
+                      // chksum == 0
+                    }
+                    break;
+                  case 0x400130:
+                    description += "REVERB-MACRO "; break;
+                  case 0x400131:
+                    description += "REVERB-CHAR "; break;
+                  case 0x400132:
+                    description += "REVERB-PRELPF "; break;
+                  case 0x400133:
+                    description += "REVERB-LVL "; break;
+                  case 0x400134:
+                    description += "REVERB-TIME "; break;
+                  case 0x400135:
+                    description += "REVERB-DLYFB "; break;
+                  case 0x400137:
+                    description += "REVERB-PERDLY-TIME "; break;
+                  }
+                  
                 } else {
-                  description += "WARN:unhandled";
+                  data.push_back(*buf);
+                  //description += "WARN:unhandled ";
                 }
               }
             }
             fmt::print(fmt::fg(fmt::color::aqua), " {:02X}", *buf);
           }
+
+          if (gm_reset) description += " GM-RESET";
+          if (gs_reset) description += " GS-RESET";
           fmt::print("\n=> {}\n", description);
         }
         //fmt::println("time: {}", msg->GetTime());
