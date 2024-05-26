@@ -54,6 +54,7 @@ set(SOURCE
   src/DawSeq.cpp
   src/BaseMidiOut.cpp
   src/TsfDev.cpp
+  src/DawTrackNotes.cpp
 ## -- endsources --
 )
 
@@ -67,6 +68,7 @@ set(HEADERS
   src/DawSeq.hpp
   src/BaseMidiOut.hpp
   src/TsfDev.hpp
+  src/DawTrackNotes.hpp
 ## -- endheaders --
 )
 
@@ -165,8 +167,8 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT v
 message(STATUS "CMAKE_SIZEOF_VOID_P = ${CMAKE_SIZEOF_VOID_P}")
 set(BASSMIDI_MIRROR "${PROJECT_SOURCE_DIR}/bassmidi-mirror")
 
-add_executable(test_model examples/test_model.cpp)
-target_link_libraries(test_model jdksmidi tsf fmt)
+add_executable(test_model examples/test_model.cpp src/DawTrackNotes.cpp)
+target_link_libraries(test_model jdksmidi tsf fmt libassert::assert)
 
 add_executable(test_sequencer examples/test_sequencer.cpp)
 if(WIN32)
