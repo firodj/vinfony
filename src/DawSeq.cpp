@@ -132,44 +132,79 @@ namespace vinfony {
 
     displayState.ppqn = m_impl->midi_multi_tracks->GetClksPerBeat();
 
-    for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
-      auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
-      if (midi_track->IsTrackEmpty()) continue;
+    // Detect Track MIDI channels
 
+
+    for (int trk_num=0; trk_num<m_impl->midi_multi_tracks->GetNumTracks(); ++trk_num) {
+      auto midi_track = m_impl->midi_multi_tracks->GetTrack(trk_num);
+      if (midi_track->IsTrackEmpty()) continue;
+      int ch = 0;
       std::string track_name;
-      int channel = -1;
-      int pg = -1;
-      int channel_events = 0;
       for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
         const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
+        if (msg->IsNoteOn()) {
+          if (ch == 0) ch = msg->GetChannel()+1;
+#if 0
+          char msgbuf[1024];
+          fmt::println("TRACK {} CH {} EVENT: {}", trk_num, channel, msg->MsgToText(msgbuf, 1024));
+        } else if (ch != msg->GetChannel()+1) {
+            fmt::println("WARNING: track {} has more than channels, was {} want {}", trk_num, channel,
+              msg->GetChannel());
+        }
+#endif
+        }
+
         if (msg->IsTrackName()) {
           if (track_name.empty()) track_name = msg->GetSysExString();
-          else if (track_name != msg->GetSysExString()) fmt::println("WARNING: track has more than track names");
-        } else
-        if (msg->IsChannelEvent()) {
-          channel_events++;
-          if (channel == -1) channel = msg->GetChannel();
-          else if (channel != msg->GetChannel()) fmt::println("WARNING: track {} has more than channels, was {} want {}", i, channel,
-            msg->GetChannel());
+        }
+      }
+      DawTrack * track = m_impl->AddNewTrack(trk_num, midi_track);
+      track->ch = ch;
+      track->name = track_name.empty() ?fmt::format("Track {}", trk_num) : track_name;
+    }
 
-          if (msg->IsProgramChange()) {
-            if (pg == -1) {
-              pg = msg->GetPGValue();
-              if (msg->GetChannel() != channel) fmt::println("WARNING: track {} program change different channel", i);
+    jdksmidi::MIDIMultiTrackIterator it( m_impl->midi_multi_tracks.get() );
+    it.GoToTime( 0 );
+    do {
+      int trk_num;
+      const jdksmidi::MIDITimedBigMessage *msg;
+
+      if ( it.GetCurEvent( &trk_num, &msg ) )
+      {
+        auto track_it = m_impl->tracks.find(trk_num);
+        if (track_it == m_impl->tracks.end()) continue;
+        DawTrack * track = track_it->second.get();
+
+        if (msg->IsProgramChange()) {
+          for (const auto & kv: m_impl->tracks) {
+            if (kv.second->ch == msg->GetChannel() + 1) {
+              if (kv.second->pg == 0) {
+                kv.second->pg = msg->GetPGValue() + 1;
+#if 1
+                char msgbuf[1024];
+                fmt::println("TRACK {} CH {} EVENT: {}", kv.second->id, track->ch, msg->MsgToText(msgbuf, 1024));
+#endif
+              }
             }
           }
         }
+
+        if (msg->IsControlChange()) {
+          for (const auto & kv: m_impl->tracks) {
+            if (kv.second->ch == msg->GetChannel() + 1) {
+              if (kv.second->pg == 0) {
+                kv.second->SetBank(msg);
+              }
+            }
+          }
+        }
+
+        //fprintf( stdout, "#%2d - ", trk_num );
+        //DumpMIDITimedBigMessage( msg );
       }
-
-      if (channel_events == 0) continue;
-
-      if (track_name.empty()) track_name = fmt::format("Track {}", i);
-
-      DawTrack * track = m_impl->AddNewTrack(i, midi_track);
-      track->name = track_name;
-      track->ch = 1 + channel;
-      track->pg = pg;
     }
+    while ( it.GoToNextEvent() );
+
 
     return true;
   }
@@ -327,25 +362,21 @@ namespace vinfony {
               }
 
               if (msg.IsControlChange()) {
-                auto control_value = msg.GetControllerValue();
-                switch (msg.GetController()) {
-                  case jdksmidi::C_GM_BANK:
-                    trackit->second->bank = (0x8000 | control_value);
-                    break;
-                  case jdksmidi::C_GM_BANK_LSB:
-                    trackit->second->bank = (
-                      (trackit->second->bank & 0x8000 ? ((trackit->second->bank & 0x7F) << 7) : 0) | control_value);
-                    break;
-                }
+                trackit->second->SetBank(&msg);
               }
 
               if (msg.IsProgramChange()) {
-                trackit->second->pg = msg.GetPGValue();
-                fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel(),
-                  trackit->second->bank, trackit->second->pg);
-                if (trackit->second->ch && trackit->second->ch != msg.GetChannel()+1) {
-                  fmt::println("WARN: TRACK {} PG CHANNEL IGNORE {}", ev_track, msg.GetChannel());
-                  msg.SetChannel( trackit->second->ch - 1 );
+                if (trackit->second->ch == msg.GetChannel()+1) {
+                  trackit->second->pg = msg.GetPGValue()+1;
+                  fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel(),
+                    trackit->second->bank, trackit->second->pg);
+                }
+
+                for (const auto & kv: m_impl->tracks) {
+                  if (trackit->first == kv.second->id) continue; // already set
+                  if (kv.second->ch == msg.GetChannel() + 1) {
+                    kv.second->pg = msg.GetPGValue()+1;
+                  }
                 }
               }
             }
@@ -384,6 +415,19 @@ namespace vinfony {
 
   bool DawSeq::IsPlaying() {
     return m_impl->th_play_midi_running;
+  }
+
+  void DawTrack::SetBank(const jdksmidi::MIDIBigMessage * msg) {
+    auto control_value = msg->GetControllerValue();
+    switch (msg->GetController()) {
+      case jdksmidi::C_GM_BANK:
+        bank = (0x8000 | control_value);
+        break;
+      case jdksmidi::C_GM_BANK_LSB:
+        bank = (
+          (bank & 0x8000 ? ((bank & 0x7F) << 7) : 0) | control_value);
+        break;
+    }
   }
 
   DawTrack * DawSeq::GetTrack(int track_num) {

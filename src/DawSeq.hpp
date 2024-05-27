@@ -9,6 +9,7 @@
 
 namespace jdksmidi {
   class MIDITrack;
+  class MIDIBigMessage;
 };
 
 namespace vinfony {
@@ -18,10 +19,12 @@ namespace vinfony {
     int id{0};
     std::string name;
     int h{20};
-    int ch{0};  // MIDI channel, 0=none, (1..16)=channel
-    int pg{0};  // Program value, 0=nonoe, (1..128)=program
+    unsigned int ch{0};  // MIDI channel, 0=none, (1..16)=channel
+    unsigned int pg{0};  // Program value, (0..127)=program
     unsigned int bank{0};
     jdksmidi::MIDITrack * midi_track{nullptr};
+
+    void SetBank(const jdksmidi::MIDIBigMessage * msg);
   };
 
   enum {

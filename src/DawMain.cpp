@@ -60,6 +60,7 @@ namespace vinfony {
 
   std::vector<DawMainStorage> g_storages;
 
+
   int NewProp(DawMainStorage & storage, std::string name, DawPropDrawFunc func) {
     storage.last_props_id++;
     storage.props.emplace(storage.last_props_id, std::make_unique<DawProp>());
@@ -94,11 +95,14 @@ namespace vinfony {
 
       ImGui::SetNextItemWidth(param->self->w);
       ImGui::PushID(param->track->id);
-      ImGui::Combo("##channel", &param->track->ch, items, IM_ARRAYSIZE(items));
+      ImGui::Combo("##channel", (int*)&param->track->ch, items, IM_ARRAYSIZE(items));
       ImGui::PopID();
     });
     NewProp(storage, "Instrument", [](DawPropDrawParam * param) {
-      ImGui::Text("%04Xh:%d", param->track->bank, param->track->pg);
+      if (param->track->pg)
+        ImGui::Text("%04Xh : %d", param->track->bank & 0x7FFF, param->track->pg);
+      else
+        ImGui::Text("----");
     });
   }
 
@@ -120,6 +124,7 @@ namespace vinfony {
       if (func) func();
       color_border = color_active;
     }
+
     rcmin.x += SplitterThickness/2;
     rcmax.x = rcmin.x;
     draw_list->AddLine(rcmin, rcmax, color_border);
@@ -178,24 +183,29 @@ namespace vinfony {
       auto wndsz = ImGui::GetWindowSize();
       auto scrnmax = wndpos + wndsz;
       auto cursor = ImGui::GetCursorScreenPos();
-      auto legend = ImGui::GetWindowSize();
 
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
+      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+      ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
       // Row 0: Header
       float tot_w = 0;
       float pos_x = xy0.x;
       ImGui::SetCursorScreenPos(wndpos);
       for (int c=0; c<storage.prop_nums.size(); c++) {
+
         int prop_id = storage.prop_nums[c];
         DawProp * prop = storage.props[prop_id].get();
+
         if (c > 0) ImGui::SameLine();
         ImGui::SetCursorPosX(pos_x);
-        ImGui::Button(prop->name.c_str(), {(float)prop->w, h0});
+        ImGui::ColoredButtonV1(prop->name.c_str(), {(float)prop->w + SplitterThickness/2, h0});
+
         pos_x += prop->w + SplitterThickness;
       }
       tot_w = pos_x;
+      ImGui::PopStyleVar(2);
 
       // Row N: Track
       draw_list->PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
@@ -237,7 +247,7 @@ namespace vinfony {
         }
         tot_h = pos_y;
       }
-      draw_list->PopClipRect();
+      draw_list->PopClipRect(); // This Clip Rect make Button Behaviour undetected
 
       //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
 
