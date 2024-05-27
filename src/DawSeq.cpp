@@ -42,7 +42,6 @@ namespace vinfony {
 
     CircularFifo<SeqMsg, 8> seqMessaging{};
     std::map<int, std::unique_ptr<DawTrack>> tracks;
-    int last_tracks_id{0};
     std::vector<int> track_nums;
     BaseMidiOutDevice * audioDevice{};
     jdksmidi::MIDIClockTime clk_play_start_time{0};
@@ -51,7 +50,7 @@ namespace vinfony {
     DawSeq * self;
 
     Impl(DawSeq * owner): self(owner) {};
-    DawTrack * AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track);
+    DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track);
   };
 
   DawSeq::DawSeq() {
@@ -92,47 +91,6 @@ namespace vinfony {
 
       if (m_impl->th_read_midi_file.joinable())
         m_impl->th_read_midi_file.join();
-
-      m_impl->track_nums.clear();
-      m_impl->tracks.clear();
-      m_impl->last_tracks_id = 0;
-      SetPlayClockTime(0);
-
-      displayState.ppqn = m_impl->midi_multi_tracks->GetClksPerBeat();
-
-      for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
-        auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
-        if (midi_track->IsTrackEmpty()) continue;
-
-        std::string track_name;
-        int channel = -1;
-        int pg = -1;
-        int channel_events = 0;
-        for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
-          const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
-          if (msg->IsTrackName()) {
-            if (track_name.empty()) track_name = msg->GetSysExString();
-            else if (track_name != msg->GetSysExString()) fmt::println("WARNING: track has more than track names");
-          } else
-          if (msg->IsChannelEvent()) {
-            channel_events++;
-            if (channel == -1) channel = msg->GetChannel();
-            else if (channel != msg->GetChannel()) fmt::println("WARNING: track has more than channels");
-
-            if (msg->IsProgramChange()) {
-              if (pg == -1) pg = msg->GetPGValue();
-            }
-          }
-        }
-
-        if (channel_events == 0) continue;
-
-        if (track_name.empty()) track_name = fmt::format("Track {}", i);
-
-        DawTrack * track = m_impl->AddNewTrack(track_name, midi_track);
-        track->ch = 1 + channel;
-        track->pg = 1 + pg;
-      }
     }
 
     return m_impl->th_read_midi_file_running ? false : m_impl->midi_file_loaded;
@@ -167,6 +125,52 @@ namespace vinfony {
     fmt::println("Clocks per beat = {}", m_impl->midi_multi_tracks->GetClksPerBeat());
     CalcDuration();
     fmt::println("Duration {} ms / {} beat", displayState.duration_ms, displayState.play_duration);
+
+    m_impl->track_nums.clear();
+    m_impl->tracks.clear();
+    SetPlayClockTime(0);
+
+    displayState.ppqn = m_impl->midi_multi_tracks->GetClksPerBeat();
+
+    for (int i=0; i<m_impl->midi_multi_tracks->GetNumTracks(); ++i) {
+      auto midi_track = m_impl->midi_multi_tracks->GetTrack(i);
+      if (midi_track->IsTrackEmpty()) continue;
+
+      std::string track_name;
+      int channel = -1;
+      int pg = -1;
+      int channel_events = 0;
+      for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
+        const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
+        if (msg->IsTrackName()) {
+          if (track_name.empty()) track_name = msg->GetSysExString();
+          else if (track_name != msg->GetSysExString()) fmt::println("WARNING: track has more than track names");
+        } else
+        if (msg->IsChannelEvent()) {
+          channel_events++;
+          if (channel == -1) channel = msg->GetChannel();
+          else if (channel != msg->GetChannel()) fmt::println("WARNING: track {} has more than channels, was {} want {}", i, channel,
+            msg->GetChannel());
+
+          if (msg->IsProgramChange()) {
+            if (pg == -1) {
+              pg = msg->GetPGValue();
+              if (msg->GetChannel() != channel) fmt::println("WARNING: track {} program change different channel", i);
+            }
+          }
+        }
+      }
+
+      if (channel_events == 0) continue;
+
+      if (track_name.empty()) track_name = fmt::format("Track {}", i);
+
+      DawTrack * track = m_impl->AddNewTrack(i, midi_track);
+      track->name = track_name;
+      track->ch = 1 + channel;
+      track->pg = pg;
+    }
+
     return true;
   }
 
@@ -277,8 +281,6 @@ namespace vinfony {
         m_impl->seqMessaging.push(SeqMsg::OnAsyncPlayMIDITerminated());
       });
 
-      m_impl->audioDevice->Reset();
-
       float pretend_clock_time = 0;
       // simulate a clock going forward with 10 ms resolution for 1 hour
       const float max_time = 3600. * 1000.;
@@ -287,6 +289,8 @@ namespace vinfony {
       for ( ; pretend_clock_time < max_time; pretend_clock_time = SDL_GetTicks64() - start)
       {
         if (m_impl->read_clk_play_start) {
+          if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
+
           AllMIDINoteOff();
 
           m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
@@ -312,21 +316,44 @@ namespace vinfony {
             // found the event!
             // show it to stdout
             //printf( "PUSH: tm=%06.0f : evtm=%06.0f :trk%02d : \n", pretend_clock_time, next_event_time, ev_track );
-            if (msg.IsTrackName()) {
-              char track_name[256];
-              // yes, copy the track name
-              int len = msg.GetSysEx()->GetLengthSE();
-              if ( len > (int)sizeof( track_name ) - 1 )
-                len = (int)sizeof( track_name ) - 1;
 
-              memcpy( track_name, msg.GetSysEx()->GetBuf(), len );
-              track_name[len] = '\0';
-              // fmt::println("DEBUG: TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
-            } else {
-              if (!m_impl->audioDevice->HardwareMsgOut( msg )) {
-                return;
+            auto trackit = m_impl->tracks.find(ev_track);
+            if (trackit != m_impl->tracks.end()) {
+
+              if (msg.IsTrackName()) {
+                std::string track_name = msg.GetSysExString();
+                trackit->second->name = track_name;
+                fmt::println("DEBUG: TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
+              }
+
+              if (msg.IsControlChange()) {
+                auto control_value = msg.GetControllerValue();
+                switch (msg.GetController()) {
+                  case jdksmidi::C_GM_BANK:
+                    trackit->second->bank = (0x8000 | control_value);
+                    break;
+                  case jdksmidi::C_GM_BANK_LSB:
+                    trackit->second->bank = (
+                      (trackit->second->bank & 0x8000 ? ((trackit->second->bank & 0x7F) << 7) : 0) | control_value);
+                    break;
+                }
+              }
+
+              if (msg.IsProgramChange()) {
+                trackit->second->pg = msg.GetPGValue();
+                fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel(),
+                  trackit->second->bank, trackit->second->pg);
+                if (trackit->second->ch && trackit->second->ch != msg.GetChannel()+1) {
+                  fmt::println("WARN: TRACK {} PG CHANNEL IGNORE {}", ev_track, msg.GetChannel());
+                  msg.SetChannel( trackit->second->ch - 1 );
+                }
               }
             }
+
+            if (!m_impl->audioDevice->HardwareMsgOut( msg )) {
+              return;
+            }
+
             // now find the next message
 
             if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
@@ -364,13 +391,12 @@ namespace vinfony {
     return m_impl->tracks[track_id].get();
   }
 
-  DawTrack * DawSeq::Impl::AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track) {
-    last_tracks_id++;
-    tracks[last_tracks_id] = std::make_unique<DawTrack>();
+  DawTrack * DawSeq::Impl::AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track) {
+    tracks[midi_track_id] = std::make_unique<DawTrack>();
 
-    DawTrack * track = tracks[last_tracks_id].get();
-    track->id = last_tracks_id;
-    track->name = name;
+    DawTrack * track = tracks[midi_track_id].get();
+    track->id = midi_track_id;
+
     float ht = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
     track->h = ht;
     track->midi_track = midi_track;

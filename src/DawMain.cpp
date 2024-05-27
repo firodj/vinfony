@@ -60,7 +60,6 @@ namespace vinfony {
 
   std::vector<DawMainStorage> g_storages;
 
-
   int NewProp(DawMainStorage & storage, std::string name, DawPropDrawFunc func) {
     storage.last_props_id++;
     storage.props.emplace(storage.last_props_id, std::make_unique<DawProp>());
@@ -98,7 +97,9 @@ namespace vinfony {
       ImGui::Combo("##channel", &param->track->ch, items, IM_ARRAYSIZE(items));
       ImGui::PopID();
     });
-    NewProp(storage, "Instrument", [](DawPropDrawParam * param) { ImGui::Text("%d", param->track->pg); });
+    NewProp(storage, "Instrument", [](DawPropDrawParam * param) {
+      ImGui::Text("%04Xh:%d", param->track->bank, param->track->pg);
+    });
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
