@@ -57,12 +57,25 @@ protected:
 #endif
   Uint64 processingSamples{};
   std::string m_soundfontPath;
-  std::array<unsigned char, 16> mididrum_parts;
+  std::array<unsigned char, 16> m_midiDrumParts;
+#if USE_SDLTICK == 1
+  Uint64 m_midiTicks{};
+#else
+   std::chrono::time_point<std::chrono::steady_clock> m_midiTicks{};
+#endif
 
 public:
   TinySoundFontDevice(std::string soundfontPath):
     m_soundfontPath(soundfontPath) {
   }
+
+  void UpdateMIDITicks() override {
+#if USE_SDLTICK == 1
+    m_midiTicks = SDL_GetTicks64();
+#else
+    m_midiTicks = std::chrono::high_resolution_clock::now();
+#endif
+  };
 
   bool Init() override {
     // Define the desired audio output format we request
@@ -110,12 +123,21 @@ public:
     SDL_CloseAudio();
   }
 
-  bool HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) override {
+  bool HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs ) override {
     if ( msg.IsChannelEvent() || msg.IsSystemExclusive())
     {
       TinyMIDIMessage tinymsg;
       tinymsg.msg = msg;
-      tinymsg.SetTicks();
+      if (!msgTimeShiftMs) {
+        tinymsg.SetTicks();
+      } else {
+#if USE_SDLTICK == 1
+        tinymsg.ticks = m_midiTicks + *msgTimeShiftMs;
+#else
+        tinymsg.ticks = m_midiTicks + std::chrono::milliseconds((long)*msgTimeShiftMs);
+#endif
+        ;
+      }
       if (!buffer.push(tinymsg)) {
         // retry for 1 second
         fprintf(stderr, "WARNING: circular fifo buffer is full, retrying...\n");
@@ -181,8 +203,8 @@ public:
     tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, OutputAudioSpec.freq, 0.0f);
 
     // Set Midi Drums
-    for (auto &d : mididrum_parts) d = 0;
-    mididrum_parts[9] = 1;
+    for (auto &d : m_midiDrumParts) d = 0;
+    m_midiDrumParts[9] = 1;
     tsf_channel_set_bank_preset(g_TinySoundFont, 9, 128, 0);
 
     tsf_set_output(g_TinySoundFont, TSF_STEREO_INTERLEAVED, OutputAudioSpec.freq, 0.0f);
@@ -197,7 +219,7 @@ void TinySoundFontAudioCallback(void* data, Uint8 *stream, int len)
 
 bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) {
   if (msg.IsProgramChange()) { //channel program (preset) change (special handling for 10th MIDI channel with drums)
-    tsf_channel_set_presetnumber(g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), mididrum_parts[msg.GetChannel()] != 0);
+    tsf_channel_set_presetnumber(g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), m_midiDrumParts[msg.GetChannel()] != 0);
   } else if (msg.IsControlChange()) { //MIDI controller messages
     tsf_channel_midi_control(g_TinySoundFont, msg.GetChannel(), msg.GetController(), msg.GetControllerValue());
   } else if (msg.IsNoteOn()) {
@@ -224,7 +246,7 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
         fmt::print(fmt::fg(fmt::color::wheat), "GS: {}\n", gssyx->Info());
         if (gssyx->IsUseRhythmPart()) {
           int drumgrp = gssyx->GetUseRhythmPart();
-          mididrum_parts[gssyx->GetPart()-1] = drumgrp;
+          m_midiDrumParts[gssyx->GetPart()-1] = drumgrp;
           tsf_channel_set_bank(g_TinySoundFont, gssyx->GetPart()-1, drumgrp == 0 ? 0 : 128);
         }
       }

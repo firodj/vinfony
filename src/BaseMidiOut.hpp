@@ -18,11 +18,12 @@ public:
   virtual ~BaseMidiOutDevice() {};
   virtual bool Init() { return true; };
   virtual void Shutdown() {};
-  virtual bool HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg ) {
+  virtual bool HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs ) {
     DumpMIDITimedBigMessage( &msg );
     return true;
   }
   virtual void Reset() {};
+  virtual void UpdateMIDITicks() {};
 };
 
 }

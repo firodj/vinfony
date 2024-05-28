@@ -291,11 +291,11 @@ namespace vinfony {
     jdksmidi::MIDITimedBigMessage msg;
     for (int chan=0; chan<16; ++chan) {
       msg.SetPitchBend( chan, 0 );
-      m_impl->audioDevice->HardwareMsgOut( msg );
+      m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
       msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
-      m_impl->audioDevice->HardwareMsgOut( msg );
+      m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
       msg.SetAllNotesOff( (unsigned char)chan );
-      m_impl->audioDevice->HardwareMsgOut( msg );
+      m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
     }
   }
 
@@ -321,6 +321,7 @@ namespace vinfony {
       });
 
       float pretend_clock_time = 0;
+      float before_clock_time = pretend_clock_time;
 #if USE_SDLTICK == 1
       // simulate a clock going forward with 10 ms resolution for 1 hour
       float start = SDL_GetTicks64();
@@ -330,10 +331,11 @@ namespace vinfony {
       const float max_time = 3600. * 1000.;
 
       for ( ; pretend_clock_time < max_time;
+        before_clock_time = pretend_clock_time,
 #if USE_SDLTICK == 1
-      pretend_clock_time = SDL_GetTicks64() - start
+        pretend_clock_time = SDL_GetTicks64() - start
 #else
-      pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count()
+        pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count()
 #endif
       ) {
         if (m_impl->read_clk_play_start) {
@@ -344,6 +346,7 @@ namespace vinfony {
           m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
           //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
           pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
+          before_clock_time = pretend_clock_time;
 
           if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
             fmt::println("DEBUG: empty next event, stop!");
@@ -361,7 +364,7 @@ namespace vinfony {
         CalcCurrentMIDITimeBeat(pretend_clock_time);
 
         // TODO: Send SyncTime
-
+        m_impl->audioDevice->UpdateMIDITicks();
 
         // find all events that came before or a the current time
         while ( next_event_time <= pretend_clock_time ) {
@@ -400,7 +403,8 @@ namespace vinfony {
               }
             }
 
-            if (!m_impl->audioDevice->HardwareMsgOut( msg )) {
+            double shiftMs = m_impl->midi_seq->GetCurrentTimeInMs() - pretend_clock_time;
+            if (!m_impl->audioDevice->HardwareMsgOut( msg, &shiftMs )) {
               return;
             }
 
