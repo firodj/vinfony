@@ -41,6 +41,7 @@ set(SOURCE
   ${VENDOR_DIR}/Engine.cpp
   ${VENDOR_DIR}/GLUtil.cpp
   ${VENDOR_DIR}/Component.cpp
+  ${VENDOR_DIR}/UtfConv.c
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
   ${IMGUI_DIR}/imgui.cpp
@@ -63,6 +64,7 @@ set(HEADERS
   ${VENDOR_DIR}/kosongg/Component.h
   ${VENDOR_DIR}/kosongg/Engine.h
   ${VENDOR_DIR}/kosongg/GLUtil.h
+  ${VENDOR_DIR}/kosongg/UtfConv.h
 ## -- headers --
   src/MainApp.hpp
   src/DawMain.hpp
