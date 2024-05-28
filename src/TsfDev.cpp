@@ -22,6 +22,10 @@
 #include "circularfifo1.h"
 #include "DawSysEx.hpp"
 
+#define SAMPLE_RATE 44100.0
+
+#define USE_SDLTICK 0
+
 namespace vinfony
 {
 
@@ -30,9 +34,15 @@ void TinySoundFontAudioCallback(void* data, Uint8 *stream, int len);
 class TinyMIDIMessage {
 public:
   TinyMIDIMessage() {}
-  void SetTicks() { ticks = SDL_GetTicks64(); }
   jdksmidi::MIDITimedBigMessage msg{};
+
+#if USE_SDLTICK == 1
+  void SetTicks() { ticks = SDL_GetTicks64(); }
   Uint64 ticks{};
+#else
+  std::chrono::time_point<std::chrono::steady_clock> ticks{};
+  void SetTicks() { ticks = std::chrono::high_resolution_clock::now(); };
+#endif
 };
 
 class TinySoundFontDevice: public BaseMidiOutDevice {
@@ -40,7 +50,11 @@ protected:
   SDL_AudioSpec OutputAudioSpec;
   tsf* g_TinySoundFont;
   CircularFifo<TinyMIDIMessage, 8> buffer;
+#if USE_SDLTICK == 1
   Uint64 startingTicks{};
+#else
+  std::chrono::time_point<std::chrono::steady_clock> startingTicks{};
+#endif
   Uint64 processingSamples{};
   std::string m_soundfontPath;
   std::array<unsigned char, 16> mididrum_parts;
@@ -52,7 +66,7 @@ public:
 
   bool Init() override {
     // Define the desired audio output format we request
-    OutputAudioSpec.freq = 44100;
+    OutputAudioSpec.freq = SAMPLE_RATE;
     OutputAudioSpec.format = AUDIO_F32;
     OutputAudioSpec.channels = 2;
     OutputAudioSpec.samples = 4096 >> 2;
@@ -81,7 +95,11 @@ public:
     // Start the actual audio playback here
     // The audio thread will begin to call our AudioCallback function
     int bufferDurationTicks = OutputAudioSpec.samples * (1000.0 / OutputAudioSpec.freq);
+#if USE_SDLTICK == 1
     startingTicks = SDL_GetTicks64(); // - bufferDurationTicks;
+#else
+    startingTicks = std::chrono::high_resolution_clock::now();
+#endif
     SDL_PauseAudio(0);
 
     return true;
@@ -127,7 +145,11 @@ public:
 
     for (;BlockCount;--BlockCount) {
       // NOTE: if startingTicks too close with current event, we may reduce it with bufferDurationTicks
-      Uint64 processingMarker = startingTicks + (processingSamples * (1000.0 / 44100.0));
+#if USE_SDLTICK == 1
+      Uint64 processingMarker = startingTicks + (processingSamples * (1000.0 / SAMPLE_RATE));
+#else
+      std::chrono::time_point<std::chrono::steady_clock> processingMarker = startingTicks + std::chrono::milliseconds((long)(processingSamples * (1000.0 / SAMPLE_RATE)));
+#endif
 
       TinyMIDIMessage tinymsg;
       while (buffer.peek(tinymsg)) {

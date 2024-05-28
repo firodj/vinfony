@@ -104,6 +104,12 @@ if (WIN32)
     ${VENDOR_DIR}/ifd/ImFileDialog_win32.hpp
   )
 endif()
+if (LINUX)
+  list(APPEND ifd_SOURCES
+    ${VENDOR_DIR}/ifd/ImFileDialog_linux.cpp
+    ${VENDOR_DIR}/ifd/ImFileDialog_linux.hpp
+  )
+endif()
 
 add_library(ifd STATIC ${ifd_SOURCES})
 

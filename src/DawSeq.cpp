@@ -1,9 +1,13 @@
 #include "DawSeq.hpp"
 
+#define USE_SDLTICK 0
+
 #include <iostream>
 #include <thread>
 #include <atomic>
-//#include <chrono>
+#include <chrono>
+using namespace std::chrono_literals;
+
 #include <map>
 #include <memory>
 #include <thread>
@@ -317,12 +321,21 @@ namespace vinfony {
       });
 
       float pretend_clock_time = 0;
+#if USE_SDLTICK == 1
       // simulate a clock going forward with 10 ms resolution for 1 hour
-      const float max_time = 3600. * 1000.;
       float start = SDL_GetTicks64();
+#else
+      std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::high_resolution_clock::now();
+#endif
+      const float max_time = 3600. * 1000.;
 
-      for ( ; pretend_clock_time < max_time; pretend_clock_time = SDL_GetTicks64() - start)
-      {
+      for ( ; pretend_clock_time < max_time;
+#if USE_SDLTICK == 1
+      pretend_clock_time = SDL_GetTicks64() - start
+#else
+      pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count()
+#endif
+      ) {
         if (m_impl->read_clk_play_start) {
           if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
 
@@ -338,11 +351,17 @@ namespace vinfony {
           }
 
           // simulate a clock going forward with 10 ms resolution for 1 hour
+#if USE_SDLTICK == 1
           start = SDL_GetTicks64() - pretend_clock_time;
-
+#else
+          start = std::chrono::high_resolution_clock::now() - std::chrono::microseconds((long)(pretend_clock_time * 1000.0));
+#endif
           m_impl->read_clk_play_start = false;
         }
         CalcCurrentMIDITimeBeat(pretend_clock_time);
+
+        // TODO: Send SyncTime
+
 
         // find all events that came before or a the current time
         while ( next_event_time <= pretend_clock_time ) {
@@ -397,7 +416,11 @@ namespace vinfony {
         }
 
         // 10ms when using namespace std::chrono_literals;
+#if USE_SDLTICK == 1
         SDL_Delay(10);
+#else
+        std::this_thread::sleep_for(10ms);
+#endif
         if (m_impl->request_stop_midi) {
           break;
         }
