@@ -61,7 +61,6 @@ namespace vinfony {
 
   std::vector<DawMainStorage> g_storages;
 
-
   int NewProp(DawMainStorage & storage, std::string name, DawPropDrawFunc func) {
     storage.last_props_id++;
     storage.props.emplace(storage.last_props_id, std::make_unique<DawProp>());
@@ -78,15 +77,14 @@ namespace vinfony {
   }
 
   void InitDawMainStorage(DawMainStorage & storage) {
+    int id;
     // Properties
-    NewProp(storage, "No", [](DawPropDrawParam * param) { ImGui::Text("%d", param->r); });
+    id = NewProp(storage, "No", [](DawPropDrawParam * param) { ImGui::Text("%d", param->r); });
+    storage.props[id]->w = 20;
+
     NewProp(storage, "Name", [](DawPropDrawParam * param) {
-      auto p1 = ImGui::GetCursorScreenPos();
-      auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
-      ImGui::PushClipRect(p1, p2, true);
       // ImGui::GetWindowDrawList()->AddRectFilled(p1, p2, IM_COL32(255, 0,0, 255));
       ImGui::Text("%s", param->track->name.c_str() );
-      ImGui::PopClipRect();
     });
     NewProp(storage, "Channel", [](DawPropDrawParam * param) {
       //auto p1 = ImGui::GetCursorScreenPos();
@@ -99,12 +97,13 @@ namespace vinfony {
       ImGui::Combo("##channel", (int*)&param->track->ch, items, IM_ARRAYSIZE(items));
       ImGui::PopID();
     });
-    NewProp(storage, "Instrument", [](DawPropDrawParam * param) {
+    id = NewProp(storage, "Instrument", [](DawPropDrawParam * param) {
       if (param->track->pg)
-        ImGui::Text("%04Xh : %d", param->track->bank & 0x7FFF, param->track->pg);
+        ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
       else
         ImGui::Text("----");
     });
+    storage.props[id]->w = 200;
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
@@ -230,7 +229,11 @@ namespace vinfony {
             if (prop->DrawTrack) {
               if (c > 0) ImGui::SameLine();
               ImGui::SetCursorPosX(pos_x);
+              auto p1 = ImGui::GetCursorScreenPos();
+              auto p2 = p1 + ImVec2{(float)param.self->w, (float)param.track->h};
+              ImGui::PushClipRect(p1, p2, true);
               prop->DrawTrack(&param);
+              draw_list->PopClipRect();
             }
 
             pos_x += prop->w + SplitterThickness;
