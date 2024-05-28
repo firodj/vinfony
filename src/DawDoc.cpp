@@ -68,9 +68,10 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
   // Set PPQN
   m_midiMultiTrack->SetClksPerBeat(mlt->GetClksPerBeat());
 
-  // Detect Track MIDI channels
+  // Copy Track MIDI and decide Track Channel
   for (int trk_num=0; trk_num<mlt->GetNumTracks(); ++trk_num) {
     auto midi_track = mlt->GetTrack(trk_num);
+    if (midi_track->IsTrackEmpty()) continue;
 
     int ch = 0;
     std::string track_name;
@@ -216,6 +217,19 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
   }
 
   return true;
+}
+
+int DawDoc::GetPPQN() {
+  return m_midiMultiTrack->GetClksPerBeat();
+}
+
+DawTrack * DawDoc::GetTrack(int track_num) {
+  const int track_id = m_trackNums[track_num];
+  return m_tracks[track_id].get();
+}
+
+int DawDoc::GetNumTracks() {
+  return m_trackNums.size();
 }
 
 }

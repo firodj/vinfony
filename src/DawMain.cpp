@@ -11,6 +11,7 @@
 #include "jdksmidi/track.h"
 #include <libassert/assert.hpp>
 
+#include "DawTrack.hpp"
 #include "DawTrackNotes.hpp"
 
 namespace ImGui {

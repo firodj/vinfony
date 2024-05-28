@@ -26,5 +26,8 @@ namespace vinfony {
     DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track);
     bool LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt );
     jdksmidi::MIDIMultiTrack * GetMIDIMultiTrack() { return m_midiMultiTrack.get(); }
+    int GetPPQN();
+    DawTrack * GetTrack(int track_num);
+    int GetNumTracks();
   };
 };

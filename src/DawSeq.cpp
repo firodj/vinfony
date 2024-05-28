@@ -28,12 +28,14 @@ using namespace std::chrono_literals;
 
 #include "TsfDev.hpp"
 #include "DawTrack.hpp"
+#include "DawDoc.hpp"
 
 namespace vinfony {
 
   struct DawSeq::Impl {
     //std::unique_ptr<jdksmidi::MIDIFileReadStreamFile> rs{};
-    std::unique_ptr<jdksmidi::MIDIMultiTrack> midi_multi_tracks{};
+    //std::unique_ptr<jdksmidi::MIDIMultiTrack> midi_multi_tracks{};
+    std::unique_ptr<DawDoc> doc{};
     std::unique_ptr<jdksmidi::MIDISequencer> midi_seq{};
 
     // Threading related
@@ -46,8 +48,8 @@ namespace vinfony {
     std::atomic<bool> request_stop_midi{false};
 
     CircularFifo<SeqMsg, 8> seqMessaging{};
-    std::map<int, std::unique_ptr<DawTrack>> tracks; // TODO: move to DawDoc
-    std::vector<int> track_nums; // TODO: move to DawDoc
+    //std::map<int, std::unique_ptr<DawTrack>> tracks; // TODO: move to DawDoc
+    //std::vector<int> track_nums; // TODO: move to DawDoc
     BaseMidiOutDevice * audioDevice{};
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
@@ -55,7 +57,7 @@ namespace vinfony {
     DawSeq * self;
 
     Impl(DawSeq * owner): self(owner) {};
-    DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track); // TODO: move to DawDoc
+    //DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track); // TODO: move to DawDoc
   };
 
   DawSeq::DawSeq() {
@@ -82,8 +84,8 @@ namespace vinfony {
   void DawSeq::SetPlayClockTime(unsigned long clk_time) {
     m_impl->clk_play_start_time = clk_time;
 
-    if (m_impl->midi_multi_tracks->GetClksPerBeat())
-      displayState.play_cursor = (float)clk_time/m_impl->midi_multi_tracks->GetClksPerBeat();
+    if (m_impl->doc->GetPPQN())
+      displayState.play_cursor = (float)clk_time/m_impl->doc->GetPPQN();
     else
       displayState.play_cursor = 0;
 
@@ -102,15 +104,16 @@ namespace vinfony {
   }
 
   int DawSeq::GetNumTracks() {
-    return m_impl->track_nums.size();
+    return m_impl->doc->GetNumTracks();
   }
 
   bool DawSeq::ReadMIDIFile(std::string filename) {
     jdksmidi::MIDIFileReadStreamFile rs(filename.c_str());
 
-    m_impl->midi_multi_tracks = std::make_unique<jdksmidi::MIDIMultiTrack>();
+    //m_impl->midi_multi_tracks = std::make_unique<jdksmidi::MIDIMultiTrack>();
+    jdksmidi::MIDIMultiTrack tracks{};
 
-    jdksmidi::MIDIFileReadMultiTrack track_loader( m_impl->midi_multi_tracks.get() );
+    jdksmidi::MIDIFileReadMultiTrack track_loader( &tracks );
 
     jdksmidi::MIDIFileRead reader( &rs, &track_loader );
 
@@ -119,24 +122,29 @@ namespace vinfony {
       fmt::println("Error parse file {}", filename);
       return false;
     }
-
+#if 0
     if ( m_impl->midi_multi_tracks->GetNumTracksWithEvents() == 1 ) {//
       fmt::println("all events in one track: format 0, separated them!");
       // redistributes channel events in separate tracks
       m_impl->midi_multi_tracks->AssignEventsToTracks(0);
     }
+#endif
 
-    m_impl->midi_seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->midi_multi_tracks.get() );
-    fmt::println("Clocks per beat = {}", m_impl->midi_multi_tracks->GetClksPerBeat());
+    m_impl->doc = std::make_unique<DawDoc>();
+    m_impl->doc->LoadFromMIDIMultiTrack( &tracks );
+
+    displayState.ppqn = m_impl->doc->GetPPQN();
+    fmt::println("Clocks per beat = {}", displayState.ppqn);
+
+    m_impl->midi_seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->doc->m_midiMultiTrack.get() );
+
     CalcDuration();
     fmt::println("Duration {} ms / {} beat", displayState.duration_ms, displayState.play_duration);
-
-    m_impl->track_nums.clear();
-    m_impl->tracks.clear();
     SetPlayClockTime(0);
 
-    displayState.ppqn = m_impl->midi_multi_tracks->GetClksPerBeat();
-
+#if 0 // TODO: already moved
+    m_impl->track_nums.clear();
+    m_impl->tracks.clear();
     // Detect Track MIDI channels
     for (int trk_num=0; trk_num<m_impl->midi_multi_tracks->GetNumTracks(); ++trk_num) {
       auto midi_track = m_impl->midi_multi_tracks->GetTrack(trk_num);
@@ -207,7 +215,7 @@ namespace vinfony {
       }
     }
     while ( it.GoToNextEvent() );
-
+#endif
 
     return true;
   }
@@ -235,7 +243,7 @@ namespace vinfony {
     }
 
     displayState.duration_ms = event_time;
-    displayState.play_duration = clk_time / m_impl->midi_multi_tracks->GetClksPerBeat();
+    displayState.play_duration = clk_time / m_impl->doc->GetPPQN();
   }
 
   // from: AdvancedSequencer::GetCurrentMIDIClockTime
@@ -243,21 +251,21 @@ namespace vinfony {
   {
     jdksmidi::MIDIClockTime time = m_impl->midi_seq->GetCurrentMIDIClockTime();
     double ms_offset = now_ms - m_impl->midi_seq->GetCurrentTimeInMs();
-    double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->midi_multi_tracks->GetClksPerBeat() );
+    double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->doc->GetPPQN() );
     time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
     m_impl->clk_play_start_time = time;
 
-    displayState.play_cursor = (float)time/m_impl->midi_multi_tracks->GetClksPerBeat();
+    displayState.play_cursor = (float)time/m_impl->doc->GetPPQN();
   }
 
   void DawSeq::SetMIDITimeBeat(float time_beat) {
-    SetPlayClockTime( time_beat * m_impl->midi_multi_tracks->GetClksPerBeat() );
+    SetPlayClockTime( time_beat * m_impl->doc->GetPPQN() );
   }
 
   void DawSeq::CloseMIDIFile() {
     m_impl->midi_file_loaded = false;
     m_impl->midi_seq.reset();
-    m_impl->midi_multi_tracks.reset();
+    m_impl->doc.reset();
   }
 
   void DawSeq::AsyncReadMIDIFile(std::string filename) {
@@ -373,8 +381,8 @@ namespace vinfony {
             // show it to stdout
             //printf( "PUSH: tm=%06.0f : evtm=%06.0f :trk%02d : \n", pretend_clock_time, next_event_time, ev_track );
 
-            auto trackit = m_impl->tracks.find(ev_track);
-            if (trackit != m_impl->tracks.end()) {
+            auto trackit = m_impl->doc->m_tracks.find(ev_track);
+            if (trackit != m_impl->doc->m_tracks.end()) {
 
               if (msg.IsTrackName()) {
                 std::string track_name = msg.GetSysExString();
@@ -393,7 +401,7 @@ namespace vinfony {
                     trackit->second->bank, trackit->second->pg);
                 }
 
-                for (const auto & kv: m_impl->tracks) {
+                for (const auto & kv: m_impl->doc->m_tracks) {
                   if (trackit->first == kv.second->id) continue; // already set
                   if (kv.second->ch == msg.GetChannel() + 1) {
                     kv.second->pg = msg.GetPGValue()+1;
@@ -445,28 +453,10 @@ namespace vinfony {
 
   // TODO: refactor
   DawTrack * DawSeq::GetTrack(int track_num) {
-    const int track_id = m_impl->track_nums[track_num];
-    return m_impl->tracks[track_id].get();
-  }
-
-  // TODO: deprecated
-  DawTrack * DawSeq::Impl::AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track) {
-    tracks[midi_track_id] = std::make_unique<DawTrack>();
-
-    DawTrack * track = tracks[midi_track_id].get();
-    track->id = midi_track_id;
-
-    float ht = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
-    track->h = ht;
-    track->midi_track = midi_track;
-
-    track_nums.push_back(track->id);
-
-    return track;
+    return m_impl->doc->GetTrack(track_num);
   }
 
   void DawSeq::SetDevice(BaseMidiOutDevice * dev) {
     m_impl->audioDevice = dev;
   }
-
 }
