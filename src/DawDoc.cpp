@@ -146,6 +146,8 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
   }
   while ( it.GoToNextEvent() );
 
+
+  // Scanning for various Analyze
   for (auto trk_num: m_trackNums) {
     auto & track = m_tracks[trk_num];
     auto & midi_track = track->midi_track; // m_midiMultiTrack->GetTrack(trk_num);

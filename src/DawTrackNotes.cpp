@@ -24,6 +24,8 @@
 
 #include "DawTrackNotes.hpp"
 
+#define DBG_NOTEORDER 0
+
 namespace vinfony {
 
 DawTrackNotes::DawTrackNotes() {
@@ -78,6 +80,12 @@ bool DawTrackNotes::NewNote(long t, char n) {
 }
 
 void DawTrackNotes::NoteOn(long t, char n, char v) {
+#if DBG_NOTEORDER == 1
+  int slot = note_value_to_slot[n];
+  if (slot != -1) {
+    fmt::print(fmt::fg(fmt::color::wheat), "WARN: Note On before Kill! t{},n{}\n", t, (int)n);
+  }
+#endif
   NoteOff(t, n);
   if (v > 0) NewNote(t, n);
 }
@@ -108,6 +116,12 @@ void DawTrackNotes::DumpDbg() {
 }
 
 void DawTrackNotes::NoteOff(long t, char n) {
+#if DBG_NOTEORDER == 1
+  int slot = note_value_to_slot[n];
+  if (slot == -1) {
+    fmt::print(fmt::fg(fmt::color::wheat), "WARN: Note Off nothing! t{},n{}\n", t, (int)n);
+  }
+#endif
   KillNote(t, n, true);
 }
 
