@@ -55,8 +55,10 @@ set(SOURCE
   src/DawSeq.cpp
   src/BaseMidiOut.cpp
   src/TsfDev.cpp
+  src/DawTrack.cpp
   src/DawTrackNotes.cpp
   src/DawSysEx.cpp
+  src/DawDoc.cpp
 ## -- endsources --
 )
 
@@ -71,8 +73,10 @@ set(HEADERS
   src/DawSeq.hpp
   src/BaseMidiOut.hpp
   src/TsfDev.hpp
+  src/DawTrack.hpp
   src/DawTrackNotes.hpp
   src/DawSysEx.hpp
+  src/DawDoc.hpp
 ## -- endheaders --
 )
 
@@ -181,6 +185,8 @@ add_executable(test_model
   examples/test_model.cpp
   src/DawTrackNotes.cpp
   src/DawSysEx.cpp
+  src/DawDoc.cpp
+  src/DawTrack.cpp
   )
 target_link_libraries(test_model jdksmidi tsf fmt libassert::assert)
 

@@ -27,6 +27,7 @@ using namespace std::chrono_literals;
 #include <fmt/core.h>
 
 #include "TsfDev.hpp"
+#include "DawTrack.hpp"
 
 namespace vinfony {
 
@@ -45,8 +46,8 @@ namespace vinfony {
     std::atomic<bool> request_stop_midi{false};
 
     CircularFifo<SeqMsg, 8> seqMessaging{};
-    std::map<int, std::unique_ptr<DawTrack>> tracks;
-    std::vector<int> track_nums;
+    std::map<int, std::unique_ptr<DawTrack>> tracks; // TODO: move to DawDoc
+    std::vector<int> track_nums; // TODO: move to DawDoc
     BaseMidiOutDevice * audioDevice{};
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
@@ -54,7 +55,7 @@ namespace vinfony {
     DawSeq * self;
 
     Impl(DawSeq * owner): self(owner) {};
-    DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track);
+    DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track); // TODO: move to DawDoc
   };
 
   DawSeq::DawSeq() {
@@ -137,8 +138,6 @@ namespace vinfony {
     displayState.ppqn = m_impl->midi_multi_tracks->GetClksPerBeat();
 
     // Detect Track MIDI channels
-
-
     for (int trk_num=0; trk_num<m_impl->midi_multi_tracks->GetNumTracks(); ++trk_num) {
       auto midi_track = m_impl->midi_multi_tracks->GetTrack(trk_num);
       if (midi_track->IsTrackEmpty()) continue;
@@ -444,24 +443,13 @@ namespace vinfony {
     return m_impl->th_play_midi_running;
   }
 
-  void DawTrack::SetBank(const jdksmidi::MIDIBigMessage * msg) {
-    auto control_value = msg->GetControllerValue();
-    switch (msg->GetController()) {
-      case jdksmidi::C_GM_BANK:
-        bank = (0x8000 | control_value);
-        break;
-      case jdksmidi::C_GM_BANK_LSB:
-        bank = (
-          (bank & 0x8000 ? ((bank & 0x7F) << 7) : 0) | control_value);
-        break;
-    }
-  }
-
+  // TODO: refactor
   DawTrack * DawSeq::GetTrack(int track_num) {
     const int track_id = m_impl->track_nums[track_num];
     return m_impl->tracks[track_id].get();
   }
 
+  // TODO: deprecated
   DawTrack * DawSeq::Impl::AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track) {
     tracks[midi_track_id] = std::make_unique<DawTrack>();
 

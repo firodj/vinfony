@@ -386,30 +386,6 @@ namespace vinfony {
 
       class DawTrackNotesUI: public DawTrackNotes {
         public:
-#if 0
-      struct DawNote {
-        long time;
-        long stop;
-        char note;
-        int used_prev;
-        int used_next;
-      };
-
-      struct DawTrackNotes {
-        int note_value_to_slot[128];
-        DawNote note_actives[128];
-        int note_free_slot[128];
-        int num_free_slot{128};
-        int note_used_head{-1};
-        int note_used_tail{-1};
-        long visible_start_clk{0};
-
-        // Statistics
-        int notes_processed{0};
-        int notes_to_draw{0};
-        int notes_to_hide{0};
-
-#endif
 
         // UI
         int scrnpos_x{0};

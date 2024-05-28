@@ -9,7 +9,7 @@
 
 namespace vinfony {
   struct DawProp;
-  struct DawTrack;
+  class DawTrack;
 
   struct DawPropDrawParam {
     DawProp * self;

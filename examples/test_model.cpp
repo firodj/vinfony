@@ -25,33 +25,8 @@
 #include "DawSeq.hpp"
 #include "DawTrackNotes.hpp"
 #include "DawSysEx.hpp"
+#include "DawDoc.hpp"
 
-namespace vinfony {
-  struct DawDoc {
-    std::map<int, std::unique_ptr<DawTrack>> tracks;
-    int last_tracks_id{0};
-    std::vector<int> track_nums;
-
-    DawTrack * AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track);
-  };
-
-  DawTrack * DawDoc::AddNewTrack(std::string name, jdksmidi::MIDITrack * midi_track)
-  {
-    last_tracks_id++;
-    tracks[last_tracks_id] = std::make_unique<DawTrack>();
-
-    DawTrack * track = tracks[last_tracks_id].get();
-    track->id = last_tracks_id;
-    track->name = name;
-    float ht = 120; // FIXME: view/style
-    track->h = ht;
-    track->midi_track = midi_track;
-
-    track_nums.push_back(track->id);
-
-    return track;
-  }
-};
 
 int LoadUsingJDKSMIDI(const char * def_midipath);
 void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt );
@@ -105,18 +80,13 @@ int LoadUsingJDKSMIDI(const char * def_midipath) {
       return -1;
     }
 
-    if ( tracks.GetNumTracksWithEvents() == 1 ) {//
-      fmt::println("all events in one track: format 0, separated them!");
-      // redistributes channel events in separate tracks
-      tracks.AssignEventsToTracks(0);
-    }
+    vinfony::DawDoc doc;
+    doc.LoadFromMIDIMultiTrack( &tracks );
+    //      fmt::print(fmt::fg(fmt::color::floral_white), "Dump {}\n", MultiTrackAsText( tracks ));
 
     //      MIDISequencerGUIEventNotifierText notifier( stdout );
     //      MIDISequencer seq( &tracks, &notifier );
-    jdksmidi::MIDISequencer seq( &tracks );
-
-    DumpMIDIMultiTrack( &tracks );
-    //      fmt::print(fmt::fg(fmt::color::floral_white), "Dump {}\n", MultiTrackAsText( tracks ));
+    jdksmidi::MIDISequencer seq( doc.GetMIDIMultiTrack() );
 
     double dt = seq.GetMusicDurationInSeconds();
 
@@ -193,98 +163,6 @@ void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg )
 
     fprintf( stdout, "\n" );
   }
-}
-
-void DumpMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt )
-{
-  fmt::println("Clocks per beat: {}", mlt->GetClksPerBeat() );
-  fmt::println("Tracks with events: {}", mlt->GetNumTracksWithEvents() );
-  fmt::println("Num Tracks {}", mlt->GetNumTracks());
-
-  for (int trk_num = 0; trk_num < mlt->GetNumTracks(); trk_num++) {
-    auto midi_track = mlt->GetTrack(trk_num);
-    if (midi_track->IsTrackEmpty()) continue;
-    vinfony::DawTrackNotes trackNotes{};
-
-    bool eot = false;
-    long stop_time = 0;
-    int bank_msb = 0, bank_lsb = 0;
-
-    for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
-      const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
-      if (eot) {
-        fmt::print(fmt::fg(fmt::color::wheat), "WARNING: events exist after eot\n");
-      } else {
-        stop_time = msg->GetTime();
-      }
-
-      if (msg->IsTrackName()) {
-        fmt::println(msg->GetSysExString());
-      } else if (msg->IsControlChange()) {
-        switch (msg->GetController()) {
-          case jdksmidi::C_GM_BANK:
-            bank_msb = msg->GetControllerValue();
-            break;
-          case jdksmidi::C_GM_BANK_LSB:
-            bank_lsb = msg->GetControllerValue();
-            break;
-        }
-      } else if (msg->IsNoteOn()) {
-        trackNotes.NoteOn( msg->GetTime(), msg->GetNote(), msg->GetVelocity() );
-      } else if (msg->IsNoteOff()) {
-        trackNotes.NoteOff( msg->GetTime(), msg->GetNote() );
-      } else if (msg->IsProgramChange()) {
-        fmt::print("Time:{} ", msg->GetTime());
-        fmt::println("Program Change CH {} {}:{}:{}", msg->GetChannel()+1, bank_msb, bank_lsb, msg->GetPGValue());
-      } else if (msg->IsEndOfTrack()) {
-        eot = true;
-      } else if (msg->IsSystemExclusive()) {
-        fmt::print("Time:{} ", msg->GetTime());
-        fmt::print(fmt::fg(fmt::color::aqua), "SYSEX CH{}, Data {} =", msg->GetChannel()+1, msg->GetSysEx()->GetLength());
-
-        unsigned char * buf = (unsigned char *)msg->GetSysEx()->GetBuf();
-
-        std::string description;
-
-        for (int i=0; i<msg->GetSysEx()->GetLength(); i++, buf++) {
-          fmt::print(fmt::fg(fmt::color::aqua), " {:02X}", *buf);
-        }
-
-        {
-          std::unique_ptr<vinfony::GMSysEx> gmsysex(vinfony::GMSysEx::Create(msg->GetSysEx()));
-          if (gmsysex) description += gmsysex->Info();
-        }
-        {
-          std::unique_ptr<vinfony::GSSysEx> gssysex(vinfony::GSSysEx::Create(msg->GetSysEx()));
-          if (gssysex) description += gssysex->Info();
-        }
-        fmt::print("\n=> {}\n", description);
-      }
-      //fmt::println("time: {}", msg->GetTime());
-    }
-
-    if (!eot) {
-      fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track without eot\n");
-    }
-    trackNotes.ClipOff(stop_time);
-    fmt::println("notes process {}", trackNotes.notes_processed);
-  }
-#if 0
-  jdksmidi::MIDIMultiTrackIterator i( mlt );
-  i.GoToTime( 0 );
-  do
-  {
-    int trk_num;
-    const MIDITimedBigMessage *msg;
-
-    if ( i.GetCurEvent( &trk_num, &msg ) )
-    {
-      fprintf( stdout, "#%2d - ", trk_num );
-      DumpMIDITimedBigMessage( msg );
-    }
-  }
-  while ( i.GoToNextEvent() );
-#endif
 }
 
 int LoadUsingTML(const char * def_midipath) {
