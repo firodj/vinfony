@@ -109,7 +109,6 @@ namespace vinfony {
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
-    auto draw_list     = ImGui::GetWindowDrawList();
     ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
     ImU32 color_hover  = ImGui::GetColorU32(ImGuiCol_SeparatorHovered, 1.0);
     ImU32 color_active  = ImGui::GetColorU32(ImGuiCol_SeparatorActive, 1.0);
@@ -129,11 +128,10 @@ namespace vinfony {
 
     rcmin.x += SplitterThickness/2;
     rcmax.x = rcmin.x;
-    draw_list->AddLine(rcmin, rcmax, color_border);
+    ImGui::GetWindowDrawList()->AddLine(rcmin, rcmax, color_border);
   }
 
   static void HSplitter(ImVec2 pos, float avail_w, SplitterOnDraggingFunc func) {
-    auto draw_list     = ImGui::GetWindowDrawList();
     ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
     ImU32 color_hover  = ImGui::GetColorU32(ImGuiCol_SeparatorHovered, 1.0);
     ImU32 color_active = ImGui::GetColorU32(ImGuiCol_SeparatorActive, 1.0);
@@ -152,7 +150,7 @@ namespace vinfony {
     }
     rcmin.y += SplitterThickness/2;
     rcmax.y = rcmin.y;
-    draw_list->AddLine(rcmin, rcmax, color_border);
+    ImGui::GetWindowDrawList()->AddLine(rcmin, rcmax, color_border);
   }
 
   void DawMain(const char *label, DawSeq *seq) {
@@ -180,7 +178,6 @@ namespace vinfony {
     float tot_h = 0;
 
     if (ImGui::BeginChild("child_1", {w, 0.0f}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar)) {
-      auto draw_list = ImGui::GetWindowDrawList();
       auto wndpos = ImGui::GetWindowPos();
       auto wndsz = ImGui::GetWindowSize();
       auto scrnmax = wndpos + wndsz;
@@ -295,7 +292,7 @@ namespace vinfony {
       auto wndsz = ImGui::GetWindowSize();
       ImVec2 scrnmax = wndpos + wndsz;
 
-      auto draw_list = ImGui::GetWindowDrawList();
+      //auto draw_list = ImGui::GetWindowDrawList();
       //auto timeline_pos = ImGui::GetCursorScreenPos();
 
       auto avail = ImGui::GetContentRegionAvail();
@@ -315,24 +312,26 @@ namespace vinfony {
       //
 
       // Timeline
-      int t = 0;
-
       ImVec2 scrnpos = wndpos;
       scrnpos.x += storage.uiStyle.leftPadding - storage.scroll_x1;
 
-      draw_list->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
-      while (scrnpos.x < scrnmax.x) {
+      {
+        auto drawList = ImGui::GetWindowDrawList();
+        int t = 0;
+        drawList->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
+        while (scrnpos.x < scrnmax.x) {
 
-        if (t % 4 == 0) {
-          draw_list->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
-          char tmps[512];
-          ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (t/4));
-          draw_list->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
-        } else {
-          draw_list->AddLine(scrnpos + ImVec2{0, h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
+          if (t % 4 == 0) {
+            drawList->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
+            char tmps[512];
+            ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (t/4));
+            drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
+          } else {
+            drawList->AddLine(scrnpos + ImVec2{0, h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
+          }
+          scrnpos.x += storage.uiStyle.beatWd;
+          t++;
         }
-        scrnpos.x += storage.uiStyle.beatWd;
-        t++;
       }
 
       scrnpos.y += h0;
@@ -344,7 +343,8 @@ namespace vinfony {
         storage.uiStyle.beatWd * seq->displayState.play_cursor;
 
       {
-        // Draw Cursor
+        auto drawList = ImGui::GetWindowDrawList();
+
         //ImGui::SetCursorPos({ storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
         ImGui::SetCursorScreenPos({ wndpos.x - storage.scroll_x1 + storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2) , wndpos.y + h0/2 });
         ImGui::InvisibleButton("cursor", ImVec2{(float)storage.uiStyle.cursorWd, h0/2});
@@ -379,8 +379,8 @@ namespace vinfony {
           { rcmax.x, rcmin.y},
         };
 
-        draw_list->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
-        draw_list->AddLine({ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y}, { rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y + tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
+        drawList->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
+        drawList->AddLine({ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y}, { rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y + tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
       }
 
       // Contents and Borders R-R
@@ -397,7 +397,7 @@ namespace vinfony {
         int scrnpos_x{0};
         int scrnpos_y{0};
         int track_h{0};
-        ImDrawList * draw_list{nullptr};
+        //ImDrawList * draw_list{nullptr};
         DawDisplayState * displayState {nullptr};
         DawUIStyle * uiStyle {nullptr};
         long visible_start_clk;
@@ -408,6 +408,7 @@ namespace vinfony {
 
         void DrawNote(int slot) override {
           if (note_actives[slot].stop >= visible_start_clk) {
+            auto drawList = ImGui::GetWindowDrawList();
             float y0 = (track_h * (float)(127 - note_actives[slot].note)/ 128);
             assert (note_actives[slot].note >= 0 && note_actives[slot].note <= 127);
             float nh = (float)track_h/128;
@@ -421,9 +422,9 @@ namespace vinfony {
             ImVec2 p2{scrnpos_x + x1, scrnpos_y + y0};
             if (nh >= 1.0) {
               p2.y  += nh;
-              draw_list->AddRectFilled(p1, p2, IM_COL32(255,64,64, 255));
+              drawList->AddRectFilled(p1, p2, IM_COL32(255,64,64, 255));
             } else {
-              draw_list->AddLine(p1, p2, IM_COL32(255,64,64, 255));
+              drawList->AddLine(p1, p2, IM_COL32(255,64,64, 255));
             }
 
             notes_to_draw++;
@@ -435,11 +436,11 @@ namespace vinfony {
 
       DawTrackNotesUI trackNotes{};
       trackNotes.visible_start_clk = visible_clk_p1;
-      trackNotes.draw_list = draw_list;
+      //trackNotes.draw_list = draw_list;
       trackNotes.displayState = &seq->displayState;
       trackNotes.uiStyle = &storage.uiStyle;
 
-      draw_list->PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
+      ImGui::PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
       if (seq->IsFileLoaded()) {
         float pos_x = 0;
         float pos_y = 0 + h0;
@@ -473,13 +474,13 @@ namespace vinfony {
           pos_y += 8;
         }
       }
-      draw_list->PopClipRect();
+      ImGui::PopClipRect();
 
       // Debug
 static bool show_debug = true;
       if (show_debug) {
         auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
-        draw_list->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
+        ImGui::GetWindowDrawList()->AddRectFilled(sticky_p, wndpos + wndsz, IM_COL32(255,255,0,255));
         ImGui::SetCursorScreenPos(sticky_p + ImVec2{4,4});
         if (ImGui::Button("X")) {
           show_debug = false;
@@ -492,13 +493,15 @@ static bool show_debug = true;
 
       // Auto Scroll
       if (seq->IsPlaying()) {
-        if ((cursor_x - storage.scroll_x1) < wndsz.x *1/4) {
+static float endPercentage = 5.0f/6.0f;
+static float beginPercentage = 1.0f/6.0f;
+        if ((cursor_x - storage.scroll_x1) < wndsz.x * beginPercentage) {
           storage.scroll_animate = 10;
-          storage.scroll_target = (cursor_x - (wndsz.x*1/4)) - 4;
+          storage.scroll_target = (cursor_x - (wndsz.x * beginPercentage));
           if (storage.scroll_target < 0) storage.scroll_target = 0;
-        } else if ((cursor_x - storage.scroll_x1) > wndsz.x *3/4) {
+        } else if ((cursor_x - storage.scroll_x1) > wndsz.x * endPercentage) {
           storage.scroll_animate = 10;
-          storage.scroll_target = 4 + (cursor_x - (wndsz.x*1/4));
+          storage.scroll_target = (cursor_x - (wndsz.x * beginPercentage));
           if (storage.scroll_target > scroll_max_x1) storage.scroll_target = scroll_max_x1;
         }
       }
