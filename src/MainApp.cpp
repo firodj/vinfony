@@ -130,6 +130,12 @@ void MainApp::ToolbarUI()
   if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
     m_impl->sequencer.StopMIDI();
   }
+  ImGui::SameLine();
+
+  std::string label = fmt::format(ICON_FA_GAUGE " {:.2f}", m_impl->sequencer.GetTempoBPM());
+  ImGui::ColoredButtonV1(label.c_str());
+  ImGui::SameLine();
+  ImGui::ColoredButtonV1(ICON_FA_CLOCK " Time");
 
   ImGui::PopItemFlag();
   ImGui::PopStyleColor(2);

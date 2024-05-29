@@ -64,6 +64,7 @@ namespace vinfony {
     void SetDevice(TinySoundFontDevice *dev);
     void Reset();
     void RenderMIDICallback(uint8_t * stream, int len);
+    float GetTempoBPM();
 
     DawDisplayState displayState;
   };

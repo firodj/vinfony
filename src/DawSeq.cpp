@@ -150,35 +150,50 @@ namespace vinfony {
     jdksmidi::MIDITimedBigMessage ev;
     int ev_track;
 
-    m_impl->midi_seq->GoToZero();
+    if (m_impl->midi_seq) {
+      m_impl->midi_seq->GoToZero();
 
-    while ( m_impl->midi_seq->GetNextEvent( &ev_track, &ev ) )
-    {
-        // std::cout << EventAsText( ev ) << std::endl;
+      while ( m_impl->midi_seq->GetNextEvent( &ev_track, &ev ) ) {
+          // std::cout << EventAsText( ev ) << std::endl;
 
-        // skip these events
-        if ( ev.IsEndOfTrack() || ev.IsBeatMarker() )
-            continue;
+          // skip these events
+          if ( ev.IsEndOfTrack() || ev.IsBeatMarker() )
+              continue;
 
-        // end of music is the time of last not end of track midi event!
-        event_time = m_impl->midi_seq->GetCurrentTimeInMs();
-        clk_time   = m_impl->midi_seq->GetCurrentMIDIClockTime();
+          // end of music is the time of last not end of track midi event!
+          event_time = m_impl->midi_seq->GetCurrentTimeInMs();
+          clk_time   = m_impl->midi_seq->GetCurrentMIDIClockTime();
+      }
+
+      displayState.duration_ms = event_time;
+      displayState.play_duration = clk_time / m_impl->doc->GetPPQN();
     }
-
-    displayState.duration_ms = event_time;
-    displayState.play_duration = clk_time / m_impl->doc->GetPPQN();
   }
 
   // from: AdvancedSequencer::GetCurrentMIDIClockTime
   void DawSeq::CalcCurrentMIDITimeBeat(uint64_t now_ms)
   {
-    jdksmidi::MIDIClockTime time = m_impl->midi_seq->GetCurrentMIDIClockTime();
-    double ms_offset = now_ms - m_impl->midi_seq->GetCurrentTimeInMs();
-    double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->doc->GetPPQN() );
-    time += ( jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
-    m_impl->clk_play_start_time = time;
+    jdksmidi::MIDIClockTime time = 0;
+    int ppqn = 24;
 
-    displayState.play_cursor = (float)time/m_impl->doc->GetPPQN();
+    if (m_impl->midi_seq && m_impl->doc) {
+      double ms_offset = now_ms - m_impl->midi_seq->GetCurrentTimeInMs();
+      double ms_per_clock = 60000.0 / ( m_impl->midi_seq->GetState()->tempobpm * m_impl->midi_seq->GetCurrentTempoScale() * m_impl->doc->GetPPQN() );
+
+      time = m_impl->midi_seq->GetCurrentMIDIClockTime() + (jdksmidi::MIDIClockTime )( ms_offset / ms_per_clock );
+
+      ppqn = m_impl->doc->GetPPQN();
+    }
+
+    m_impl->clk_play_start_time = time;
+    displayState.play_cursor = (float)time/ppqn;
+  }
+
+  float DawSeq::GetTempoBPM() {
+    float tempobpm = 120;
+
+    if (m_impl->midi_seq) tempobpm = m_impl->midi_seq->GetState()->tempobpm;
+    return tempobpm;
   }
 
   void DawSeq::SetMIDITimeBeat(float time_beat) {
@@ -406,7 +421,7 @@ static long processing_samples = 0;
     int ev_track;
     const float samplePeriodMs = 1000.0/(float)m_impl->audioDevice->GetAudioSampleRate();
 
-    if (m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
+    if (m_impl->midi_seq && m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
       // request to update cursor
       if (m_impl->read_clk_play_start) {
         if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
@@ -437,7 +452,7 @@ static long processing_samples = 0;
       int SampleBlock = SampleMarker - LastSampleMarker;
 
       // If Processing MIDI events
-      if (m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
+      if (m_impl->midi_seq && m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
         processing_samples += SampleBlock;
         pretend_clock_time = starting_time + (processing_samples * samplePeriodMs);
 
