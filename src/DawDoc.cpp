@@ -152,6 +152,11 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
         DumpMIDITimedBigMessage( msg );
       }
 
+      if (msg->IsTempo()) {
+        fmt::print("TRACK {} CH {} CLK: {} EVENT:", track->id, track->ch, msg->GetTime());
+        DumpMIDITimedBigMessage( msg );
+      }
+
       //fprintf( stdout, "#%2d - ", trk_num );
     }
   }

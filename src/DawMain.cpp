@@ -193,7 +193,6 @@ namespace vinfony {
       float pos_x = xy0.x;
       ImGui::SetCursorScreenPos(wndpos);
       for (int c=0; c<storage.prop_nums.size(); c++) {
-
         int prop_id = storage.prop_nums[c];
         DawProp * prop = storage.props[prop_id].get();
 
@@ -317,20 +316,61 @@ namespace vinfony {
 
       {
         auto drawList = ImGui::GetWindowDrawList();
-        int t = 0;
+        int b = 0;
+        drawList->AddRectFilled({ wndpos.x, scrnpos.y}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Header));
         drawList->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
-        while (scrnpos.x < scrnmax.x) {
+        int event_num = 0;
+        DawTrack * track0 = seq->IsFileLoaded() ? seq->GetTrack(0) :  nullptr;
+        jdksmidi::MIDIClockTime cur_clk = 0, next_timesig_clk = 0;
+        int timesig_numerator = 4;  // beats per measure
+        int timesig_denominator = 4;  // width of beat
+        float beat_clk = seq->displayState.ppqn * 4.0f/timesig_denominator;
+        bool show_timesig = true;
+        //float max_clk = scrnmax.x - scrnpos.x / storage.uiStyle.beatWd;
 
-          if (t % 4 == 0) {
+        while (scrnpos.x < scrnmax.x) {
+          const jdksmidi::MIDITimedBigMessage * msg{};
+
+          if (track0) {
+
+            while ( event_num < track0->midi_track->GetNumEvents() ) {
+              msg = track0->midi_track->GetEvent(event_num);
+              if (msg->IsTimeSig()) {
+                if (msg->GetTime() == cur_clk) {
+                  timesig_numerator = msg->GetTimeSigNumerator();
+                  timesig_denominator = msg->GetTimeSigDenominator();
+                  beat_clk = seq->displayState.ppqn * 4.0f/timesig_denominator;
+                  b = 0;
+                  show_timesig = true;
+                } else {
+                  next_timesig_clk = msg->GetTime();
+                  break;
+                }
+              }
+              event_num++;
+            }
+          }
+
+          if (b % timesig_numerator == 0) {
             drawList->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
             char tmps[512];
-            ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (t/4));
+            ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (b/timesig_numerator));
             drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
+            if (show_timesig) {
+              ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d/%d", timesig_numerator, timesig_denominator);
+              show_timesig = false;
+              drawList->AddText(scrnpos + ImVec2{4,h0/2}, IM_COL32_BLACK, tmps);
+            }
           } else {
             drawList->AddLine(scrnpos + ImVec2{0, h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
           }
-          scrnpos.x += storage.uiStyle.beatWd;
-          t++;
+          float delta_clk = beat_clk;
+          if (next_timesig_clk != 0 && cur_clk + beat_clk > next_timesig_clk) delta_clk = next_timesig_clk - cur_clk;
+
+          scrnpos.x += storage.uiStyle.beatWd * delta_clk / seq->displayState.ppqn;
+          cur_clk += delta_clk;
+
+          b++;
         }
       }
 
