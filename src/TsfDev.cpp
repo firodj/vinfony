@@ -205,6 +205,9 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
   }
 }
 
+/**
+ * RenderStereoFloat, call this inside Audio Callback thread,
+ */
 void TinySoundFontDevice::RenderStereoFloat(float* stream, int samples) {
   tsf_render_float(m_impl->g_TinySoundFont, stream, samples, /* mixing */ 0);
 }

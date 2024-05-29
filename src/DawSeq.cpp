@@ -400,6 +400,8 @@ namespace vinfony {
 
 static float pretend_clock_time = 0;  // TODO
 static float next_event_time = 0; // TODO
+static float starting_time = 0;
+static long processing_samples = 0;
     jdksmidi::MIDITimedBigMessage msg;
     int ev_track;
     const float samplePeriodMs = 1000.0/(float)m_impl->audioDevice->GetAudioSampleRate();
@@ -416,6 +418,8 @@ static float next_event_time = 0; // TODO
 
         //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
         pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
+        starting_time = pretend_clock_time;
+        processing_samples = 0;
 
         if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
           m_impl->request_stop_midi = true;
@@ -434,7 +438,12 @@ static float next_event_time = 0; // TODO
 
       // If Processing MIDI events
       if (m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
-        pretend_clock_time += SampleBlock * samplePeriodMs;
+        processing_samples += SampleBlock;
+        pretend_clock_time = starting_time + (processing_samples * samplePeriodMs);
+
+        // OTHER update pretend clock strategy is using increments, but
+        // disadvantage of floating point may cause lost precision for looooongest duration
+        // pretend_clock_time += SampleBlock * samplePeriodMs;
 
         while ( next_event_time <= pretend_clock_time ) {
           if ( m_impl->midi_seq->GetNextEvent( &ev_track, &msg ) )
