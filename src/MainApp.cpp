@@ -135,7 +135,15 @@ void MainApp::ToolbarUI()
   std::string label = fmt::format(ICON_FA_GAUGE " {:.2f}", m_impl->sequencer.GetTempoBPM());
   ImGui::ColoredButtonV1(label.c_str());
   ImGui::SameLine();
-  ImGui::ColoredButtonV1(ICON_FA_CLOCK " Time");
+
+  int curM, curB, curT;
+  m_impl->sequencer.GetCurrentMBT(curM, curB, curT);
+  label = fmt::format(ICON_FA_CLOCK " {:3d}:{:01d}:{:03d}", curM, curB, curT);
+static ImVec2 labelMBTsize{};
+  if (labelMBTsize.x == 0) {
+    labelMBTsize = ImGui::CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
+  }
+  ImGui::ColoredButtonV1(label.c_str(), labelMBTsize);
 
   ImGui::PopItemFlag();
   ImGui::PopStyleColor(2);

@@ -65,6 +65,7 @@ namespace vinfony {
     void Reset();
     void RenderMIDICallback(uint8_t * stream, int len);
     float GetTempoBPM();
+    void GetCurrentMBT(int &m, int &b, int &t);
 
     DawDisplayState displayState;
   };

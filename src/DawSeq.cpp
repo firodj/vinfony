@@ -196,6 +196,22 @@ namespace vinfony {
     return tempobpm;
   }
 
+  void DawSeq::GetCurrentMBT(int &m, int &b, int &t) {
+    if (m_impl->midi_seq) {
+      m = m_impl->midi_seq->GetCurrentMeasure() + 1;
+      b = m_impl->midi_seq->GetCurrentBeat() + 1;
+      t = 0;
+    } else {
+      m = 0;
+      b = 0;
+      t = 0;
+    }
+
+    if (m_impl->doc) {
+      t = (int)(displayState.play_cursor * m_impl->doc->GetPPQN()) % m_impl->doc->GetPPQN();
+    }
+  }
+
   void DawSeq::SetMIDITimeBeat(float time_beat) {
     SetPlayClockTime( time_beat * m_impl->doc->GetPPQN() );
   }
