@@ -62,6 +62,19 @@ namespace vinfony {
 
   DawSeq::DawSeq() {
     m_impl = std::make_unique<Impl>(this);
+
+    // NewDocs
+
+    m_impl->doc = std::make_unique<DawDoc>();
+    DawTrack * track = m_impl->doc->AddNewTrack(0, nullptr);
+    track->ch = 1;
+    track->name = "Piano";
+
+    track = m_impl->doc->AddNewTrack(1, nullptr);
+    track->ch = 10;
+    track->name = "Drum";
+
+    m_impl->midi_file_loaded = true;
   }
 
   DawSeq::~DawSeq() {
@@ -109,12 +122,8 @@ namespace vinfony {
 
   bool DawSeq::ReadMIDIFile(std::string filename) {
     jdksmidi::MIDIFileReadStreamFile rs(filename.c_str());
-
-    //m_impl->midi_multi_tracks = std::make_unique<jdksmidi::MIDIMultiTrack>();
     jdksmidi::MIDIMultiTrack tracks{};
-
     jdksmidi::MIDIFileReadMultiTrack track_loader( &tracks );
-
     jdksmidi::MIDIFileRead reader( &rs, &track_loader );
 
     if ( !reader.Parse() )

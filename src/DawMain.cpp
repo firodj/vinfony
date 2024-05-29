@@ -69,7 +69,7 @@ namespace vinfony {
     prop->id = storage.last_props_id;
     prop->name = name;
     prop->w = 100;
-    prop->DrawTrack = func;
+    prop->DrawProp = func;
 
     storage.prop_nums.push_back(prop->id);
 
@@ -83,12 +83,14 @@ namespace vinfony {
     storage.props[id]->w = 20;
 
     NewProp(storage, "Name", [](DawPropDrawParam * param) {
-      // ImGui::GetWindowDrawList()->AddRectFilled(p1, p2, IM_COL32(255, 0,0, 255));
       ImGui::Text("%s", param->track->name.c_str() );
     });
     NewProp(storage, "Channel", [](DawPropDrawParam * param) {
-      //auto p1 = ImGui::GetCursorScreenPos();
-      //auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
+#if 0
+      auto p1 = ImGui::GetCursorScreenPos();
+      auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
+      ImGui::GetWindowDrawList()->AddRectFilled(p1, p2, IM_COL32(255, 0,0, 255));
+#endif
 
       const char* items[] = {"-", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
 
@@ -208,7 +210,7 @@ namespace vinfony {
       ImGui::PopStyleVar(2);
 
       // Row N: Track
-      draw_list->PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
+      ImGui::PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
       if (seq->IsFileLoaded()) {
         float pos_y = xy0.y + h0;
         for (int r=0; r<seq->GetNumTracks(); r++) {
@@ -226,14 +228,14 @@ namespace vinfony {
             param.r = r;
             param.c = c;
 
-            if (prop->DrawTrack) {
+            if (prop->DrawProp) {
               if (c > 0) ImGui::SameLine();
               ImGui::SetCursorPosX(pos_x);
               auto p1 = ImGui::GetCursorScreenPos();
               auto p2 = p1 + ImVec2{(float)param.self->w, (float)param.track->h};
               ImGui::PushClipRect(p1, p2, true);
-              prop->DrawTrack(&param);
-              draw_list->PopClipRect();
+              prop->DrawProp(&param);
+              ImGui::PopClipRect();
             }
 
             pos_x += prop->w + SplitterThickness;
@@ -251,7 +253,7 @@ namespace vinfony {
         }
         tot_h = pos_y;
       }
-      draw_list->PopClipRect(); // This Clip Rect make Button Behaviour undetected
+      ImGui::PopClipRect(); // This Clip Rect make Button Behaviour undetected
 
       //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
 

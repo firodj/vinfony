@@ -31,7 +31,8 @@ namespace vinfony {
 
 DawDoc::DawDoc() {
   m_uiDefaultTrackHeight = 128;
-  //m_lastTrackNum = 0;
+  m_midiMultiTrack = std::make_unique<jdksmidi::MIDIMultiTrack>(64, false);
+  m_midiMultiTrack->SetClksPerBeat(48);
 }
 
 DawDoc::~DawDoc() {
@@ -40,18 +41,23 @@ DawDoc::~DawDoc() {
 
 DawTrack * DawDoc::AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track)
 {
+  bool creates = m_tracks.find(midi_track_id) == m_tracks.end();
+
   m_tracks[midi_track_id] = std::make_unique<DawTrack>();
 
   DawTrack * track = m_tracks[midi_track_id].get();
   track->id = midi_track_id;
-
   track->h = m_uiDefaultTrackHeight;
-  track->midi_track = std::make_unique<jdksmidi::MIDITrack>(*midi_track);
 
-  m_trackNums.push_back(track->id);
+  if (midi_track)
+    track->midi_track = std::make_unique<jdksmidi::MIDITrack>(*midi_track);
+  else
+    track->midi_track = std::make_unique<jdksmidi::MIDITrack>();
+
+  if (creates)
+    m_trackNums.push_back(track->id);
 
   m_midiMultiTrack->SetTrack( midi_track_id, track->midi_track.get() );
-  //m_lastTrackNum++;
 
   return track;
 }

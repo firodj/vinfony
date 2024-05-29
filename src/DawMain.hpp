@@ -24,7 +24,7 @@ namespace vinfony {
     int         id;
     std::string name;
     int         w;
-    DawPropDrawFunc DrawTrack{};
+    DawPropDrawFunc DrawProp{};
   };
 
   void DawMain(const char *label, DawSeq * seq);
