@@ -25,7 +25,7 @@ using namespace std::chrono_literals;
 
 #define SAMPLE_RATE 44100.0
 
-#define USE_SDLTICK 0
+#define USE_SDLTICK 1
 
 namespace vinfony
 {
@@ -180,7 +180,7 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
   for (;BlockCount;--BlockCount) {
     // NOTE: if startingTicks too close with current event, we may reduce it with bufferDurationTicks
 #if USE_SDLTICK == 1
-    Uint64 processingMarker = startingTicks + (processingSamples * (1000.0 / SAMPLE_RATE));
+    Uint64 processingMarker = m_impl->startingTicks + (m_impl->processingSamples * (1000.0 / SAMPLE_RATE));
 #else
     std::chrono::time_point<std::chrono::steady_clock> processingMarker = m_impl->startingTicks + std::chrono::milliseconds((long)(m_impl->processingSamples * (1000.0 / SAMPLE_RATE)));
 #endif
@@ -235,8 +235,6 @@ void TinySoundFontDevice::Reset() {
   for (auto &d : m_impl->m_midiDrumParts) d = 0;
   m_impl->m_midiDrumParts[9] = 1;
   tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 9, 128, 0);
-
-  tsf_set_output(m_impl->g_TinySoundFont, TSF_STEREO_INTERLEAVED, m_impl->OutputAudioSpec.freq, 0.0f);
 };
 
 int TinySoundFontDevice::GetAudioSampleRate() {

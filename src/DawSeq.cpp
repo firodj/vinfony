@@ -1,6 +1,6 @@
 #include "DawSeq.hpp"
 
-#define USE_SDLTICK 0
+#define USE_SDLTICK 1
 #define USE_TSFRENDER 1
 
 #include <iostream>
