@@ -15,8 +15,6 @@ namespace vinfony
 
 using TsfAudioCallback = std::function<void(uint8_t *stream, int len)>;
 
-//std::unique_ptr<BaseMidiOutDevice> CreateTsfDev(std::string soundfontPath);
-
 class TinySoundFontDevice: public BaseMidiOutDevice {
 protected:
   struct Impl;
@@ -35,6 +33,9 @@ public:
   void Reset() override;
 
   void StdAudioCallback(uint8_t *stream, int len);
+  int GetAudioSampleRate();
+  void RenderStereoFloat(float* stream, int samples);
+  void FlushToRealMsgOut();
 };
 
 };

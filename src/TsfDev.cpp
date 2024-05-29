@@ -72,6 +72,11 @@ TinySoundFontDevice::TinySoundFontDevice(std::string soundfontPath) {
   m_impl->callback = nullptr;
 }
 
+void TinySoundFontDevice::SetAudioCallback(TsfAudioCallback cb)
+{
+  m_impl->callback = cb;
+}
+
 void TinySoundFontDevice::UpdateMIDITicks()  {
 #if USE_SDLTICK == 1
   m_impl->m_midiTicks = SDL_GetTicks64();
@@ -200,6 +205,20 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
   }
 }
 
+void TinySoundFontDevice::RenderStereoFloat(float* stream, int samples) {
+  tsf_render_float(m_impl->g_TinySoundFont, stream, samples, /* mixing */ 0);
+}
+
+/**
+ * FlushToRealMsgOut, only call inside Audio Callback thread,
+ */
+void TinySoundFontDevice::FlushToRealMsgOut() {
+  TinyMIDIMessage tinymsg;
+  while (m_impl->buffer.pop(tinymsg)) {
+    RealHardwareMsgOut(tinymsg.msg);
+  }
+}
+
 void TinySoundFontDevice::Reset() {
   tsf_reset(m_impl->g_TinySoundFont);
 
@@ -217,6 +236,9 @@ void TinySoundFontDevice::Reset() {
   tsf_set_output(m_impl->g_TinySoundFont, TSF_STEREO_INTERLEAVED, m_impl->OutputAudioSpec.freq, 0.0f);
 };
 
+int TinySoundFontDevice::GetAudioSampleRate() {
+  return m_impl->OutputAudioSpec.freq;
+}
 
 void TinySoundFontAudioCallback(void* data, uint8_t *stream, int len)
 {
@@ -224,6 +246,9 @@ void TinySoundFontAudioCallback(void* data, uint8_t *stream, int len)
   dev->StdAudioCallback(stream, len);
 }
 
+/**
+ * RealHardwareMsgOut, only call inside Audio Callback thread,
+ */
 bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) {
   if (msg.IsProgramChange()) { //channel program (preset) change (special handling for 10th MIDI channel with drums)
     tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), m_impl->m_midiDrumParts[msg.GetChannel()] != 0);
@@ -261,9 +286,5 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
   }
   return true;
 }
-
-//std::unique_ptr<BaseMidiOutDevice> CreateTsfDev(std::string soundfontPath) {
-//  return std::make_unique<TinySoundFontDevice>(soundfontPath);
-//}
 
 }

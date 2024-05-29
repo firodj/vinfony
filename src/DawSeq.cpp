@@ -1,6 +1,7 @@
 #include "DawSeq.hpp"
 
 #define USE_SDLTICK 0
+#define USE_TSFRENDER 1
 
 #include <iostream>
 #include <thread>
@@ -33,8 +34,6 @@ using namespace std::chrono_literals;
 namespace vinfony {
 
   struct DawSeq::Impl {
-    //std::unique_ptr<jdksmidi::MIDIFileReadStreamFile> rs{};
-    //std::unique_ptr<jdksmidi::MIDIMultiTrack> midi_multi_tracks{};
     std::unique_ptr<DawDoc> doc{};
     std::unique_ptr<jdksmidi::MIDISequencer> midi_seq{};
 
@@ -48,7 +47,7 @@ namespace vinfony {
     std::atomic<bool> request_stop_midi{false};
 
     CircularFifo<SeqMsg, 8> seqMessaging{};
-    BaseMidiOutDevice * audioDevice{};
+    TinySoundFontDevice * audioDevice{}; // should shared_ptr ?
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
 
@@ -252,7 +251,6 @@ namespace vinfony {
       });
 
       float pretend_clock_time = 0;
-      float before_clock_time = pretend_clock_time;
 #if USE_SDLTICK == 1
       // simulate a clock going forward with 10 ms resolution for 1 hour
       float start = SDL_GetTicks64();
@@ -262,13 +260,16 @@ namespace vinfony {
       const float max_time = 3600. * 1000.;
 
       for ( ; pretend_clock_time < max_time;
-        before_clock_time = pretend_clock_time,
 #if USE_SDLTICK == 1
         pretend_clock_time = SDL_GetTicks64() - start
 #else
         pretend_clock_time = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - start).count()
 #endif
       ) {
+
+
+#if USE_TSFRENDER != 1
+
         if (m_impl->read_clk_play_start) {
           if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
 
@@ -277,7 +278,6 @@ namespace vinfony {
           m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
           //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
           pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
-          before_clock_time = pretend_clock_time;
 
           if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
             fmt::println("DEBUG: empty next event, stop!");
@@ -350,6 +350,8 @@ namespace vinfony {
           }
         }
 
+#endif
+
         // 10ms when using namespace std::chrono_literals;
 #if USE_SDLTICK == 1
         SDL_Delay(10);
@@ -382,6 +384,114 @@ namespace vinfony {
 
   void DawSeq::SetDevice(TinySoundFontDevice * dev) {
     m_impl->audioDevice = dev;
-    // [&](uint8_t * stream, int len){ this->StdAudioCallback (stream, len); };
+#if USE_TSFRENDER == 1
+    m_impl->audioDevice->SetAudioCallback( [&](uint8_t * stream, int len){ this->RenderMIDICallback (stream, len); } );
+#endif
+  }
+
+  void DawSeq::RenderMIDICallback(uint8_t * stream, int len) {
+    const int blockSize = 64;
+    const int sizeOfStereoSample = (2 * sizeof(float)); // stereo is 2 output channels
+    //Number of samples to process
+    int SampleCount  = (len / sizeOfStereoSample);
+    int BlockCount   = (SampleCount / blockSize);
+    int SampleMarker = SampleCount - ((BlockCount-1)*blockSize);
+    int LastSampleMarker = 0;
+
+static float pretend_clock_time = 0;  // TODO
+static float next_event_time = 0; // TODO
+    jdksmidi::MIDITimedBigMessage msg;
+    int ev_track;
+    const float samplePeriodMs = 1000.0/(float)m_impl->audioDevice->GetAudioSampleRate();
+
+    if (m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
+      // request to update cursor
+      if (m_impl->read_clk_play_start) {
+        if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
+
+        AllMIDINoteOff();
+        m_impl->audioDevice->FlushToRealMsgOut();
+
+        m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
+
+        //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
+        pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
+
+        if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
+          m_impl->request_stop_midi = true;
+        }
+
+        m_impl->read_clk_play_start = false;
+      }
+
+      // Update display cursor position
+      CalcCurrentMIDITimeBeat(pretend_clock_time);
+    }
+
+    // Process MIDI events per Block
+    for (;BlockCount;--BlockCount) {
+      int SampleBlock = SampleMarker - LastSampleMarker;
+
+      // If Processing MIDI events
+      if (m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
+        pretend_clock_time += SampleBlock * samplePeriodMs;
+
+        while ( next_event_time <= pretend_clock_time ) {
+          if ( m_impl->midi_seq->GetNextEvent( &ev_track, &msg ) )
+          {
+            auto trackit = m_impl->doc->m_tracks.find(ev_track);
+            if (trackit != m_impl->doc->m_tracks.end()) {
+
+              if (msg.IsTrackName()) {
+                std::string track_name = msg.GetSysExString();
+                trackit->second->name = track_name;
+                fmt::println("DEBUG: TRACK {} CHANNEL: {} NAME: {}", ev_track, msg.GetChannel(), track_name);
+              }
+
+              if (msg.IsControlChange()) {
+                trackit->second->SetBank(&msg);
+              }
+
+              if (msg.IsProgramChange()) {
+                if (trackit->second->ch == msg.GetChannel()+1) {
+                  trackit->second->pg = msg.GetPGValue()+1;
+                  fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel(),
+                    trackit->second->bank, trackit->second->pg);
+                }
+
+                for (const auto & kv: m_impl->doc->m_tracks) {
+                  if (trackit->first == kv.second->id) continue; // already set
+                  if (kv.second->ch == msg.GetChannel() + 1) {
+                    kv.second->pg = msg.GetPGValue()+1;
+                  }
+                }
+              }
+            }
+
+            if (!m_impl->audioDevice->RealHardwareMsgOut( msg )) {
+              return;
+            }
+
+            // now find the next message
+
+            if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
+              // no events left so end
+              fmt::println( "End" );
+              m_impl->request_stop_midi =  true;
+              break;
+            }
+          }
+        }
+      }
+
+      m_impl->audioDevice->FlushToRealMsgOut();
+      m_impl->audioDevice->RenderStereoFloat((float*)stream, SampleBlock);
+
+      stream += (SampleBlock * sizeOfStereoSample);
+
+      LastSampleMarker = SampleMarker;
+      SampleMarker += blockSize;
+    }
+
   }
 }

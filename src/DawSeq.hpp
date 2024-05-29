@@ -63,6 +63,7 @@ namespace vinfony {
     void AllMIDINoteOff();
     void SetDevice(TinySoundFontDevice *dev);
     void Reset();
+    void RenderMIDICallback(uint8_t * stream, int len);
 
     DawDisplayState displayState;
   };
