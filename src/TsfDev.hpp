@@ -22,6 +22,7 @@ protected:
 
 public:
   TinySoundFontDevice(std::string soundfontPath);
+  ~TinySoundFontDevice();
   void UpdateMIDITicks() override;
   bool Init() override;
   void Shutdown() override;
