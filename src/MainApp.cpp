@@ -24,7 +24,7 @@ static std::unique_ptr<MainApp> g_mainapp;
 
 static std::mutex g_mtxMainapp;
 struct MainApp::Impl {
-  std::unique_ptr<vinfony::BaseMidiOutDevice> audiodevice;
+  std::unique_ptr<vinfony::TinySoundFontDevice> audiodevice;
   // FIXME: sequencer should afer audiodevice.
   // the order of these struct member by compiler is necessary for descrutor ordering.
   vinfony::DawSeq sequencer;
@@ -229,7 +229,7 @@ void MainApp::Init() {
   // ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
-  m_impl->audiodevice = vinfony::CreateTsfDev(m_impl->soundfontPath);
+  m_impl->audiodevice = std::make_unique<vinfony::TinySoundFontDevice>(m_impl->soundfontPath);
   if (!m_impl->audiodevice->Init()) {
     fmt::println("Error init audio device");
     return;

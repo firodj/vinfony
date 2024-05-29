@@ -17,8 +17,8 @@
 namespace ImGui {
   ImVec2 GetScroll()
   {
-      ImGuiWindow* window = GImGui->CurrentWindow;
-      return window->Scroll;
+    ImGuiWindow* window = GImGui->CurrentWindow;
+    return window->Scroll;
   }
 };
 

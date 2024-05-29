@@ -13,7 +13,7 @@ namespace jdksmidi {
 };
 
 namespace vinfony {
-  class BaseMidiOutDevice;
+  class TinySoundFontDevice;
   class DawTrack;
 
   enum {
@@ -61,10 +61,9 @@ namespace vinfony {
     void SetPlayClockTime(unsigned long clk_time);
     bool IsPlaying();
     void AllMIDINoteOff();
+    void SetDevice(TinySoundFontDevice *dev);
     void Reset();
 
     DawDisplayState displayState;
-
-    void SetDevice(BaseMidiOutDevice *dev);
   };
 };

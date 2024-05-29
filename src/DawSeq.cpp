@@ -48,8 +48,6 @@ namespace vinfony {
     std::atomic<bool> request_stop_midi{false};
 
     CircularFifo<SeqMsg, 8> seqMessaging{};
-    //std::map<int, std::unique_ptr<DawTrack>> tracks; // TODO: move to DawDoc
-    //std::vector<int> track_nums; // TODO: move to DawDoc
     BaseMidiOutDevice * audioDevice{};
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
@@ -57,7 +55,6 @@ namespace vinfony {
     DawSeq * self;
 
     Impl(DawSeq * owner): self(owner) {};
-    //DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track); // TODO: move to DawDoc
   };
 
   DawSeq::DawSeq() {
@@ -131,13 +128,6 @@ namespace vinfony {
       fmt::println("Error parse file {}", filename);
       return false;
     }
-#if 0
-    if ( m_impl->midi_multi_tracks->GetNumTracksWithEvents() == 1 ) {//
-      fmt::println("all events in one track: format 0, separated them!");
-      // redistributes channel events in separate tracks
-      m_impl->midi_multi_tracks->AssignEventsToTracks(0);
-    }
-#endif
 
     m_impl->doc = std::make_unique<DawDoc>();
     m_impl->doc->LoadFromMIDIMultiTrack( &tracks );
@@ -150,81 +140,6 @@ namespace vinfony {
     CalcDuration();
     fmt::println("Duration {} ms / {} beat", displayState.duration_ms, displayState.play_duration);
     SetPlayClockTime(0);
-
-#if 0 // TODO: already moved
-    m_impl->track_nums.clear();
-    m_impl->tracks.clear();
-    // Detect Track MIDI channels
-    for (int trk_num=0; trk_num<m_impl->midi_multi_tracks->GetNumTracks(); ++trk_num) {
-      auto midi_track = m_impl->midi_multi_tracks->GetTrack(trk_num);
-      if (midi_track->IsTrackEmpty()) continue;
-      int ch = 0;
-      std::string track_name;
-      for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
-        const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
-        if (msg->IsNoteOn()) {
-          if (ch == 0) ch = msg->GetChannel()+1;
-#if 0
-          char msgbuf[1024];
-          fmt::println("TRACK {} CH {} EVENT: {}", trk_num, channel, msg->MsgToText(msgbuf, 1024));
-        } else if (ch != msg->GetChannel()+1) {
-            fmt::println("WARNING: track {} has more than channels, was {} want {}", trk_num, channel,
-              msg->GetChannel());
-        }
-#endif
-        }
-
-        if (msg->IsTrackName()) {
-          if (track_name.empty()) track_name = msg->GetSysExString();
-        }
-      }
-      DawTrack * track = m_impl->AddNewTrack(trk_num, midi_track);
-      track->ch = ch;
-      track->name = track_name.empty() ?fmt::format("Track {}", trk_num) : track_name;
-    }
-
-    jdksmidi::MIDIMultiTrackIterator it( m_impl->midi_multi_tracks.get() );
-    it.GoToTime( 0 );
-    do {
-      int trk_num;
-      const jdksmidi::MIDITimedBigMessage *msg;
-
-      if ( it.GetCurEvent( &trk_num, &msg ) )
-      {
-        auto track_it = m_impl->tracks.find(trk_num);
-        if (track_it == m_impl->tracks.end()) continue;
-        DawTrack * track = track_it->second.get();
-
-        if (msg->IsProgramChange()) {
-          for (const auto & kv: m_impl->tracks) {
-            if (kv.second->ch == msg->GetChannel() + 1) {
-              if (kv.second->pg == 0) {
-                kv.second->pg = msg->GetPGValue() + 1;
-#if 1
-                char msgbuf[1024];
-                fmt::println("TRACK {} CH {} EVENT: {}", kv.second->id, track->ch, msg->MsgToText(msgbuf, 1024));
-#endif
-              }
-            }
-          }
-        }
-
-        if (msg->IsControlChange()) {
-          for (const auto & kv: m_impl->tracks) {
-            if (kv.second->ch == msg->GetChannel() + 1) {
-              if (kv.second->pg == 0) {
-                kv.second->SetBank(msg);
-              }
-            }
-          }
-        }
-
-        //fprintf( stdout, "#%2d - ", trk_num );
-        //DumpMIDITimedBigMessage( msg );
-      }
-    }
-    while ( it.GoToNextEvent() );
-#endif
 
     return true;
   }
@@ -465,7 +380,8 @@ namespace vinfony {
     return m_impl->doc->GetTrack(track_num);
   }
 
-  void DawSeq::SetDevice(BaseMidiOutDevice * dev) {
+  void DawSeq::SetDevice(TinySoundFontDevice * dev) {
     m_impl->audioDevice = dev;
+    // [&](uint8_t * stream, int len){ this->StdAudioCallback (stream, len); };
   }
 }
