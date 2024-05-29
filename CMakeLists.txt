@@ -53,7 +53,6 @@ set(SOURCE
   src/MainApp.cpp
   src/DawMain.cpp
   src/DawSeq.cpp
-  src/BaseMidiOut.cpp
   src/TsfDev.cpp
   src/DawTrack.cpp
   src/DawTrackNotes.cpp

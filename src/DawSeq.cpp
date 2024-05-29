@@ -93,9 +93,10 @@ namespace vinfony {
   void DawSeq::SetPlayClockTime(unsigned long clk_time) {
     m_impl->clk_play_start_time = clk_time;
 
-    if (m_impl->doc->GetPPQN())
+    if (m_impl->doc && m_impl->doc->GetPPQN()) {
+      if (m_impl->midi_seq && !IsPlaying()) m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
       displayState.play_cursor = (float)clk_time/m_impl->doc->GetPPQN();
-    else
+    } else
       displayState.play_cursor = 0;
 
     m_impl->read_clk_play_start =  true;

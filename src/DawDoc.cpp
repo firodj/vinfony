@@ -36,7 +36,6 @@ DawDoc::DawDoc() {
 }
 
 DawDoc::~DawDoc() {
-
 }
 
 DawTrack * DawDoc::AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track)
@@ -74,7 +73,7 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
   // Set PPQN
   m_midiMultiTrack->SetClksPerBeat(mlt->GetClksPerBeat());
 
-  // Copy Track MIDI and decide Track Channel
+  // Copy Track MIDI and decide Track Channel and Track Name
   for (int trk_num=0; trk_num<mlt->GetNumTracks(); ++trk_num) {
     auto midi_track = mlt->GetTrack(trk_num);
     if (midi_track->IsTrackEmpty()) continue;
@@ -101,13 +100,15 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
     }
     DawTrack * track = AddNewTrack(trk_num, midi_track);
     track->ch = ch;
-    track->name = track_name.empty() ?fmt::format("Track {}", trk_num) : track_name;
+    track->name = track_name.empty() ? fmt::format("Track {}", trk_num) : track_name;
+    fmt::println("TRACK {} CH {} NAME {}", trk_num, track->ch, track->name);
   }
 
   // Display
   fmt::println("Clocks per beat: {}", m_midiMultiTrack->GetClksPerBeat() );
   fmt::println("Tracks with events: {}", m_midiMultiTrack->GetNumTracksWithEvents() );
   fmt::println("Num Tracks {}", m_midiMultiTrack->GetNumTracks());
+  char msgbuf[1024];
 
   // Assign Initial Track Values
   jdksmidi::MIDIMultiTrackIterator it( m_midiMultiTrack.get() );
@@ -128,8 +129,8 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
             if (kv.second->pg == 0) {
               kv.second->pg = msg->GetPGValue() + 1;
 #if 1
-              char msgbuf[1024];
-              fmt::println("TRACK {} CH {} EVENT: {}", kv.second->id, track->ch, msg->MsgToText(msgbuf, 1024));
+
+              fmt::println("TRACK {} CH {} EVENT: {}", kv.second->id, kv.second->ch, msg->MsgToText(msgbuf, 1024));
 #endif
             }
           }
@@ -146,12 +147,16 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
         }
       }
 
+      if (msg->IsTimeSig()) {
+        fmt::print("TRACK {} CH {} CLK: {} EVENT:", track->id, track->ch, msg->GetTime());
+        DumpMIDITimedBigMessage( msg );
+      }
+
       //fprintf( stdout, "#%2d - ", trk_num );
-      //DumpMIDITimedBigMessage( msg );
     }
   }
   while ( it.GoToNextEvent() );
-
+  fmt::println("---");
 
   // Scanning for various Analyze
   for (auto trk_num: m_trackNums) {
@@ -172,9 +177,7 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
         stop_time = msg->GetTime();
       }
 
-      if (msg->IsTrackName()) {
-        fmt::println(msg->GetSysExString());
-      } else if (msg->IsControlChange()) {
+      if (msg->IsControlChange()) {
         switch (msg->GetController()) {
           case jdksmidi::C_GM_BANK:
             bank_msb = msg->GetControllerValue();
@@ -221,7 +224,7 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
       fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track without eot\n");
     }
     trackNotes.ClipOff(stop_time);
-    fmt::println("notes process {}", trackNotes.notes_processed);
+    // fmt::println("notes process {}", trackNotes.notes_processed);
   }
 
   return true;
@@ -238,6 +241,68 @@ DawTrack * DawDoc::GetTrack(int track_num) {
 
 int DawDoc::GetNumTracks() {
   return m_trackNums.size();
+}
+
+void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg )
+{
+  if ( msg )
+  {
+    char msgbuf[1024];
+
+    // note that Sequencer generate SERVICE_BEAT_MARKER in files dump,
+    // but files themselves not contain this meta event...
+    // see MIDISequencer::beat_marker_msg.SetBeatMarker()
+    if ( msg->IsBeatMarker() )
+    {
+      fprintf( stdout, "%8ld : %s <------------------>", msg->GetTime(), msg->MsgToText( msgbuf, 1024 ) );
+    }
+    else if ( msg->IsSystemExclusive() )
+    {
+      fprintf( stdout, "SYSEX length: %d", msg->GetSysEx()->GetLengthSE() );
+    }
+    else if ( msg->IsKeySig() ) {
+      fmt::print("Key Signature  ");
+      msg->GetKeySigSharpFlats();
+      const char * keynmes[] = {
+        "F", "G♭", "G", "A♭", "A", "B♭", "B" ,"C", "C♯", "D", "D♯", "E", "F", "F#", "G",
+      };
+      int i = msg->GetKeySigSharpFlats();
+      if (i >= -7 && i <= 7) {
+        fmt::print(keynmes[i+7]);
+      }
+      if (msg->GetKeySigMajorMinor() == 1)
+        fmt::print(" Minor");
+      else
+        fmt::print(" Major");
+    } else if ( msg->IsTimeSig() ) {
+      fmt::print("Time Signature  {}/{}  Clks/Metro.={} 32nd/Quarter={}",
+        (int)msg->GetTimeSigNumerator(),
+        (int)msg->GetTimeSigDenominator(),
+        (int)msg->GetTimeSigMidiClocksPerMetronome(),
+        (int)msg->GetTimeSigNum32ndPerMidiQuarterNote()
+      );
+
+    } else if (msg->IsTempo()) {
+      fmt::print("Tempo    {} BPM ({} usec/beat)", msg->GetTempo32()/32.0, msg->GetTempo());
+    } else if (msg->IsEndOfTrack()) {
+      fmt::print("End of Track");
+    } else {
+      fprintf( stdout, "%8ld : %s", msg->GetTime(), msg->MsgToText( msgbuf, 1024 ) );
+
+      if (msg->GetSysEx()) {
+        const unsigned char *buf = msg->GetSysEx()->GetBuf();
+        int len = msg->GetSysEx()->GetLengthSE();
+        std::string str;
+        for ( int i = 0; i < len; ++i ) {
+          if (buf[i] >= 0x20 && buf[i] <= 0x7F)
+            str.push_back( (char)buf[i] );
+        }
+        fmt::print(" Data: {}", str);
+      }
+    }
+
+    fprintf( stdout, "\n" );
+  }
 }
 
 }
