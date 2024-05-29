@@ -317,6 +317,7 @@ namespace vinfony {
       {
         auto drawList = ImGui::GetWindowDrawList();
         int b = 0;
+        int m = 0;
         drawList->AddRectFilled({ wndpos.x, scrnpos.y}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Header));
         drawList->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
         int event_num = 0;
@@ -354,18 +355,22 @@ namespace vinfony {
           if (b % timesig_numerator == 0) {
             drawList->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
             char tmps[512];
-            ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + (b/timesig_numerator));
+            ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + m);
             drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
             if (show_timesig) {
               ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d/%d", timesig_numerator, timesig_denominator);
               show_timesig = false;
               drawList->AddText(scrnpos + ImVec2{4,h0/2}, IM_COL32_BLACK, tmps);
             }
+            m++;
           } else {
             drawList->AddLine(scrnpos + ImVec2{0, h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
           }
           float delta_clk = beat_clk;
-          if (next_timesig_clk != 0 && cur_clk + beat_clk > next_timesig_clk) delta_clk = next_timesig_clk - cur_clk;
+          if (next_timesig_clk != 0 && cur_clk + beat_clk >= next_timesig_clk) {
+            delta_clk = next_timesig_clk - cur_clk;
+            next_timesig_clk = 0;
+          }
 
           scrnpos.x += storage.uiStyle.beatWd * delta_clk / seq->displayState.ppqn;
           cur_clk += delta_clk;
