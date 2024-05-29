@@ -24,8 +24,10 @@ static std::unique_ptr<MainApp> g_mainapp;
 
 static std::mutex g_mtxMainapp;
 struct MainApp::Impl {
-  vinfony::DawSeq sequencer;
   std::unique_ptr<vinfony::BaseMidiOutDevice> audiodevice;
+  // FIXME: sequencer should afer audiodevice.
+  // the order of these struct member by compiler is necessary for descrutor ordering.
+  vinfony::DawSeq sequencer;
   float toolbarSize{50};
   float menuBarHeight{0};
   std::string soundfontPath;
