@@ -50,6 +50,19 @@ int main( int argc, char **argv )
   return 0;
 }
 
+class TheMidiEventsHandler: public jdksmidi::MIDIFileReadMultiTrack {
+public:
+  TheMidiEventsHandler( jdksmidi::MIDIMultiTrack *mlttrk ):  jdksmidi::MIDIFileReadMultiTrack(mlttrk) {
+
+  }
+  virtual void mf_error( const char * msg ) override {
+    fmt::print(fmt::fg(fmt::color::crimson), "\nError: {}\n", msg);
+  }
+  virtual void mf_warning( const char * msg ) override {
+    fmt::print(fmt::fg(fmt::color::wheat), "\nWarning: {}\n", msg);
+  }
+};
+
 int LoadUsingJDKSMIDI(const char * def_midipath) {
   jdksmidi::MIDIFileReadStreamFile rs( def_midipath );
 
@@ -67,7 +80,7 @@ int LoadUsingJDKSMIDI(const char * def_midipath) {
 #else
   {
     jdksmidi::MIDIMultiTrack tracks;
-    jdksmidi::MIDIFileReadMultiTrack track_loader( &tracks );
+    TheMidiEventsHandler track_loader( &tracks );
     jdksmidi::MIDIFileRead reader( &rs, &track_loader );
 
     // set amount of tracks equal to midifile

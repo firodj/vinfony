@@ -26,6 +26,7 @@ using namespace std::chrono_literals;
 #include "RtMidi/RtMidi.h"
 
 #include <fmt/core.h>
+#include <fmt/color.h>
 
 #include "TsfDev.hpp"
 #include "DawTrack.hpp"
@@ -118,14 +119,27 @@ namespace vinfony {
   }
 
   bool DawSeq::ReadMIDIFile(std::string filename) {
+    class TheMidiEventsHandler: public jdksmidi::MIDIFileReadMultiTrack {
+    public:
+      TheMidiEventsHandler( jdksmidi::MIDIMultiTrack *mlttrk ):  jdksmidi::MIDIFileReadMultiTrack(mlttrk) {
+
+      }
+      virtual void mf_error( const char * msg ) override {
+        fmt::print(fmt::fg(fmt::color::crimson), "\nError: {}\n", msg);
+      }
+      virtual void mf_warning( const char * msg ) override {
+        fmt::print(fmt::fg(fmt::color::wheat), "\nWarning: {}\n", msg);
+      }
+    };
+
     jdksmidi::MIDIFileReadStreamFile rs(filename.c_str());
     jdksmidi::MIDIMultiTrack tracks{};
-    jdksmidi::MIDIFileReadMultiTrack track_loader( &tracks );
+    TheMidiEventsHandler track_loader( &tracks );
     jdksmidi::MIDIFileRead reader( &rs, &track_loader );
 
     if ( !reader.Parse() )
     {
-      fmt::println("Error parse file {}", filename);
+      fmt::print(fmt::fg(fmt::color::crimson), "\nError parse file {}\n", filename);
       return false;
     }
 
