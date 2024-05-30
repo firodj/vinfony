@@ -201,15 +201,11 @@ namespace vinfony {
     if (m_impl->midi_seq) {
       m = m_impl->midi_seq->GetCurrentMeasure() + 1;
       b = m_impl->midi_seq->GetCurrentBeat() + 1;
-      t = 0;
+      t = displayState.ppqn > 0 ? (int)(displayState.play_cursor * displayState.ppqn) % displayState.ppqn : 0;
     } else {
       m = 0;
       b = 0;
       t = 0;
-    }
-
-    if (m_impl->doc) {
-      t = (int)(displayState.play_cursor * m_impl->doc->GetPPQN()) % m_impl->doc->GetPPQN();
     }
   }
 
@@ -259,6 +255,14 @@ namespace vinfony {
       msg.SetAllNotesOff( (unsigned char)chan );
       m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
     }
+  }
+
+  void DawSeq::SendVolume(int chan, unsigned short value) {
+    jdksmidi::MIDITimedBigMessage msg;
+    msg.SetControlChange( chan, jdksmidi::C_MAIN_VOLUME, (value & 0x3F80) >> 7);
+    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    msg.SetControlChange( chan, jdksmidi::C_MAIN_VOLUME_LSB, value & 0x7F );
+    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::Reset() {
@@ -491,6 +495,7 @@ static long processing_samples = 0;
 
               if (msg.IsControlChange()) {
                 trackit->second->SetBank(&msg);
+                trackit->second->SetVolume(&msg);
               }
 
               if (msg.IsProgramChange()) {

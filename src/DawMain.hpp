@@ -17,7 +17,7 @@ namespace vinfony {
     int r,c;
   };
 
-  using DawPropDrawFunc = std::function<void(DawPropDrawParam * param)>;
+  using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, DawSeq * seq)>;
   using SplitterOnDraggingFunc = std::function<void()>;
 
   struct DawProp {

@@ -143,6 +143,9 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
             if (kv.second->pg == 0) {
               kv.second->SetBank(msg);
             }
+            if (kv.second->midiVolume == -1) {
+              kv.second->SetVolume(msg);
+            }
           }
         }
       }

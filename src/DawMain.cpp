@@ -79,13 +79,13 @@ namespace vinfony {
   void InitDawMainStorage(DawMainStorage & storage) {
     int id;
     // Properties
-    id = NewProp(storage, "No", [](DawPropDrawParam * param) { ImGui::Text("%d", param->r); });
+    id = NewProp(storage, "No", [](DawPropDrawParam * param, DawSeq *seq) { ImGui::Text("%d", param->r); });
     storage.props[id]->w = 20;
 
-    NewProp(storage, "Name", [](DawPropDrawParam * param) {
+    NewProp(storage, "Name", [](DawPropDrawParam * param, DawSeq *seq) {
       ImGui::Text("%s", param->track->name.c_str() );
     });
-    NewProp(storage, "Channel", [](DawPropDrawParam * param) {
+    NewProp(storage, "Channel", [](DawPropDrawParam * param, DawSeq *seq) {
 #if 0
       auto p1 = ImGui::GetCursorScreenPos();
       auto p2 = p1 + ImVec2{(float)param->self->w, (float)param->track->h};
@@ -99,13 +99,26 @@ namespace vinfony {
       ImGui::Combo("##channel", (int*)&param->track->ch, items, IM_ARRAYSIZE(items));
       ImGui::PopID();
     });
-    id = NewProp(storage, "Instrument", [](DawPropDrawParam * param) {
+    id = NewProp(storage, "Instrument", [](DawPropDrawParam * param, DawSeq *seq) {
       if (param->track->pg)
         ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
       else
         ImGui::Text("----");
     });
     storage.props[id]->w = 200;
+    id = NewProp(storage, "Volume", [](DawPropDrawParam * param, DawSeq *seq) {
+      if (param->track->midiVolume >= 0) {
+        //ImGui::Text("%.0f %%", param->track->midiVolume * 100.0/16383.0f);
+        ImGui::SetNextItemWidth(param->self->w);
+        ImGui::PushID(param->track->id);
+        int midiVolume = param->track->midiVolume;
+        if (ImGui::SliderInt("##volume", &midiVolume, 0, 16383)) {
+          seq->SendVolume(param->track->ch, midiVolume);
+        }
+        ImGui::PopID();
+      } else
+        ImGui::Text("----");
+    });
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
@@ -230,7 +243,7 @@ namespace vinfony {
               auto p1 = ImGui::GetCursorScreenPos();
               auto p2 = p1 + ImVec2{(float)param.self->w, (float)param.track->h};
               ImGui::PushClipRect(p1, p2, true);
-              prop->DrawProp(&param);
+              prop->DrawProp(&param, seq);
               ImGui::PopClipRect();
             }
 
@@ -250,8 +263,6 @@ namespace vinfony {
         tot_h = pos_y;
       }
       ImGui::PopClipRect(); // This Clip Rect make Button Behaviour undetected
-
-      //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);           // Edit 1 float using a slider from 0.0f to 1.0f
 
       // Borders C
       {
