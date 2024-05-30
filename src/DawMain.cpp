@@ -198,7 +198,7 @@ namespace vinfony {
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
+    //ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
     ImGui::SetNextWindowScroll(ImVec2{storage.scroll_x0, storage.scroll_y});
     float tot_h = 0;
 
@@ -211,7 +211,7 @@ namespace vinfony {
       auto xy0 = ImGui::GetCursorPos();
       auto avail = ImGui::GetContentRegionAvail();
 
-      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+      //ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
       ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
       // Row 0: Header
       float tot_w = 0;
@@ -297,14 +297,14 @@ namespace vinfony {
       storage.scroll_x0 = ImGui::GetScrollX();
     }
     ImGui::EndChild();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar(2);
+    //ImGui::PopStyleColor(); // ImGuiCol_ChildBg
+    ImGui::PopStyleVar();
 
     ImGui::SameLine(0, 0);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
+    //ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32_WHITE);
     ImGui::SetNextWindowScroll(ImVec2{storage.scroll_x1, storage.scroll_y});
     if (ImGui::BeginChild("child_2", {0, 0}, true, ImGuiWindowFlags_HorizontalScrollbar)) {
       storage.scroll_x1 = ImGui::GetScrollX();
@@ -586,7 +586,7 @@ static float beginPercentage = 1.0f/6.0f;
       }
     }
     ImGui::EndChild();
-    ImGui::PopStyleColor();
+    // ImGui::PopStyleColor(); // ImGuiCol_ChildBg
     ImGui::PopStyleVar(2);
   }
 }

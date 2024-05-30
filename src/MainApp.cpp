@@ -221,7 +221,9 @@ void MainApp::RunImGui() {
 
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Vinfony Project")) {
+    ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
     vinfony::DawMain("untitled", &m_impl->sequencer);
+    ImGui::PopStyleVar();
   }
   ImGui::End();
 
