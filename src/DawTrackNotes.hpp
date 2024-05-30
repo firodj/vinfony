@@ -25,6 +25,7 @@ public:
 
   // Statistics
   int notes_processed{0};
+  bool dbg_notesDisOrder{false};
 
   DawTrackNotes();
   void NoteOn(long t, char n, char v) ;

@@ -174,6 +174,7 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
     auto & midi_track = track->midi_track; // m_midiMultiTrack->GetTrack(trk_num);
     if (midi_track->IsTrackEmpty()) continue;
     vinfony::DawTrackNotes trackNotes{};
+    trackNotes.dbg_notesDisOrder = true;
 
     bool eot = false;
     long stop_time = 0;
