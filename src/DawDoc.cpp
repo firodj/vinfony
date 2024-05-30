@@ -25,12 +25,11 @@
 #include "DawSysEx.hpp"
 #include "DawDoc.hpp"
 
-// float m_uiDefaultTrackHeight = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
-
 namespace vinfony {
 
 DawDoc::DawDoc() {
-  m_uiDefaultTrackHeight = 128;
+  m_uiDefaultTrackHeight = 32;
+  // float m_uiDefaultTrackHeight = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
   m_midiMultiTrack = std::make_unique<jdksmidi::MIDIMultiTrack>(64, false);
   m_midiMultiTrack->SetClksPerBeat(48);
 }

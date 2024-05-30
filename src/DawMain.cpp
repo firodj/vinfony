@@ -79,7 +79,12 @@ namespace vinfony {
   void InitDawMainStorage(DawMainStorage & storage) {
     int id;
     // Properties
-    id = NewProp(storage, "No", [](DawPropDrawParam * param, DawSeq *seq) { ImGui::Text("%d", param->r); });
+    id = NewProp(storage, "No", [](DawPropDrawParam * param, DawSeq *seq) {
+      std::string label = fmt::format("{:3d}", param->r);
+      auto txtSize = ImGui::CalcTextSize(label.c_str());
+      ImGui::SetCursorPosX( ImGui::GetCursorPosX() + param->self->w - txtSize.x );
+      ImGui::Text("%s", label.c_str());
+    });
     storage.props[id]->w = 20;
 
     NewProp(storage, "Name", [](DawPropDrawParam * param, DawSeq *seq) {
@@ -100,7 +105,6 @@ namespace vinfony {
       ImGui::PopID();
     });
     id = NewProp(storage, "Instrument", [](DawPropDrawParam * param, DawSeq *seq) {
-      ImGui::SetNextItemWidth(param->self->w);
       if (param->track->pg)
         ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
       else
@@ -108,9 +112,9 @@ namespace vinfony {
     });
     storage.props[id]->w = 200;
     id = NewProp(storage, "Volume", [](DawPropDrawParam * param, DawSeq *seq) {
-      ImGui::SetNextItemWidth(param->self->w);
       if (param->track->ch) {
         ImGui::PushID(param->track->id);
+        ImGui::SetNextItemWidth(param->self->w);
         if (ImGui::SliderInt("##volume", &param->track->midiVolume, 0, 16383)) {
           if (param->track->ch)
             seq->SendVolume(param->track->ch-1, param->track->midiVolume);
@@ -120,9 +124,9 @@ namespace vinfony {
         ImGui::Text("----");
     });
     id = NewProp(storage, "Pan", [](DawPropDrawParam * param, DawSeq *seq) {
-      ImGui::SetNextItemWidth(param->self->w);
       if (param->track->ch) {
         ImGui::PushID(param->track->id);
+        ImGui::SetNextItemWidth(param->self->w);
         if (ImGui::SliderInt("##pan", &param->track->midiPan, 0, 16383)) {
           if (param->track->ch)
             seq->SendPan(param->track->ch-1, param->track->midiPan);
@@ -377,13 +381,12 @@ namespace vinfony {
 
           if (b % timesig_numerator == 0) {
             drawList->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
-            char tmps[512];
-            ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d", 1 + m);
-            drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, tmps);
+            std::string label = fmt::format("{}", 1 + m);
+            drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, label.c_str());
             if (show_timesig) {
-              ImFormatString(tmps, IM_ARRAYSIZE(tmps), "%d/%d", timesig_numerator, timesig_denominator);
+              label = fmt::format("{}/{}", timesig_numerator, timesig_denominator);
               show_timesig = false;
-              drawList->AddText(scrnpos + ImVec2{4,h0/2}, IM_COL32_BLACK, tmps);
+              drawList->AddText(scrnpos + ImVec2{4,h0/2}, IM_COL32_BLACK, label.c_str());
             }
             m++;
           } else {
