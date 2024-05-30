@@ -8,6 +8,7 @@ struct DawNote {
   long time;
   long stop;
   char note;
+  int event_num;
   int used_prev;
   int used_next;
 };
@@ -36,8 +37,8 @@ public:
   virtual void ResetStats();
 
 protected:
-  bool NewNote(long t, char n);
-  bool KillNote(long t, char n, bool destroy);
+  virtual bool NewNote(long t, char n);
+  virtual bool KillNote(long t, char n, bool destroy);
 };
 
 };

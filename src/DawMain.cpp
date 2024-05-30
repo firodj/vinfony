@@ -111,6 +111,7 @@ namespace vinfony {
         ImGui::Text("----");
     });
     storage.props[id]->w = 200;
+#if 1
     id = NewProp(storage, "Volume", [](DawPropDrawParam * param, DawSeq *seq) {
       if (param->track->ch) {
         ImGui::PushID(param->track->id);
@@ -135,6 +136,7 @@ namespace vinfony {
       } else
         ImGui::Text("----");
     });
+#endif
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {
@@ -476,6 +478,18 @@ namespace vinfony {
         // Statistics
         int notes_to_draw{0};
         int notes_to_hide{0};
+        int cur_event_num{-1};
+        int start_show_event_num{-1};
+        long start_show_event_clk{-1};
+
+        bool NewNote(long t, char n) override {
+          if (!DawTrackNotes::NewNote(t, n)) return false;
+          int slot = note_value_to_slot[n];
+          if (slot == -1) return false;
+          auto &note_active = note_actives[slot];
+          note_active.event_num = cur_event_num;
+          return true;
+        }
 
         void DrawNote(int slot) override {
           if (note_actives[slot].stop >= visible_start_clk) {
@@ -498,6 +512,13 @@ namespace vinfony {
               drawList->AddLine(p1, p2, IM_COL32(255,64,64, 255));
             }
 
+            if (start_show_event_clk == -1 || note_actives[slot].time <= start_show_event_clk) {
+              if (start_show_event_num == -1 || note_actives[slot].event_num < start_show_event_num) {
+                start_show_event_clk = note_actives[slot].time;
+                start_show_event_num = note_actives[slot].event_num;
+              }
+            }
+
             notes_to_draw++;
           } else {
             notes_to_hide++;
@@ -505,12 +526,14 @@ namespace vinfony {
         }
       };
 
+
       DawTrackNotesUI trackNotes{};
       trackNotes.visible_start_clk = visible_clk_p1;
       //trackNotes.draw_list = draw_list;
       trackNotes.displayState = &seq->displayState;
       trackNotes.uiStyle = &storage.uiStyle;
-
+      int dbg_start_show_event_num = -1;
+#if 1 // DRAW_NOTES
       ImGui::PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
       if (seq->IsFileLoaded()) {
         float pos_x = 0;
@@ -523,8 +546,16 @@ namespace vinfony {
           trackNotes.scrnpos_x = wndpos.x + pos_x;
           trackNotes.scrnpos_y = wndpos.y - storage.scroll_y + pos_y;
           trackNotes.track_h = track->h;
+          trackNotes.start_show_event_num = -1;
+          trackNotes.start_show_event_clk = -1;
+          int event_num = 0;
 
-          for (int event_num = 0; event_num < track->midi_track->GetNumEvents(); ++event_num) {
+          if (track->viewcache_start_visible_clk >= 0 && track->viewcache_start_visible_clk <= visible_clk_p1) {
+            event_num = track->viewcache_start_event_num == -1 ? track->midi_track->GetNumEvents() : track->viewcache_start_event_num;
+          }
+
+          for (; event_num < track->midi_track->GetNumEvents(); ++event_num) {
+            trackNotes.cur_event_num = event_num;
             const jdksmidi::MIDITimedBigMessage * msg = track->midi_track->GetEvent(event_num);
             if (msg->GetTime() >= visible_clk_p2) break; // event is ordered by time
 
@@ -543,9 +574,24 @@ namespace vinfony {
           );
           ImGui::PopID();
           pos_y += 8;
+
+          if (visible_clk_p1 >= track->viewcache_start_visible_clk) {
+            track->viewcache_start_visible_clk = visible_clk_p1;
+            if (trackNotes.start_show_event_num != -1)
+              track->viewcache_start_event_num = trackNotes.start_show_event_num;
+          } else {
+            track->viewcache_start_visible_clk = -1;
+          }
+
+
+
+          if (track->id == 5) { // only  check one track
+            dbg_start_show_event_num = trackNotes.start_show_event_num;
+          }
         }
       }
       ImGui::PopClipRect();
+#endif // DRAW_NOTES
 
       // Debug
 static bool show_debug = true;
@@ -558,8 +604,9 @@ static bool show_debug = true;
         }
         ImGui::SameLine();
         auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
-        ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d",
-          visible_clk_p1, visible_clk_p2, trackNotes.notes_to_draw, trackNotes.notes_to_hide, trackNotes.notes_processed);
+        ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d, startshow = %d",
+          visible_clk_p1, visible_clk_p2, trackNotes.notes_to_draw, trackNotes.notes_to_hide, trackNotes.notes_processed,
+            dbg_start_show_event_num);
       }
 
       // Auto Scroll
