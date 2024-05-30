@@ -55,6 +55,7 @@ std::string GMSysEx::Info() {
   if (IsGMReset()) {
     return "GM Reset";
   }
+  return "??";
 }
 
 // GSSysEx

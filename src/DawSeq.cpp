@@ -265,6 +265,14 @@ namespace vinfony {
     m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
   }
 
+  void DawSeq::SendPan(int chan, unsigned short value) {
+    jdksmidi::MIDITimedBigMessage msg;
+    msg.SetControlChange( chan, jdksmidi::C_PAN, (value & 0x3F80) >> 7);
+    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    msg.SetControlChange( chan, jdksmidi::C_PAN_LSB, value & 0x7F );
+    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+  }
+
   void DawSeq::Reset() {
     m_impl->audioDevice->Reset();
   }
@@ -352,6 +360,8 @@ namespace vinfony {
 
               if (msg.IsControlChange()) {
                 trackit->second->SetBank(&msg);
+                trackit->second->SetVolume(&msg);
+                trackit->second->SetPan(&msg);
               }
 
               if (msg.IsProgramChange()) {
@@ -496,6 +506,7 @@ static long processing_samples = 0;
               if (msg.IsControlChange()) {
                 trackit->second->SetBank(&msg);
                 trackit->second->SetVolume(&msg);
+                trackit->second->SetPan(&msg);
               }
 
               if (msg.IsProgramChange()) {

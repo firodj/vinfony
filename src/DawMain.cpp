@@ -100,6 +100,7 @@ namespace vinfony {
       ImGui::PopID();
     });
     id = NewProp(storage, "Instrument", [](DawPropDrawParam * param, DawSeq *seq) {
+      ImGui::SetNextItemWidth(param->self->w);
       if (param->track->pg)
         ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
       else
@@ -107,13 +108,24 @@ namespace vinfony {
     });
     storage.props[id]->w = 200;
     id = NewProp(storage, "Volume", [](DawPropDrawParam * param, DawSeq *seq) {
-      if (param->track->midiVolume >= 0) {
-        //ImGui::Text("%.0f %%", param->track->midiVolume * 100.0/16383.0f);
-        ImGui::SetNextItemWidth(param->self->w);
+      ImGui::SetNextItemWidth(param->self->w);
+      if (param->track->ch) {
         ImGui::PushID(param->track->id);
-        int midiVolume = param->track->midiVolume;
-        if (ImGui::SliderInt("##volume", &midiVolume, 0, 16383)) {
-          seq->SendVolume(param->track->ch, midiVolume);
+        if (ImGui::SliderInt("##volume", &param->track->midiVolume, 0, 16383)) {
+          if (param->track->ch)
+            seq->SendVolume(param->track->ch-1, param->track->midiVolume);
+        }
+        ImGui::PopID();
+      } else
+        ImGui::Text("----");
+    });
+    id = NewProp(storage, "Pan", [](DawPropDrawParam * param, DawSeq *seq) {
+      ImGui::SetNextItemWidth(param->self->w);
+      if (param->track->ch) {
+        ImGui::PushID(param->track->id);
+        if (ImGui::SliderInt("##pan", &param->track->midiPan, 0, 16383)) {
+          if (param->track->ch)
+            seq->SendPan(param->track->ch-1, param->track->midiPan);
         }
         ImGui::PopID();
       } else
