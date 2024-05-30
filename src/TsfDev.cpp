@@ -228,16 +228,16 @@ void TinySoundFontDevice::FlushToRealMsgOut() {
 void TinySoundFontDevice::Reset() {
   tsf_reset(m_impl->g_TinySoundFont);
 
-  //Initialize preset on special 10th MIDI channel to use percussion sound bank (128) if available
-  tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 9, 128, 0);
-
   // Set the SoundFont rendering output mode
   tsf_set_output(m_impl->g_TinySoundFont, TSF_STEREO_INTERLEAVED, m_impl->OutputAudioSpec.freq, 0.0f);
 
   // Set Midi Drums
   for (auto &d : m_impl->m_midiDrumParts) d = 0;
   m_impl->m_midiDrumParts[9] = 1;
+
+  //Initialize preset on special 10th MIDI channel to use percussion sound bank (128) if available
   tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 9, 128, 0);
+  tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 10, 128, 0);
 };
 
 int TinySoundFontDevice::GetAudioSampleRate() {
@@ -255,7 +255,8 @@ void TinySoundFontAudioCallback(void* data, uint8_t *stream, int len)
  */
 bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) {
   if (msg.IsProgramChange()) { //channel program (preset) change (special handling for 10th MIDI channel with drums)
-    tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), m_impl->m_midiDrumParts[msg.GetChannel()] != 0);
+    int drumgrp = m_impl->m_midiDrumParts[msg.GetChannel()];
+    tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), drumgrp != 0);
   } else if (msg.IsControlChange()) { //MIDI controller messages
     tsf_channel_midi_control(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetController(), msg.GetControllerValue());
   } else if (msg.IsNoteOn()) {
@@ -281,9 +282,12 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
       if (gssyx) {
         fmt::print(fmt::fg(fmt::color::wheat), "GS: {}\n", gssyx->Info());
         if (gssyx->IsUseRhythmPart()) {
+          int channel = gssyx->GetPart()-1;
           int drumgrp = gssyx->GetUseRhythmPart();
-          m_impl->m_midiDrumParts[gssyx->GetPart()-1] = drumgrp;
-          tsf_channel_set_bank(m_impl->g_TinySoundFont, gssyx->GetPart()-1, drumgrp == 0 ? 0 : 128);
+          int preset_number = tsf_channel_get_preset_number(m_impl->g_TinySoundFont, channel);
+          m_impl->m_midiDrumParts[channel] = drumgrp;
+          tsf_channel_set_bank(m_impl->g_TinySoundFont, channel, drumgrp == 0 ? 0 : 128);
+          tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, channel, preset_number, drumgrp != 0);
         }
       }
     }

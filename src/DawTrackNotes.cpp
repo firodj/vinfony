@@ -78,13 +78,14 @@ bool DawTrackNotes::NewNote(long t, char n) {
 }
 
 void DawTrackNotes::NoteOn(long t, char n, char v) {
+#if 0
   if (dbg_notesDisOrder) {
     int slot = note_value_to_slot[n];
     if (slot != -1) {
       fmt::print(fmt::fg(fmt::color::wheat), "WARN: Note On before Kill! t{},n{}\n", t, (int)n);
     }
   }
-
+#endif
   NoteOff(t, n);
   if (v > 0) NewNote(t, n);
 }
