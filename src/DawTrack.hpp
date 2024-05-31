@@ -20,7 +20,7 @@ public:
   unsigned int bank{0};
   int midiVolume{-1}, midiPan{-1}; // -1 unset, 0 .. 16383
   std::unique_ptr<jdksmidi::MIDITrack> midi_track{};
-  int viewcache_start_event_num{-1};
+  int viewcache_start_event_num{0};
   long viewcache_start_visible_clk{-1};
 
   DawTrack();

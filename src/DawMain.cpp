@@ -502,6 +502,7 @@ namespace vinfony {
 
             x0 = x0 * uiStyle->beatWd / displayState->ppqn;
             x1 = x1 * uiStyle->beatWd / displayState->ppqn;
+            if (x1 - x0 < 1.0f) x1 = x0 + 1.0f;
 
             ImVec2 p1{scrnpos_x + x0, scrnpos_y + y0};
             ImVec2 p2{scrnpos_x + x1, scrnpos_y + y0};
@@ -526,13 +527,9 @@ namespace vinfony {
         }
       };
 
-
-      DawTrackNotesUI trackNotes{};
-      trackNotes.visible_start_clk = visible_clk_p1;
-      //trackNotes.draw_list = draw_list;
-      trackNotes.displayState = &seq->displayState;
-      trackNotes.uiStyle = &storage.uiStyle;
       int dbg_start_show_event_num = -1;
+      int dbg_notes_to_draw = 0, dbg_notes_to_hide = 0, dbg_notes_processed = 0;
+
 #if 1 // DRAW_NOTES
       ImGui::PushClipRect({ wndpos.x, wndpos.y + h0 }, { scrnmax.x, scrnmax.y }, false);
       if (seq->IsFileLoaded()) {
@@ -542,7 +539,10 @@ namespace vinfony {
         for (int r=0; r<seq->GetNumTracks(); r++) {
           DawTrack * track = seq->GetTrack(r);
 
-          ImGui::PushID(r);
+          DawTrackNotesUI trackNotes{};
+          trackNotes.visible_start_clk = visible_clk_p1;
+          trackNotes.displayState = &seq->displayState;
+          trackNotes.uiStyle = &storage.uiStyle;
           trackNotes.scrnpos_x = wndpos.x + pos_x;
           trackNotes.scrnpos_y = wndpos.y - storage.scroll_y + pos_y;
           trackNotes.track_h = track->h;
@@ -551,8 +551,10 @@ namespace vinfony {
           int event_num = 0;
 
           if (track->viewcache_start_visible_clk >= 0 && track->viewcache_start_visible_clk <= visible_clk_p1) {
-            event_num = track->viewcache_start_event_num == -1 ? track->midi_track->GetNumEvents() : track->viewcache_start_event_num;
+            event_num = track->viewcache_start_event_num;
           }
+
+          ImGui::PushID(r);
 
           for (; event_num < track->midi_track->GetNumEvents(); ++event_num) {
             trackNotes.cur_event_num = event_num;
@@ -581,13 +583,15 @@ namespace vinfony {
               track->viewcache_start_event_num = trackNotes.start_show_event_num;
           } else {
             track->viewcache_start_visible_clk = -1;
+            track->viewcache_start_event_num = 0;
           }
-
-
 
           if (track->id == 5) { // only  check one track
-            dbg_start_show_event_num = trackNotes.start_show_event_num;
+            dbg_start_show_event_num = track->viewcache_start_event_num;
           }
+          dbg_notes_to_draw   += trackNotes.notes_to_draw;
+          dbg_notes_to_hide   += trackNotes.notes_to_hide;
+          dbg_notes_processed += trackNotes.notes_processed;
         }
       }
       ImGui::PopClipRect();
@@ -605,7 +609,7 @@ static bool show_debug = true;
         ImGui::SameLine();
         auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
         ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d, startshow = %d",
-          visible_clk_p1, visible_clk_p2, trackNotes.notes_to_draw, trackNotes.notes_to_hide, trackNotes.notes_processed,
+          visible_clk_p1, visible_clk_p2, dbg_notes_to_draw, dbg_notes_to_hide, dbg_notes_processed,
             dbg_start_show_event_num);
       }
 

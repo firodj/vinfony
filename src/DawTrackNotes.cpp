@@ -37,10 +37,25 @@ void DawTrackNotes::Reset() {
   note_used_head = -1;
   note_used_tail = -1;
 
+#if 0
   for (int i=0; i<128; i++) {
     note_free_slot[i] = (128 - 1) - i;
     note_value_to_slot[i] = -1;
   }
+#else
+  static bool initialize = true;
+  static int noteFreeSlotInit[128];
+  static int noteValueToSlotInit[128];
+  if (initialize) {
+    initialize = false;
+    for (int i=0; i<128; i++) {
+      noteFreeSlotInit[i] = (128 - 1) - i;
+      noteValueToSlotInit[i] = -1;
+    }
+  }
+  memcpy(note_free_slot,     noteFreeSlotInit,    sizeof(note_free_slot));
+  memcpy(note_value_to_slot, noteValueToSlotInit, sizeof(note_value_to_slot));
+#endif
 }
 
 void DawTrackNotes::ResetStats() {
