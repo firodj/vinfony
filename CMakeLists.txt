@@ -95,6 +95,8 @@ source_group("Header Files" FILES ${HEADERS})
 list(APPEND ifd_SOURCES
   ${VENDOR_DIR}/ifd/ImFileDialog.cpp
   ${VENDOR_DIR}/ifd/ImFileDialog.hpp
+  ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.cpp
+  ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.hpp
 )
 
 if (APPLE)
@@ -107,12 +109,6 @@ if (WIN32)
   list(APPEND ifd_SOURCES
     ${VENDOR_DIR}/ifd/ImFileDialog_win32.cpp
     ${VENDOR_DIR}/ifd/ImFileDialog_win32.hpp
-  )
-endif()
-if (LINUX)
-  list(APPEND ifd_SOURCES
-    ${VENDOR_DIR}/ifd/ImFileDialog_linux.cpp
-    ${VENDOR_DIR}/ifd/ImFileDialog_linux.hpp
   )
 endif()
 
