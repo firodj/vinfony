@@ -97,6 +97,8 @@ list(APPEND ifd_SOURCES
   ${VENDOR_DIR}/ifd/ImFileDialog.hpp
   ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.cpp
   ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.hpp
+  ${VENDOR_DIR}/ifd/DirectoryIterator.hpp
+  ${VENDOR_DIR}/ifd/DirectoryIterator.cpp
 )
 
 if (APPLE)
