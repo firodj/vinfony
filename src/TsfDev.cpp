@@ -301,4 +301,6 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
   return true;
 }
 
+tsf * TinySoundFontDevice::GetTSF() { return m_impl->g_TinySoundFont; }
+
 }

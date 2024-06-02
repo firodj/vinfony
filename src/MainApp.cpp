@@ -9,6 +9,7 @@
 #include "imgui_internal.h"
 #include "DawMain.hpp"
 #include "DawSeq.hpp"
+#include "DawSoundFont.hpp"
 
 #include <kosongg/INIReader.h>
 #include <ifd/ImFileDialog.hpp>
@@ -224,6 +225,12 @@ void MainApp::RunImGui() {
     ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
     vinfony::DawMain("untitled", &m_impl->sequencer);
     ImGui::PopStyleVar();
+  }
+  ImGui::End();
+
+  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+  if (ImGui::Begin("SoundFont")) {
+    vinfony::DawSoundFont( m_impl->audiodevice.get() );
   }
   ImGui::End();
 

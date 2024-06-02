@@ -6,12 +6,13 @@
 #include <string>
 #include <functional>
 
+struct tsf;
+
 namespace jdksmidi {
   class MIDITimedBigMessage;
 };
 
-namespace vinfony
-{
+namespace vinfony {
 
 using TsfAudioCallback = std::function<void(uint8_t *stream, int len)>;
 
@@ -38,6 +39,8 @@ public:
   void RenderStereoFloat(float* stream, int samples);
   void FlushToRealMsgOut();
   int GetDrumPart(int ch);
+
+  tsf * GetTSF();
 };
 
 };

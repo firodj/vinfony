@@ -58,6 +58,7 @@ set(SOURCE
   src/DawTrackNotes.cpp
   src/DawSysEx.cpp
   src/DawDoc.cpp
+  src/DawSoundFont.cpp
 ## -- endsources --
 )
 
@@ -76,6 +77,7 @@ set(HEADERS
   src/DawTrackNotes.hpp
   src/DawSysEx.hpp
   src/DawDoc.hpp
+  src/DawSoundFont.hpp
 ## -- endheaders --
 )
 
