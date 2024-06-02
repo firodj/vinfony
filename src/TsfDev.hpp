@@ -37,6 +37,7 @@ public:
   int GetAudioSampleRate();
   void RenderStereoFloat(float* stream, int samples);
   void FlushToRealMsgOut();
+  int GetDrumPart(int ch);
 };
 
 };

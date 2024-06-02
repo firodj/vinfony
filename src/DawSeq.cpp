@@ -64,10 +64,12 @@ namespace vinfony {
 
     m_impl->doc = std::make_unique<DawDoc>();
     DawTrack * track = m_impl->doc->AddNewTrack(0, nullptr);
+    track->SetSeq(this);
     track->ch = 1;
     track->name = "Piano";
 
     track = m_impl->doc->AddNewTrack(1, nullptr);
+    track->SetSeq(this);
     track->ch = 10;
     track->name = "Drum";
 
@@ -145,6 +147,10 @@ namespace vinfony {
 
     m_impl->doc = std::make_unique<DawDoc>();
     m_impl->doc->LoadFromMIDIMultiTrack( &tracks );
+    for (int r=0; r<m_impl->doc->GetNumTracks(); r++) {
+      DawTrack * track = m_impl->doc->GetTrack(r);
+      track->SetSeq(this);
+    }
 
     displayState.ppqn = m_impl->doc->GetPPQN();
     fmt::println("Clocks per beat = {}", displayState.ppqn);
@@ -564,5 +570,9 @@ static long processing_samples = 0;
       SampleMarker += blockSize;
     }
 
+  }
+
+  TinySoundFontDevice * DawSeq::GetAudioDevice() {
+    return m_impl->audioDevice;
   }
 }

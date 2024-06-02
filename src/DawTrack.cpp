@@ -23,6 +23,8 @@ using namespace std::chrono_literals;
 #include "RtMidi/RtMidi.h"
 
 #include <fmt/core.h>
+#include "DawSeq.hpp"
+#include "TsfDev.hpp"
 
 namespace vinfony {
 
@@ -204,10 +206,35 @@ static const char * g_stdProgramNames[128] = {
 
 /**
  * GetStdProgramName with pg is 1 based.
-*/
+ */
 const char * GetStdProgramName(int pg) {
   if (pg < 1 || pg > 128) return nullptr;
   return g_stdProgramNames[pg - 1];
+}
+
+/**
+ * GetStdDrumName with pg is 1 based.
+ */
+const char * GetStdDrumName(int pg) {
+  if (pg < 1 || pg > 128) return nullptr;
+  switch (pg) {
+    case 1: return "Standard Kit";
+    case 9: return "Room Kit";
+    case 17: return "Power Kit";
+    case 25: return "Electronic Kit";
+    case 26: return "TR-808/Analog Kit";
+    case 33: return "Jazz Kit";
+    case 41: return "Brush Kit";
+    case 49: return "Orchestra Kit";
+    case 57: return "Sound FX Kit";
+    case 128: return "CM-64/CM-32L";
+  }
+  return nullptr;
+}
+
+int DawTrack::GetGetDrumPart() {
+  if (m_seq) return m_seq->GetAudioDevice()->GetDrumPart(ch ? (ch-1) & 0xF : 0);
+  return 0;
 }
 
 }

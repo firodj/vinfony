@@ -10,6 +10,9 @@ namespace jdksmidi {
 };
 
 namespace vinfony {
+
+  class DawSeq;
+
 class DawTrack {
 public:
   int id{0};
@@ -28,8 +31,14 @@ public:
   void SetBank(const jdksmidi::MIDIBigMessage * msg);
   void SetVolume(const jdksmidi::MIDIBigMessage * msg);
   void SetPan(const jdksmidi::MIDIBigMessage * msg);
+  int GetGetDrumPart();
+  void SetSeq(DawSeq * seq) { m_seq = seq; }
+
+protected:
+  DawSeq * m_seq{nullptr};
 };
 
 const char * GetStdProgramName(int pg);
+const char * GetStdDrumName(int pg);
 
 };

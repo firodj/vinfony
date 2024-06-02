@@ -250,12 +250,18 @@ void TinySoundFontAudioCallback(void* data, uint8_t *stream, int len)
   dev->StdAudioCallback(stream, len);
 }
 
+int TinySoundFontDevice::GetDrumPart(int ch) {
+  return m_impl->m_midiDrumParts[ch & 0xF];
+}
+
 /**
  * RealHardwareMsgOut, only call inside Audio Callback thread,
  */
 bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) {
   if (msg.IsProgramChange()) { //channel program (preset) change (special handling for 10th MIDI channel with drums)
     int drumgrp = m_impl->m_midiDrumParts[msg.GetChannel()];
+    int bank = tsf_channel_get_preset_bank(m_impl->g_TinySoundFont, msg.GetChannel());
+    if (bank == 0x3F80 && !drumgrp) { m_impl->m_midiDrumParts[msg.GetChannel()] = drumgrp = 1; }
     tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), drumgrp != 0);
   } else if (msg.IsControlChange()) { //MIDI controller messages
     tsf_channel_midi_control(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetController(), msg.GetControllerValue());

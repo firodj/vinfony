@@ -105,8 +105,13 @@ namespace vinfony {
       ImGui::PopID();
     });
     id = NewProp(storage, "Instrument", [](DawPropDrawParam * param, DawSeq *seq) {
-      if (param->track->pg)
-        ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
+      if (param->track->pg) {
+        int grpdrum = param->track->GetGetDrumPart();
+        if (!grpdrum)
+          ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
+        else
+          ImGui::Text("%s (%04Xh : %d) ", GetStdDrumName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
+      }
       else
         ImGui::Text("----");
     });
