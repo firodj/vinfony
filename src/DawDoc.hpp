@@ -25,6 +25,7 @@ public:
   std::vector<int> m_trackNums;
   std::unique_ptr<jdksmidi::MIDIMultiTrack> m_midiMultiTrack;
   int m_uiDefaultTrackHeight{128};
+  unsigned long m_firstNoteAppearClk{0};
 
   DawTrack * AddNewTrack(int midi_track_id, jdksmidi::MIDITrack * midi_track);
   bool LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt );

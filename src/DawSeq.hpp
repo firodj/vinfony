@@ -59,6 +59,7 @@ namespace vinfony {
     DawTrack * GetTrack(int track_num);
     int GetNumTracks();
     void SetPlayClockTime(unsigned long clk_time);
+    bool IsRewinding();
     bool IsPlaying();
     void AllMIDINoteOff();
     void SetDevice(TinySoundFontDevice *dev);

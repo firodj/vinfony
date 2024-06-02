@@ -619,7 +619,7 @@ static bool show_debug = true;
       }
 
       // Auto Scroll
-      if (seq->IsPlaying()) {
+      if (seq->IsPlaying() || seq->IsRewinding()) {
 static float endPercentage = 5.0f/6.0f;
 static float beginPercentage = 1.0f/6.0f;
         if ((cursor_x - storage.scroll_x1) < wndsz.x * beginPercentage) {

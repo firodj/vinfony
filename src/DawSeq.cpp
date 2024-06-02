@@ -51,6 +51,7 @@ namespace vinfony {
     TinySoundFontDevice * audioDevice{}; // should shared_ptr ?
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
+    bool is_rewinding{false};
 
     DawSeq * self;
 
@@ -99,6 +100,7 @@ namespace vinfony {
     if (m_impl->doc && m_impl->doc->GetPPQN()) {
       if (m_impl->midi_seq && !IsPlaying()) m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
       displayState.play_cursor = (float)clk_time/m_impl->doc->GetPPQN();
+      if (m_impl->clk_play_start_time == 0) m_impl->is_rewinding = true;
     } else
       displayState.play_cursor = 0;
 
@@ -447,6 +449,14 @@ namespace vinfony {
     return m_impl->th_play_midi_running;
   }
 
+  bool DawSeq::IsRewinding() {
+    if (m_impl->is_rewinding) {
+      m_impl->is_rewinding = false;
+      return true;
+    }
+    return false;
+  }
+
   // TODO: refactor
   DawTrack * DawSeq::GetTrack(int track_num) {
     return m_impl->doc->GetTrack(track_num);
@@ -479,21 +489,25 @@ static long processing_samples = 0;
     if (m_impl->midi_seq && m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
       // request to update cursor
       if (m_impl->read_clk_play_start) {
-        if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
+        bool isRewinding = m_impl->clk_play_start_time == 0;
+        if (isRewinding)
+          m_impl->audioDevice->Reset();
 
         AllMIDINoteOff();
         m_impl->audioDevice->FlushToRealMsgOut();
 
-        m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
-
-        //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
+        m_impl->midi_seq->GoToTime( isRewinding && m_impl->doc ? m_impl->doc->m_firstNoteAppearClk : m_impl->clk_play_start_time );
         pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
-        starting_time = pretend_clock_time;
-        processing_samples = 0;
+
+        if (isRewinding)
+          m_impl->midi_seq->GoToTime( 0 );
 
         if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
           m_impl->request_stop_midi = true;
         }
+
+        starting_time = pretend_clock_time;
+        processing_samples = 0;
 
         m_impl->read_clk_play_start = false;
       }

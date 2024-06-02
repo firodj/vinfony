@@ -110,6 +110,8 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
   char msgbuf[1024];
 
   // Assign Initial Track Values
+  m_firstNoteAppearClk = 0;
+  const jdksmidi::MIDITimedBigMessage * startNote{nullptr};
   jdksmidi::MIDIMultiTrackIterator it( m_midiMultiTrack.get() );
   it.GoToTime( 0 );
   do {
@@ -162,13 +164,18 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
         DumpMIDITimedBigMessage( msg );
       }
 
+      if (!startNote && msg->IsNote()) {
+        startNote = msg;
+        m_firstNoteAppearClk = startNote->GetTime();
+      }
+
       //fprintf( stdout, "#%2d - ", trk_num );
     }
   }
   while ( it.GoToNextEvent() );
   fmt::println("---");
 
-  // Scanning for various Analyze
+  // Scanning for various Analyze per Track
   for (auto trk_num: m_trackNums) {
     auto & track = m_tracks[trk_num];
     auto & midi_track = track->midi_track; // m_midiMultiTrack->GetTrack(trk_num);
@@ -183,7 +190,7 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
     for (int event_num = 0; event_num < midi_track->GetNumEvents(); ++event_num) {
       const jdksmidi::MIDITimedBigMessage * msg = midi_track->GetEvent(event_num);
       if (eot) {
-        fmt::print(fmt::fg(fmt::color::wheat), "WARNING: events exist after eot\n");
+        fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track {} events exist after eot\n", trk_num);
       } else {
         stop_time = msg->GetTime();
       }
@@ -232,7 +239,7 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
     }
 
     if (!eot) {
-      fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track without eot\n");
+      fmt::print(fmt::fg(fmt::color::wheat), "WARNING: track {} without eot\n", trk_num);
     }
     trackNotes.ClipOff(stop_time);
     // fmt::println("notes process {}", trackNotes.notes_processed);
