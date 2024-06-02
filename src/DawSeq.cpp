@@ -150,6 +150,10 @@ namespace vinfony {
     for (int r=0; r<m_impl->doc->GetNumTracks(); r++) {
       DawTrack * track = m_impl->doc->GetTrack(r);
       track->SetSeq(this);
+      // better check default value from audioDevice (tsf)
+      if (track->ch && track->pg == 0) track->pg = 1;
+      if (track->ch && track->midiPan == -1)    track->midiPan = 8192;
+      if (track->ch && track->midiVolume == -1) track->midiVolume = 16383;
     }
 
     displayState.ppqn = m_impl->doc->GetPPQN();
