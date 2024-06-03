@@ -73,6 +73,8 @@ TinySoundFontDevice::TinySoundFontDevice(std::string soundfontPath) {
 }
 
 TinySoundFontDevice::~TinySoundFontDevice() {
+  if (m_impl->g_TinySoundFont)
+    tsf_close(m_impl->g_TinySoundFont);
 }
 
 void TinySoundFontDevice::SetAudioCallback(TsfAudioCallback cb)
