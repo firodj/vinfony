@@ -104,7 +104,6 @@ bool TinySoundFontDevice::Init()  {
   if (!m_impl->g_TinySoundFont)
   {
     fprintf(stderr, "Could not load SoundFont: %s\n", m_impl->m_soundfontPath.c_str());
-    return false;
   }
 
   Reset();
@@ -200,7 +199,7 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
 
     int SampleBlock = SampleMarker - LastSampleMarker;
 
-    tsf_render_float(m_impl->g_TinySoundFont, (float*)stream, SampleBlock, 0);
+    RenderStereoFloat((float *)stream, SampleBlock);
 
     stream += (SampleBlock * (2 * sizeof(float)));
     m_impl->processingSamples += SampleBlock;
@@ -214,7 +213,10 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
  * RenderStereoFloat, call this inside Audio Callback thread,
  */
 void TinySoundFontDevice::RenderStereoFloat(float* stream, int samples) {
-  tsf_render_float(m_impl->g_TinySoundFont, stream, samples, /* mixing */ 0);
+  if (m_impl->g_TinySoundFont)
+    tsf_render_float(m_impl->g_TinySoundFont, stream, samples, /* mixing */ 0);
+   else
+    memset(stream, 0, samples);
 }
 
 /**
@@ -228,6 +230,8 @@ void TinySoundFontDevice::FlushToRealMsgOut() {
 }
 
 void TinySoundFontDevice::Reset() {
+  if (!m_impl->g_TinySoundFont) return;
+
   tsf_reset(m_impl->g_TinySoundFont);
 
   // Set the SoundFont rendering output mode
@@ -260,6 +264,8 @@ int TinySoundFontDevice::GetDrumPart(int ch) {
  * RealHardwareMsgOut, only call inside Audio Callback thread,
  */
 bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg ) {
+  if (!m_impl->g_TinySoundFont) return false;
+
   if (msg.IsProgramChange()) { //channel program (preset) change (special handling for 10th MIDI channel with drums)
     int drumgrp = m_impl->m_midiDrumParts[msg.GetChannel()];
     int bank = tsf_channel_get_preset_bank(m_impl->g_TinySoundFont, msg.GetChannel());

@@ -302,7 +302,7 @@ std::string MainApp::GetResourcePath(const char *path, const char *file) {
   if (spath == "kosongg/fonts") spath = "fonts";
 #endif
   std::filesystem::path sfile(file);
-  std::string res = spath / sfile;
+  std::string res((spath / sfile).u8string());
 #ifdef BUILD_APPLE_BUNDLE
   res = GetBundleResourcePath(res.c_str());
 #endif

@@ -10,6 +10,10 @@ namespace vinfony {
 
 void DawSoundFont(TinySoundFontDevice * device) {
   tsf * g_TinySoundFont = device->GetTSF();
+  if (!g_TinySoundFont) {
+    ImGui::Text("SoundFont missing");
+    return;
+  }
 
   static int selectedId = -1;
   static int selectedType = 0;
