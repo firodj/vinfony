@@ -203,7 +203,9 @@ target_link_libraries(vinfony
   ifd
 )
 
-if (NOT DEFINED BUILD_APPLE_BUNDLE)
+if (BUILD_APPLE_BUNDLE)
+
+else()
 set_target_properties(vinfony PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
   VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
