@@ -3,6 +3,10 @@
 #include <memory>
 #include <kosongg/Engine.h>
 
+#if defined(__APPLE__) && defined(BUILD_APPLE_BUNDLE)
+std::string GetBundleResourcePath(const char * path);
+#endif
+
 class MainApp: public kosongg::EngineBase {
 private:
     struct Impl;
@@ -24,4 +28,5 @@ public:
 
     void Init() override;
     void Clean() override;
+    std::string GetResourcePath(const char *path, const char *file) override;
 };

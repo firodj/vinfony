@@ -278,7 +278,8 @@ void MainApp::ReadIniConfig() {
 
   std::cout << "Home:" << homepath << std::endl;
 
-  const char * inifilename = "vinfony.ini";
+  std::string iniPath = GetResourcePath("configs", "vinfony.ini");
+  const char * inifilename = iniPath.c_str();
   INIReader reader(inifilename);
 
   if (reader.ParseError() < 0) {
@@ -293,4 +294,17 @@ void MainApp::ReadIniConfig() {
   m_impl->soundfontPath = std::regex_replace(reader.Get("", "SOUNDFONT", m_impl->soundfontPath), std::regex("^~"), homepath);
 
   std::cout << "SOUNDFONT=" << m_impl->soundfontPath << std::endl;
+}
+
+std::string MainApp::GetResourcePath(const char *path, const char *file) {
+  std::filesystem::path spath(path);
+#ifdef BUILD_APPLE_BUNDLE
+  if (spath == "kosongg/fonts") spath = "fonts";
+#endif
+  std::filesystem::path sfile(file);
+  std::string res = spath / sfile;
+#ifdef BUILD_APPLE_BUNDLE
+  res = GetBundleResourcePath(res.c_str());
+#endif
+  return res;
 }

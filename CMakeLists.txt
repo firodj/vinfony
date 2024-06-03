@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 17)
 set(VENDOR_DIR kosongg/cpp)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+option(BUILD_APPLE_BUNDLE "Build Apple Bundle" OFF)
 
 if (APPLE)
   ## update the environment with VIRTUAL_ENV variable (mimic the activate script)
@@ -86,9 +87,43 @@ include_directories(
   src
 )
 
-add_executable(vinfony
-  ${SOURCE} ${HEADERS}
-)
+if (BUILD_APPLE_BUNDLE)
+  set(RESOURCE_FILES "")
+  set(ICON_NAME "vinfony.icns")
+  set(ICON_PATH ${PROJECT_SOURCE_DIR}/${ICON_NAME})
+  set_source_files_properties(${PROJECT_SOURCE_DIR}/${ICON_NAME} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  set_source_files_properties(${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fonts")
+  set_source_files_properties(${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fonts")
+
+
+  list(APPEND SOURCE
+    ${ICON_PATH}
+    ${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf
+    ${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf
+    ${PROJECT_SOURCE_DIR}/src/MainApp.mm
+  )
+  #file(COPY ${ICON_PATH} DESTINATION "vinfony.app/Contents/Resources")
+  #file(COPY "${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf" DESTINATION "vinfony.app/Contents/Resources")
+  #file(COPY "${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf" DESTINATION "vinfony.app/Contents/Resources")
+  #list(APPEND RESOURCE_FILES "${ICON_NAME}"
+  #  "${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf"
+  #  "${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf"
+  #)
+  add_executable(vinfony MACOSX_BUNDLE ${SOURCE} ${HEADERS})
+  set_target_properties(vinfony PROPERTIES
+    MACOSX_BUNDLE_NAME                             "vinfony"
+    MACOSX_BUNDLE_GUI_IDENTIFIER                   "org.firodj.vinfony"
+    MACOSX_BUNDLE_ICON_FILE                        ${ICON_NAME}
+    MACOSX_BUNDLE_INFO_PLIST                       "${CMAKE_SOURCE_DIR}/Info.plist.in"
+    MACOSX_BUNDLE                                  "TRUE"
+  # RESOURCE                                       "${RESOURCE_FILES}"
+  )
+  add_compile_definitions(BUILD_APPLE_BUNDLE)
+else()
+  add_executable(vinfony
+    ${SOURCE} ${HEADERS}
+  )
+endif()
 
 source_group("Source Files" FILES ${SOURCE})
 source_group("Header Files" FILES ${HEADERS})
@@ -168,11 +203,13 @@ target_link_libraries(vinfony
   ifd
 )
 
+if (NOT DEFINED BUILD_APPLE_BUNDLE)
 set_target_properties(vinfony PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
   VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
   DEBUG_POSTFIX "d"
 )
+endif()
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT vinfony)
 
