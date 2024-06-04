@@ -64,9 +64,9 @@ set(SOURCE
 )
 
 set(HEADERS
-  ${VENDOR_DIR}/kosongg/Component.h
   ${VENDOR_DIR}/kosongg/Engine.h
   ${VENDOR_DIR}/kosongg/GLUtil.h
+  ${VENDOR_DIR}/kosongg/Component.h
   ${VENDOR_DIR}/kosongg/UtfConv.h
 ## -- headers --
   src/MainApp.hpp
@@ -88,41 +88,32 @@ include_directories(
 )
 
 if (BUILD_APPLE_BUNDLE)
-  set(RESOURCE_FILES "")
-  set(ICON_NAME "vinfony.icns")
-  set(ICON_PATH ${PROJECT_SOURCE_DIR}/${ICON_NAME})
-  set_source_files_properties(${PROJECT_SOURCE_DIR}/${ICON_NAME} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-  set_source_files_properties(${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fonts")
-  set_source_files_properties(${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fonts")
+set(RESOURCE_FILES "")
+set(ICON_NAME "vinfony.icns")
+set(ICON_PATH ${PROJECT_SOURCE_DIR}/${ICON_NAME})
+set_source_files_properties(${PROJECT_SOURCE_DIR}/${ICON_NAME} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+set_source_files_properties(${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fonts")
+set_source_files_properties(${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fonts")
 
-
-  list(APPEND SOURCE
-    ${ICON_PATH}
-    ${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf
-    ${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf
-    ${PROJECT_SOURCE_DIR}/src/MainApp.mm
-  )
-  #file(COPY ${ICON_PATH} DESTINATION "vinfony.app/Contents/Resources")
-  #file(COPY "${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf" DESTINATION "vinfony.app/Contents/Resources")
-  #file(COPY "${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf" DESTINATION "vinfony.app/Contents/Resources")
-  #list(APPEND RESOURCE_FILES "${ICON_NAME}"
-  #  "${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf"
-  #  "${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf"
-  #)
-  add_executable(vinfony MACOSX_BUNDLE ${SOURCE} ${HEADERS})
-  set_target_properties(vinfony PROPERTIES
-    MACOSX_BUNDLE_NAME                             "vinfony"
-    MACOSX_BUNDLE_GUI_IDENTIFIER                   "org.firodj.vinfony"
-    MACOSX_BUNDLE_ICON_FILE                        ${ICON_NAME}
-    MACOSX_BUNDLE_INFO_PLIST                       "${CMAKE_SOURCE_DIR}/Info.plist.in"
-    MACOSX_BUNDLE                                  "TRUE"
-  # RESOURCE                                       "${RESOURCE_FILES}"
-  )
-  add_compile_definitions(BUILD_APPLE_BUNDLE)
+list(APPEND SOURCE
+  ${ICON_PATH}
+  ${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf
+  ${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf
+  ${VENDOR_DIR}/Utils.mm
+)
+add_executable(vinfony MACOSX_BUNDLE ${SOURCE} ${HEADERS})
+set_target_properties(vinfony PROPERTIES
+  MACOSX_BUNDLE_NAME                             "vinfony"
+  MACOSX_BUNDLE_GUI_IDENTIFIER                   "org.firodj.vinfony"
+  MACOSX_BUNDLE_ICON_FILE                        ${ICON_NAME}
+  MACOSX_BUNDLE_INFO_PLIST                       "${CMAKE_SOURCE_DIR}/Info.plist.in"
+  MACOSX_BUNDLE                                  "TRUE"
+)
+add_compile_definitions(BUILD_APPLE_BUNDLE)
 else()
-  add_executable(vinfony
-    ${SOURCE} ${HEADERS}
-  )
+add_executable(vinfony
+  ${SOURCE} ${HEADERS}
+)
 endif()
 
 source_group("Source Files" FILES ${SOURCE})

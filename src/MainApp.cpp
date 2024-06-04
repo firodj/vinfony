@@ -72,7 +72,7 @@ void MainApp::DockSpaceUI()
 	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
 
 	// Save off menu bar height for later.
-	m_impl->menuBarHeight = ImGui::GetCurrentWindow()->MenuBarHeight();
+	m_impl->menuBarHeight = ImGui::GetCurrentWindow()->MenuBarHeight;
 
 	ImGui::DockSpace(dockspace_id);
 
