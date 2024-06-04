@@ -17,6 +17,7 @@ void DawSoundFont(TinySoundFontDevice * device) {
 
   static int selectedId = -1;
   static int selectedType = 0;
+  static int regionSelected = -1;
 
   ImGui::BeginChild("List", {200, 0}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar);
   std::string label1 = fmt::format("Samples ({})", g_TinySoundFont->sampleNum);
@@ -55,6 +56,7 @@ void DawSoundFont(TinySoundFontDevice * device) {
         if (ImGui::Selectable(label.c_str(), selectedId == i && selectedType == 1)) {
           selectedId = i;
           selectedType = 1;
+          regionSelected = -1;
         }
       }
 
@@ -77,6 +79,57 @@ void DawSoundFont(TinySoundFontDevice * device) {
       ImGui::Text("preset %d", curPreset.preset);
       ImGui::Text("name %s", curPreset.presetName);
       ImGui::Text("regionNum %d", curPreset.regionNum);
+
+      if (ImGui::TreeNode("Regions")) {
+        ImGui::BeginChild("childRegions", {0, 200}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+        ImGuiListClipper clipper;
+        clipper.Begin(curPreset.regionNum);
+        while (clipper.Step())
+          for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+            tsf_region & curRegion = curPreset.regions[i];
+            std::string label4 = fmt::format("[{}]", i);
+            if (ImGui::Selectable(label4.c_str(), i == regionSelected)) {
+              regionSelected = i;
+            }
+            if (curRegion.sampleID >= 0) {
+              tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
+              ImGui::SameLine(); ImGui::Text("sampleRegion"); ImGui::SameLine();
+              std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
+              if (ImGui::Button(label3.c_str())) {
+                selectedId = curRegion.sampleID;
+                selectedType = 0;
+              }
+            }
+          }
+        ImGui::EndChild();
+        ImGui::TreePop();
+      }
+      ImGui::BeginChild("regionContent", {0, 200}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+      if (regionSelected >= 0) {
+        if (regionSelected >= curPreset.regionNum) regionSelected = 0;
+        tsf_region & curRegion = curPreset.regions[regionSelected];
+
+        ImGui::Text("key %d %d", curRegion.lokey, curRegion.hikey);
+        ImGui::Text("vel %d %d", curRegion.lovel, curRegion.hivel);
+        ImGui::Text("attenuation %f", curRegion.attenuation);
+        ImGui::Text("pan %f", curRegion.pan);
+        ImGui::Text("sample_rate %d", curRegion.sample_rate);
+        ImGui::Text("chorusSend %f", curRegion.chorusSend);
+        ImGui::Text("reverbSend %f", curRegion.reverbSend);
+        ImGui::Text("modulatorNum %d", curRegion.modulatorNum);
+
+        for (int i=0; i <curRegion.modulatorNum; i++) {
+          tsf_modulator & curModulator = curRegion.modulators[i];
+          ImGui::Text("0x%x (index:%d cc:%d d:%d p:%d type:%d) gen:%d %d amount:%d trans:%d", curModulator.modSrcOper,
+            curModulator.modSrcOperDetails.index,
+            curModulator.modSrcOperDetails.cc,
+            curModulator.modSrcOperDetails.d,
+            curModulator.modSrcOperDetails.p,
+            curModulator.modSrcOperDetails.type,
+            curModulator.modDestOper, curModulator.modAmtSrcOper, curModulator.modAmount, curModulator.modTransOper);
+        }
+      }
+      ImGui::EndChild();
 
     } else {
       if (selectedId < 0 || selectedId >= g_TinySoundFont->sampleNum) break;
