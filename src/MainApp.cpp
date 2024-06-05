@@ -234,6 +234,51 @@ void MainApp::RunImGui() {
   }
   ImGui::End();
 
+  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+  if (ImGui::Begin("Piano")) {
+    const float white_width = 14.0;
+    const float black_width = 10.0;
+
+    ImVec2 pmin = ImGui::GetCursorScreenPos();
+    for (int i=0; i<128; i++) {
+      float w = white_width;
+      switch (i%12) {
+      case 0:
+      case 5:
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{white_width - black_width/2, 40.0}, IM_COL32_WHITE);
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin + ImVec2{0.0, 40.0}, pmin + ImVec2{white_width, 60.0}, IM_COL32_WHITE);
+        ImGui::GetWindowDrawList()->AddLine(pmin + ImVec2{white_width, 40.0}, pmin + ImVec2{white_width, 60.0}, IM_COL32_BLACK);
+        w = white_width - black_width/2;
+        break;
+      case 1:
+      case 3:
+      case 6:
+      case 8:
+      case 10:
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{black_width, 40.0}, IM_COL32_BLACK);
+        w = black_width;
+        break;
+      case 2:
+      case 7:
+      case 9:
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{white_width - black_width, 40.0}, IM_COL32_WHITE);
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin + ImVec2{-black_width/2, 40.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_WHITE);
+        ImGui::GetWindowDrawList()->AddLine(pmin + ImVec2{white_width - black_width/2, 40.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_BLACK);
+        w =  white_width - black_width;
+        break;
+      case 4:
+      case 11:
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{white_width - black_width/2, 40.0}, IM_COL32_WHITE);
+        ImGui::GetWindowDrawList()->AddRectFilled(pmin + ImVec2{-black_width/2, 40.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_WHITE);
+        ImGui::GetWindowDrawList()->AddLine(pmin + ImVec2{white_width - black_width/2, 0.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_BLACK);
+        w = white_width - black_width/2;
+        break;
+      }
+      pmin += ImVec2{w, 0.0};
+    }
+  }
+  ImGui::End();
+
   if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
     if (ifd::FileDialog::Instance().HasResult()) {
       const std::vector<std::filesystem::path>& res = ifd::FileDialog::Instance().GetResults();
