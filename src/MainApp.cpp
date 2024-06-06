@@ -2,6 +2,7 @@
 #include <thread>
 #include <mutex>
 #include <iostream>
+#include <vector>
 #define IMGUI_DEFINE_MATH_OPERATORS
 
 #include <SDL.h>
@@ -20,10 +21,49 @@
 #include <regex>
 #include "circularfifo1.h"
 #include "TsfDev.hpp"
+#include "stb_image.h"
 
 static std::unique_ptr<MainApp> g_mainapp;
 
 static std::mutex g_mtxMainapp;
+
+// Simple helper function to load an image into a OpenGL texture with common settings
+bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_width, int* out_height)
+{
+  // Load from file
+  int image_width = 0;
+  int image_height = 0;
+  unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
+  if (image_data == NULL) {
+    fmt::println("Error LoadTextureFromFile {}", filename);
+    return false;
+  }
+
+  // Create a OpenGL texture identifier
+  GLuint image_texture;
+  glGenTextures(1, &image_texture);
+  glBindTexture(GL_TEXTURE_2D, image_texture);
+
+  // Setup filtering parameters for display
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+  // Upload pixels into texture
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+  stbi_image_free(image_data);
+
+  *out_texture = image_texture;
+  *out_width = image_width;
+  *out_height = image_height;
+
+  return true;
+}
+
 struct MainApp::Impl {
   std::unique_ptr<vinfony::TinySoundFontDevice> audiodevice;
   // FIXME: sequencer should afer audiodevice.
@@ -32,6 +72,8 @@ struct MainApp::Impl {
   float toolbarSize{50};
   float menuBarHeight{0};
   std::string soundfontPath;
+  GLuint texPiano{0};
+  int pianoWidth,pianoHeight;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -153,6 +195,143 @@ static ImVec2 labelMBTsize{};
 	ImGui::End();
 }
 
+struct PianoButtonState {
+  float white_width;
+	float white_height;
+	float black_width;
+	float black_height;
+	float width_all;
+	float width_octave;
+
+	float tuts_start[12];
+	float tuts_end[12];
+	int	tuts_type[12];
+  int tuts_color[14];
+};
+
+static std::vector<PianoButtonState> g_pianoButtonStates;
+
+PianoButtonState & PianoButtonStateGet(int * pInOutIDX) {
+  if (*pInOutIDX != -1) return g_pianoButtonStates[*pInOutIDX];
+
+  *pInOutIDX = g_pianoButtonStates.size();
+  g_pianoButtonStates.push_back(PianoButtonState{});
+  PianoButtonState & m_szPiano = g_pianoButtonStates[*pInOutIDX];
+
+  // calculate all needed size
+	m_szPiano.white_width = 10;	// lebar dari tuts putih w/o border
+  const float midWhite = (1+m_szPiano.white_width+1)/2;
+	m_szPiano.white_height = 60;
+	m_szPiano.black_width = 8;	// lebar tuts hitam w/o border
+	m_szPiano.black_height = 40;
+	m_szPiano.width_octave = 7 * m_szPiano.white_width;
+	m_szPiano.width_all =	(10 * m_szPiano.width_octave) +
+							(5 * m_szPiano.white_width);
+	const float x[12] = {	0+m_szPiano.white_width*0,
+						midWhite+m_szPiano.white_width*0,
+						0+m_szPiano.white_width*1,
+						midWhite+m_szPiano.white_width*1,
+						0+m_szPiano.white_width*2,
+						0+m_szPiano.white_width*3,
+						midWhite+m_szPiano.white_width*3,
+						0+m_szPiano.white_width*4,
+						midWhite+m_szPiano.white_width*4,
+						0+m_szPiano.white_width*5,
+						midWhite+m_szPiano.white_width*5,
+						0+m_szPiano.white_width*6};
+	const float y[12] = {	x[0]+m_szPiano.white_width,
+						x[1]+m_szPiano.black_width,
+						x[2]+m_szPiano.white_width,
+						x[3]+m_szPiano.black_width,
+						x[4]+m_szPiano.white_width,
+						x[5]+m_szPiano.white_width,
+						x[6]+m_szPiano.black_width,
+						x[7]+m_szPiano.white_width,
+						x[8]+m_szPiano.black_width,
+						x[9]+m_szPiano.white_width,
+						x[10]+m_szPiano.black_width,
+						x[11]+m_szPiano.white_width};
+	const int z[12] = { 0,3,1,3,2, 0,3,1,3,1,3,2};
+	memcpy(m_szPiano.tuts_start, x, sizeof(x));
+	memcpy(m_szPiano.tuts_end, y, sizeof(y));
+	memcpy(m_szPiano.tuts_type, z, sizeof(z));
+  return m_szPiano;
+}
+
+int PianoCheckPoint(PianoButtonState & m_szPiano, ImVec2 point) {
+// outer piano area
+	if (point.y >= m_szPiano.white_height ||
+		point.x >= m_szPiano.width_all)
+		return -1;
+	if (point.y < 0 || point.x < 0)
+		return -1;
+
+	// check tuts number;
+	int n_octave = point.x / m_szPiano.width_octave;
+	// check tuts hitam;
+	int n_x = (int)point.x % (int)m_szPiano.width_octave;
+	int i;
+	// check black note first,
+	if (point.y < m_szPiano.black_height)
+		for (i = 0; i<12; i++)
+			if (m_szPiano.tuts_type[i] == 3)
+				if ( n_x >= m_szPiano.tuts_start[i] &&
+					n_x <  m_szPiano.tuts_end[i] ) {
+          int n = i+(n_octave*12);
+          return n > 127 ? 127 : n;
+        }
+	// nothing b4, then check in white note
+	for (i=0; i<12; i++)
+		if (m_szPiano.tuts_type[i] < 3)
+			if ( n_x >= m_szPiano.tuts_start[i] &&
+				n_x <  m_szPiano.tuts_end[i] ) {
+			  int n = i+(n_octave*12);
+        return n > 127 ? 127 : n;
+      }
+	// something wrong happen, give bad result
+	return -1;
+}
+
+void PianoButton(const char *label) {
+  ImGuiID pianoID = ImGui::GetID(label);
+  int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
+  PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID);
+
+  ImVec2 pmin = ImGui::GetCursorScreenPos();
+  ImVec2 pmax = pmin + ImVec2{m_szPiano.width_all, m_szPiano.white_height};
+  ImGui::InvisibleButton("##button", ImVec2{m_szPiano.width_all, m_szPiano.white_height});
+  ImVec2 mousePos;
+  int noteOn = -1;
+  if (ImGui::IsItemHovered()) {
+    mousePos = ImGui::GetMousePos() - pmin;
+    noteOn = PianoCheckPoint(m_szPiano, mousePos);
+  }
+
+  ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmax, IM_COL32_WHITE);
+
+  ImVec2 ptuts = pmin;
+  if (noteOn != -1 && m_szPiano.tuts_type[noteOn % 12] != 3) {
+    ptuts = pmin + ImVec2{ m_szPiano.width_octave * (noteOn/12), 0 } + ImVec2{m_szPiano.tuts_start[noteOn%12], 0.0};
+    ImGui::GetWindowDrawList()->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.white_width, m_szPiano.white_height}, IM_COL32(255, 0,0, 255));
+  }
+
+  ptuts = pmin;
+  for (int i=0; i<128; i++) {
+    int l = -1, r = -1, c = -1;
+    if (i && ((i%12) == 0)) pmin += ImVec2{ m_szPiano.width_octave, 0 };
+    ptuts = pmin + ImVec2{m_szPiano.tuts_start[i%12], 0.0};
+    switch (m_szPiano.tuts_type[i % 12]) {
+    case 3:
+      ImGui::GetWindowDrawList()->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.black_width, m_szPiano.black_height}, i == noteOn ? IM_COL32(255, 0,0, 255) : IM_COL32_BLACK);
+      break;
+    default:
+      ImGui::GetWindowDrawList()->AddLine(ptuts + ImVec2{m_szPiano.white_width, 0}, ptuts + ImVec2{m_szPiano.white_width, m_szPiano.white_height}, IM_COL32_BLACK);
+    }
+  }
+
+  ImGui::Text("%f %f %d", mousePos.x, mousePos.y, noteOn);
+}
+
 void MainApp::RunImGui() {
   ImGuiIO& io = ImGui::GetIO(); (void)io;
   ImColor clearColor(m_clearColor);
@@ -236,48 +415,15 @@ void MainApp::RunImGui() {
 
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Piano")) {
-    const float white_width = 14.0;
-    const float black_width = 10.0;
+    PianoButton("piano");
 
-    ImVec2 pmin = ImGui::GetCursorScreenPos();
-    for (int i=0; i<128; i++) {
-      float w = white_width;
-      switch (i%12) {
-      case 0:
-      case 5:
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{white_width - black_width/2, 40.0}, IM_COL32_WHITE);
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin + ImVec2{0.0, 40.0}, pmin + ImVec2{white_width, 60.0}, IM_COL32_WHITE);
-        ImGui::GetWindowDrawList()->AddLine(pmin + ImVec2{white_width, 40.0}, pmin + ImVec2{white_width, 60.0}, IM_COL32_BLACK);
-        w = white_width - black_width/2;
-        break;
-      case 1:
-      case 3:
-      case 6:
-      case 8:
-      case 10:
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{black_width, 40.0}, IM_COL32_BLACK);
-        w = black_width;
-        break;
-      case 2:
-      case 7:
-      case 9:
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{white_width - black_width, 40.0}, IM_COL32_WHITE);
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin + ImVec2{-black_width/2, 40.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_WHITE);
-        ImGui::GetWindowDrawList()->AddLine(pmin + ImVec2{white_width - black_width/2, 40.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_BLACK);
-        w =  white_width - black_width;
-        break;
-      case 4:
-      case 11:
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmin + ImVec2{white_width - black_width/2, 40.0}, IM_COL32_WHITE);
-        ImGui::GetWindowDrawList()->AddRectFilled(pmin + ImVec2{-black_width/2, 40.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_WHITE);
-        ImGui::GetWindowDrawList()->AddLine(pmin + ImVec2{white_width - black_width/2, 0.0}, pmin + ImVec2{white_width - black_width/2, 60.0}, IM_COL32_BLACK);
-        w = white_width - black_width/2;
-        break;
-      }
-      pmin += ImVec2{w, 0.0};
-    }
+    if (m_impl->texPiano)
+      ImGui::Image((void*)(intptr_t)m_impl->texPiano, ImVec2(m_impl->pianoWidth, m_impl->pianoHeight));
+
   }
   ImGui::End();
+
+
 
   if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
     if (ifd::FileDialog::Instance().HasResult()) {
@@ -303,6 +449,8 @@ void MainApp::Init() {
     return;
   }
   m_impl->sequencer.SetDevice( m_impl->audiodevice.get() );
+
+  bool ret = LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
 }
 
 void MainApp::Clean() {
