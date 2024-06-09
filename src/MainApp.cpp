@@ -22,6 +22,7 @@
 #include "circularfifo1.h"
 #include "TsfDev.hpp"
 #include "stb_image.h"
+#include "PianoButton.hpp"
 
 static std::unique_ptr<MainApp> g_mainapp;
 
@@ -195,143 +196,6 @@ static ImVec2 labelMBTsize{};
 	ImGui::End();
 }
 
-struct PianoButtonState {
-  float white_width;
-	float white_height;
-	float black_width;
-	float black_height;
-	float width_all;
-	float width_octave;
-
-	float tuts_start[12];
-	float tuts_end[12];
-	int	tuts_type[12];
-  int tuts_color[14];
-};
-
-static std::vector<PianoButtonState> g_pianoButtonStates;
-
-PianoButtonState & PianoButtonStateGet(int * pInOutIDX) {
-  if (*pInOutIDX != -1) return g_pianoButtonStates[*pInOutIDX];
-
-  *pInOutIDX = g_pianoButtonStates.size();
-  g_pianoButtonStates.push_back(PianoButtonState{});
-  PianoButtonState & m_szPiano = g_pianoButtonStates[*pInOutIDX];
-
-  // calculate all needed size
-	m_szPiano.white_width = 10;	// lebar dari tuts putih w/o border
-  const float midWhite = (1+m_szPiano.white_width+1)/2;
-	m_szPiano.white_height = 60;
-	m_szPiano.black_width = 8;	// lebar tuts hitam w/o border
-	m_szPiano.black_height = 40;
-	m_szPiano.width_octave = 7 * m_szPiano.white_width;
-	m_szPiano.width_all =	(10 * m_szPiano.width_octave) +
-							(5 * m_szPiano.white_width);
-	const float x[12] = {	0+m_szPiano.white_width*0,
-						midWhite+m_szPiano.white_width*0,
-						0+m_szPiano.white_width*1,
-						midWhite+m_szPiano.white_width*1,
-						0+m_szPiano.white_width*2,
-						0+m_szPiano.white_width*3,
-						midWhite+m_szPiano.white_width*3,
-						0+m_szPiano.white_width*4,
-						midWhite+m_szPiano.white_width*4,
-						0+m_szPiano.white_width*5,
-						midWhite+m_szPiano.white_width*5,
-						0+m_szPiano.white_width*6};
-	const float y[12] = {	x[0]+m_szPiano.white_width,
-						x[1]+m_szPiano.black_width,
-						x[2]+m_szPiano.white_width,
-						x[3]+m_szPiano.black_width,
-						x[4]+m_szPiano.white_width,
-						x[5]+m_szPiano.white_width,
-						x[6]+m_szPiano.black_width,
-						x[7]+m_szPiano.white_width,
-						x[8]+m_szPiano.black_width,
-						x[9]+m_szPiano.white_width,
-						x[10]+m_szPiano.black_width,
-						x[11]+m_szPiano.white_width};
-	const int z[12] = { 0,3,1,3,2, 0,3,1,3,1,3,2};
-	memcpy(m_szPiano.tuts_start, x, sizeof(x));
-	memcpy(m_szPiano.tuts_end, y, sizeof(y));
-	memcpy(m_szPiano.tuts_type, z, sizeof(z));
-  return m_szPiano;
-}
-
-int PianoCheckPoint(PianoButtonState & m_szPiano, ImVec2 point) {
-// outer piano area
-	if (point.y >= m_szPiano.white_height ||
-		point.x >= m_szPiano.width_all)
-		return -1;
-	if (point.y < 0 || point.x < 0)
-		return -1;
-
-	// check tuts number;
-	int n_octave = point.x / m_szPiano.width_octave;
-	// check tuts hitam;
-	int n_x = (int)point.x % (int)m_szPiano.width_octave;
-	int i;
-	// check black note first,
-	if (point.y < m_szPiano.black_height)
-		for (i = 0; i<12; i++)
-			if (m_szPiano.tuts_type[i] == 3)
-				if ( n_x >= m_szPiano.tuts_start[i] &&
-					n_x <  m_szPiano.tuts_end[i] ) {
-          int n = i+(n_octave*12);
-          return n > 127 ? 127 : n;
-        }
-	// nothing b4, then check in white note
-	for (i=0; i<12; i++)
-		if (m_szPiano.tuts_type[i] < 3)
-			if ( n_x >= m_szPiano.tuts_start[i] &&
-				n_x <  m_szPiano.tuts_end[i] ) {
-			  int n = i+(n_octave*12);
-        return n > 127 ? 127 : n;
-      }
-	// something wrong happen, give bad result
-	return -1;
-}
-
-void PianoButton(const char *label) {
-  ImGuiID pianoID = ImGui::GetID(label);
-  int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
-  PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID);
-
-  ImVec2 pmin = ImGui::GetCursorScreenPos();
-  ImVec2 pmax = pmin + ImVec2{m_szPiano.width_all, m_szPiano.white_height};
-  ImGui::InvisibleButton("##button", ImVec2{m_szPiano.width_all, m_szPiano.white_height});
-  ImVec2 mousePos;
-  int noteOn = -1;
-  if (ImGui::IsItemHovered()) {
-    mousePos = ImGui::GetMousePos() - pmin;
-    noteOn = PianoCheckPoint(m_szPiano, mousePos);
-  }
-
-  ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmax, IM_COL32_WHITE);
-
-  ImVec2 ptuts = pmin;
-  if (noteOn != -1 && m_szPiano.tuts_type[noteOn % 12] != 3) {
-    ptuts = pmin + ImVec2{ m_szPiano.width_octave * (noteOn/12), 0 } + ImVec2{m_szPiano.tuts_start[noteOn%12], 0.0};
-    ImGui::GetWindowDrawList()->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.white_width, m_szPiano.white_height}, IM_COL32(255, 0,0, 255));
-  }
-
-  ptuts = pmin;
-  for (int i=0; i<128; i++) {
-    int l = -1, r = -1, c = -1;
-    if (i && ((i%12) == 0)) pmin += ImVec2{ m_szPiano.width_octave, 0 };
-    ptuts = pmin + ImVec2{m_szPiano.tuts_start[i%12], 0.0};
-    switch (m_szPiano.tuts_type[i % 12]) {
-    case 3:
-      ImGui::GetWindowDrawList()->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.black_width, m_szPiano.black_height}, i == noteOn ? IM_COL32(255, 0,0, 255) : IM_COL32_BLACK);
-      break;
-    default:
-      ImGui::GetWindowDrawList()->AddLine(ptuts + ImVec2{m_szPiano.white_width, 0}, ptuts + ImVec2{m_szPiano.white_width, m_szPiano.white_height}, IM_COL32_BLACK);
-    }
-  }
-
-  ImGui::Text("%f %f %d", mousePos.x, mousePos.y, noteOn);
-}
-
 void MainApp::RunImGui() {
   ImGuiIO& io = ImGui::GetIO(); (void)io;
   ImColor clearColor(m_clearColor);
@@ -413,16 +277,17 @@ void MainApp::RunImGui() {
   }
   ImGui::End();
 
+#if 0
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Piano")) {
-    PianoButton("piano");
+    vinfony::PianoButton("piano");
 
     if (m_impl->texPiano)
       ImGui::Image((void*)(intptr_t)m_impl->texPiano, ImVec2(m_impl->pianoWidth, m_impl->pianoHeight));
 
   }
   ImGui::End();
-
+#endif
 
 
   if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {

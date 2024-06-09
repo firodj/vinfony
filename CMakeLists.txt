@@ -60,6 +60,7 @@ set(SOURCE
   src/DawSysEx.cpp
   src/DawDoc.cpp
   src/DawSoundFont.cpp
+  src/PianoButton.cpp
 ## -- endsources --
 )
 
@@ -79,6 +80,7 @@ set(HEADERS
   src/DawSysEx.hpp
   src/DawDoc.hpp
   src/DawSoundFont.hpp
+  src/PianoButton.hpp
 ## -- endheaders --
 )
 
