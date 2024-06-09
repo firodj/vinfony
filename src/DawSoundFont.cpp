@@ -160,47 +160,58 @@ void DawSoundFont(TinySoundFontDevice * device) {
         ImGui::LabelText("InsturmentID", "%d", curRegion.instrumentID);
         ImGui::LabelText("Key", "%d - %d", curRegion.lokey, curRegion.hikey);
         ImGui::LabelText("Vel", "%d - %d", curRegion.lovel, curRegion.hivel);
-        ImGui::LabelText("Attenuation", "%f", curRegion.attenuation);
-        ImGui::LabelText("Pan", "%f", curRegion.pan);
+        ImGui::LabelText("OverridingRootKey", "%d", curRegion.pitch_keycenter);
         ImGui::LabelText("CoarseTune", "%d", curRegion.transpose);
         ImGui::LabelText("FineTune", "%d", curRegion.tune);
-        ImGui::LabelText("ExclusiveClass", "%d", curRegion.group);
         ImGui::LabelText("ScaleTuning", "%d", curRegion.pitch_keytrack);
-        ImGui::LabelText("OverridingRootKey", "%d", curRegion.pitch_keycenter);
+        ImGui::LabelText("ExclusiveClass", "%d", curRegion.group);
 
-        ImGui::LabelText("StartAddrsOffset", "%d", curRegion.offset);
-        ImGui::LabelText("EndAddrsOffset", "%d", curRegion.end);
-        ImGui::LabelText("StartloopAddrsOffset", "%d", curRegion.loop_start);
-        ImGui::LabelText("EndloopAddrsOffset", "%d", curRegion.loop_end);
-        ImGui::LabelText("SampleModes", "%d", curRegion.loop_mode);
 
-        if (curRegion.sampleID >= 0) {
-          tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
+        if (ImGui::TreeNode("Sample")) {
+          ImGui::LabelText("StartAddrsOffset", "%d", curRegion.offset);
+          ImGui::LabelText("EndAddrsOffset", "%d", curRegion.end);
+          ImGui::LabelText("StartloopAddrsOffset", "%d", curRegion.loop_start);
+          ImGui::LabelText("EndloopAddrsOffset", "%d", curRegion.loop_end);
+          ImGui::LabelText("SampleModes", "%d", curRegion.loop_mode);
 
-          std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
-          if (ImGui::Button(label3.c_str())) {
-            selectedId = curRegion.sampleID;
-            selectedType = 0;
+          if (curRegion.sampleID >= 0) {
+            tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
+
+            std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
+            if (ImGui::Button(label3.c_str())) {
+              selectedId = curRegion.sampleID;
+              selectedType = 0;
+            }
+            ImGui::LabelText("SampleRate", "%d", curRegion.sample_rate);
           }
-          ImGui::LabelText("SampleRate", "%d", curRegion.sample_rate);
+          ImGui::TreePop();
         }
 
-        ImGui::LabelText("ModLfoToPitch", "%d", curRegion.modLfoToPitch);
-        ImGui::LabelText("VibLfoToPitch", "%d", curRegion.vibLfoToPitch);
-        ImGui::LabelText("ModEnvToPitch", "%d", curRegion.modEnvToPitch);
-        ImGui::LabelText("InitialFilterFc", "%d", curRegion.initialFilterFc);
+        ImGui::LabelText("Attenuation", "%f", curRegion.attenuation);
+        ImGui::LabelText("Pan", "%f", curRegion.pan);
+        ImGui::LabelText("InitialFilterFc", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.initialFilterFc), curRegion.initialFilterFc);
         ImGui::LabelText("InitialFilterQ", "%d", curRegion.initialFilterQ);
-        ImGui::LabelText("ModLfoToFilterFc", "%d", curRegion.modLfoToFilterFc);
-        ImGui::LabelText("ModEnvToFilterFc", "%d", curRegion.modEnvToFilterFc);
-        ImGui::LabelText("ModLfoToVolume", "%d", curRegion.modLfoToVolume);
-
         ImGui::LabelText("ChorusSend", "%f", curRegion.chorusSend);
         ImGui::LabelText("ReverbSend", "%f", curRegion.reverbSend);
 
-        ImGui::LabelText("DelayModLFO", "%f", curRegion.delayModLFO);
-        ImGui::LabelText("FreqModLFO", "%d", curRegion.freqModLFO);
-        ImGui::LabelText("DelayVibLFO", "%f", curRegion.delayVibLFO);
-        ImGui::LabelText("FreqVibLFO", "%d", curRegion.freqVibLFO);
+        if (ImGui::TreeNode("ModLfo")) {
+          ImGui::LabelText("Delay", "%f", curRegion.delayModLFO);
+          ImGui::LabelText("Freq", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.freqModLFO), curRegion.freqModLFO);
+          ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("VibLfo")) {
+          ImGui::LabelText("Delay", "%f", curRegion.delayVibLFO);
+          ImGui::LabelText("Freq", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.freqVibLFO), curRegion.freqVibLFO);
+          ImGui::TreePop();
+        }
+
+        ImGui::LabelText("ModLfoToFilterFc", "%d cent fs", curRegion.modLfoToFilterFc);
+        ImGui::LabelText("ModEnvToFilterFc", "%d cent fs", curRegion.modEnvToFilterFc);
+        ImGui::LabelText("ModLfoToPitch", "%d cent fs", curRegion.modLfoToPitch);
+        ImGui::LabelText("VibLfoToPitch", "%d cent fs", curRegion.vibLfoToPitch);
+        ImGui::LabelText("ModEnvToPitch", "%d cent fs", curRegion.modEnvToPitch);
+        ImGui::LabelText("ModLfoToVolume", "%d cB fs", curRegion.modLfoToVolume);
 
         if (ImGui::TreeNode("ModEnv")) {
           ImGui::LabelText("DelayModEnv", "%f", curRegion.modenv.delay);
@@ -226,18 +237,46 @@ void DawSoundFont(TinySoundFontDevice * device) {
           ImGui::TreePop();
         }
 
-
-        ImGui::LabelText("Modulators #", "%d", curRegion.modulatorNum);
-
         for (int i=0; i <curRegion.modulatorNum; i++) {
+static const char  * curveTypes[] = {"Linear", "Concave", "Convex", "Switch"};
           tsf_modulator & curModulator = curRegion.modulators[i];
-          ImGui::Text("0x%x (index:%d cc:%d d:%d p:%d type:%d) gen:%d %d amount:%d trans:%d", curModulator.modSrcOper,
-            curModulator.modSrcOperDetails.index,
-            curModulator.modSrcOperDetails.cc,
-            curModulator.modSrcOperDetails.d,
-            curModulator.modSrcOperDetails.p,
-            curModulator.modSrcOperDetails.type,
-            curModulator.modDestOper, curModulator.modAmtSrcOper, curModulator.modAmount, curModulator.modTransOper);
+          std::string label = fmt::format("Modulator {}", i);
+          if (ImGui::TreeNode(label.c_str())) {
+            if (ImGui::TreeNode("Source1")) {
+              ImGui::LabelText("Value", "0x%x", curModulator.modSrcOper);
+              if (curModulator.modSrcOperDetails.cc) {
+                ImGui::LabelText("CC", "%d", curModulator.modSrcOperDetails.index);
+              } else {
+                ImGui::LabelText("GC", "%d", curModulator.modSrcOperDetails.index);
+              }
+              ImGui::LabelText("Direction", "%s", curModulator.modSrcOperDetails.d ? "Negative": "Positive");
+              ImGui::LabelText("Polarity", "%s", curModulator.modSrcOperDetails.p ? "Bipolar": "Unipolar");
+              ImGui::LabelText("Type", "%s", curveTypes[curModulator.modSrcOperDetails.type % 4]);
+              ImGui::TreePop();
+            }
+            if (curModulator.modAmtSrcOper) {
+              if (ImGui::TreeNode("Source2")) {
+                ImGui::LabelText("Value", "0x%x", curModulator.modAmtSrcOper);
+                if (curModulator.modAmtSrcOperDetails.cc) {
+                  ImGui::LabelText("CC", "%d", curModulator.modAmtSrcOperDetails.index);
+                } else {
+                  ImGui::LabelText("GC", "%d", curModulator.modAmtSrcOperDetails.index);
+                }
+                ImGui::LabelText("Direction", "%s", curModulator.modAmtSrcOperDetails.d ? "Negative": "Positive");
+                ImGui::LabelText("Polarity", "%s", curModulator.modAmtSrcOperDetails.p ? "Bipolar": "Unipolar");
+                ImGui::LabelText("Type", "%s", curveTypes[curModulator.modAmtSrcOperDetails.type % 4]);
+                ImGui::TreePop();
+              }
+            }
+
+            ImGui::LabelText("Dest", "%d", curModulator.modDestOper);
+
+            ImGui::LabelText("Amount", "%d", curModulator.modAmount);
+
+            ImGui::LabelText("Trans", "%s", curModulator.modTransOper == 0 ? "Linear" : "Absolute");
+
+            ImGui::TreePop();
+          }
         }
       }
       ImGui::EndChild();
