@@ -69,6 +69,7 @@ namespace vinfony {
     void GetCurrentMBT(int &m, int &b, int &t);
     void SendVolume(int chan, unsigned short value);
     void SendPan(int chan, unsigned short value);
+    void SendFilter(int chan, unsigned short valFc, unsigned short valQ);
     TinySoundFontDevice * GetAudioDevice();
 
     DawDisplayState displayState;

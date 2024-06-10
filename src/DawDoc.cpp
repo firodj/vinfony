@@ -150,6 +150,9 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
             if (kv.second->midiPan == -1) {
               kv.second->SetPan(msg);
             }
+            if (kv.second->midiFilterFc == -1 || kv.second->midiFilterQ == -1) {
+              kv.second->SetFilter(msg);
+            }
           }
         }
       }

@@ -116,7 +116,6 @@ namespace vinfony {
         ImGui::Text("----");
     });
     storage.props[id]->w = 200;
-#if 1
     id = NewProp(storage, "Volume", [](DawPropDrawParam * param, DawSeq *seq) {
       if (param->track->ch) {
         ImGui::PushID(param->track->id);
@@ -141,7 +140,30 @@ namespace vinfony {
       } else
         ImGui::Text("----");
     });
-#endif
+    id = NewProp(storage, "Fc", [](DawPropDrawParam * param, DawSeq *seq) {
+      if (param->track->ch) {
+        ImGui::PushID(param->track->id);
+        ImGui::SetNextItemWidth(param->self->w);
+        if (ImGui::SliderInt("##fc", &param->track->midiFilterFc, 0, 127)) {
+          if (param->track->ch)
+            seq->SendFilter(param->track->ch-1, param->track->midiFilterFc, param->track->midiFilterQ);
+        }
+        ImGui::PopID();
+      } else
+        ImGui::Text("----");
+    });
+    id = NewProp(storage, "Q", [](DawPropDrawParam * param, DawSeq *seq) {
+      if (param->track->ch) {
+        ImGui::PushID(param->track->id);
+        ImGui::SetNextItemWidth(param->self->w);
+        if (ImGui::SliderInt("##q", &param->track->midiFilterQ, 0, 127)) {
+          if (param->track->ch)
+            seq->SendFilter(param->track->ch-1, param->track->midiFilterQ, param->track->midiFilterQ);
+        }
+        ImGui::PopID();
+      } else
+        ImGui::Text("----");
+    });
   }
 
   static void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func) {

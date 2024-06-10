@@ -271,6 +271,8 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
     int flag;
     int bank = tsf_channel_get_preset_bank(m_impl->g_TinySoundFont, msg.GetChannel(), &flag);
     if ((bank == 0x3F80 || (bank == 0x7F && flag)) && !drumgrp) { m_impl->m_midiDrumParts[msg.GetChannel()] = drumgrp = 1; }
+    fmt::println("DEBUG: MIDI Msg CHANNEL: {} BANK: {:04X}h PG:{} DRUMGRP:{}", msg.GetChannel()+1,
+                    bank, msg.GetPGValue()+1, drumgrp);
     tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetPGValue(), drumgrp != 0);
   } else if (msg.IsControlChange()) { //MIDI controller messages
     tsf_channel_midi_control(m_impl->g_TinySoundFont, msg.GetChannel(), msg.GetController(), msg.GetControllerValue());

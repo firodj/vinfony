@@ -73,6 +73,20 @@ void DawTrack::SetPan(const jdksmidi::MIDIBigMessage * msg) {
   }
 }
 
+void DawTrack::SetFilter(const jdksmidi::MIDIBigMessage * msg) {
+  auto control_value = msg->GetControllerValue();
+  switch (msg->GetController()) {
+    case jdksmidi::C_HARMONIC:
+      midiFilterQ = (unsigned short)control_value;
+      break;
+    case jdksmidi::C_BRIGHTNESS:
+		  midiFilterFc = (unsigned short)control_value;
+      break;
+    default:
+      return;
+  }
+}
+
 static const char * g_stdProgramNames[128] = {
   "Acoustic Grand Piano",
   "Bright Acoustic Piano",

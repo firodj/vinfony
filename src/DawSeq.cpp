@@ -153,9 +153,11 @@ namespace vinfony {
       DawTrack * track = m_impl->doc->GetTrack(r);
       track->SetSeq(this);
       // better check default value from audioDevice (tsf)
-      if (track->ch && track->pg == 0) track->pg = 1;
-      if (track->ch && track->midiPan == -1)    track->midiPan = 8192;
-      if (track->ch && track->midiVolume == -1) track->midiVolume = 16383;
+      if (track->ch && track->pg == 0)            track->pg = 1;
+      if (track->ch && track->midiPan == -1)      track->midiPan = 8192;
+      if (track->ch && track->midiVolume == -1)   track->midiVolume = 16383;
+      if (track->ch && track->midiFilterFc == -1) track->midiFilterFc = 64;
+      if (track->ch && track->midiFilterQ == -1)  track->midiFilterQ = 64;
     }
 
     displayState.ppqn = m_impl->doc->GetPPQN();
@@ -299,6 +301,14 @@ namespace vinfony {
     m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
   }
 
+  void DawSeq::SendFilter(int chan, unsigned short valFc, unsigned short valQ) {
+    jdksmidi::MIDITimedBigMessage msg;
+    msg.SetControlChange( chan, jdksmidi::C_HARMONIC, valQ);
+    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    msg.SetControlChange( chan, jdksmidi::C_BRIGHTNESS, valFc );
+    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+  }
+
   void DawSeq::Reset() {
     m_impl->audioDevice->Reset();
   }
@@ -388,6 +398,7 @@ namespace vinfony {
                 trackit->second->SetBank(&msg);
                 trackit->second->SetVolume(&msg);
                 trackit->second->SetPan(&msg);
+                trackit->second->SetFilter(&msg);
               }
 
               if (msg.IsProgramChange()) {
@@ -545,12 +556,13 @@ static long processing_samples = 0;
                 trackit->second->SetBank(&msg);
                 trackit->second->SetVolume(&msg);
                 trackit->second->SetPan(&msg);
+                trackit->second->SetFilter(&msg);
               }
 
               if (msg.IsProgramChange()) {
                 if (trackit->second->ch == msg.GetChannel()+1) {
                   trackit->second->pg = msg.GetPGValue()+1;
-                  fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel(),
+                  fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel()+1,
                     trackit->second->bank, trackit->second->pg);
                 }
 
