@@ -111,7 +111,12 @@ bool BassMidiDevice::HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg, d
   }
   return true;
 }
-void BassMidiDevice::Reset() {};
+void BassMidiDevice::Reset() {
+  BASS_MIDI_StreamEvent(m_impl->stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_DEFAULT);
+  BASS_MIDI_StreamEvent(m_impl->stream, 0, MIDI_EVENT_RESET, 0);
+  BASS_MIDI_StreamEvent(m_impl->stream, 0, MIDI_EVENT_NOTESOFF, 0);
+};
+
 void BassMidiDevice::UpdateMIDITicks() {};
 int BassMidiDevice::GetAudioSampleRate() { return m_impl->SampleRate; }
 
