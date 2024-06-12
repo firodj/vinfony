@@ -49,6 +49,7 @@ namespace vinfony {
     CircularFifo<SeqMsg, 8> seqMessaging{};
     TinySoundFontDevice * tsfdev{}; // should shared_ptr ?
     BassMidiDevice * bassdev{}; // should shared_ptr ?
+    BaseMidiOutDevice *mididev{};
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
     bool is_rewinding{false};
@@ -270,40 +271,40 @@ namespace vinfony {
     jdksmidi::MIDITimedBigMessage msg;
     for (int chan=0; chan<16; ++chan) {
       msg.SetPitchBend( chan, 0 );
-      m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+      m_impl->mididev->HardwareMsgOut( msg, nullptr );
       msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
-      m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+      m_impl->mididev->HardwareMsgOut( msg, nullptr );
       msg.SetAllNotesOff( (unsigned char)chan );
-      m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+      m_impl->mididev->HardwareMsgOut( msg, nullptr );
     }
   }
 
   void DawSeq::SendVolume(int chan, unsigned short value) {
     jdksmidi::MIDITimedBigMessage msg;
     msg.SetControlChange( chan, jdksmidi::C_MAIN_VOLUME, (value & 0x3F80) >> 7);
-    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+    m_impl->mididev->HardwareMsgOut( msg, nullptr );
     msg.SetControlChange( chan, jdksmidi::C_MAIN_VOLUME_LSB, value & 0x7F );
-    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+    m_impl->mididev->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::SendPan(int chan, unsigned short value) {
     jdksmidi::MIDITimedBigMessage msg;
     msg.SetControlChange( chan, jdksmidi::C_PAN, (value & 0x3F80) >> 7);
-    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+    m_impl->mididev->HardwareMsgOut( msg, nullptr );
     msg.SetControlChange( chan, jdksmidi::C_PAN_LSB, value & 0x7F );
-    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+    m_impl->mididev->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::SendFilter(int chan, unsigned short valFc, unsigned short valQ) {
     jdksmidi::MIDITimedBigMessage msg;
     msg.SetControlChange( chan, jdksmidi::C_HARMONIC, valQ);
-    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+    m_impl->mididev->HardwareMsgOut( msg, nullptr );
     msg.SetControlChange( chan, jdksmidi::C_BRIGHTNESS, valFc );
-    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
+    m_impl->mididev->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::Reset() {
-    m_impl->tsfdev->Reset();
+    m_impl->mididev->Reset();
   }
 
 #if 0
@@ -464,6 +465,7 @@ namespace vinfony {
 
   void DawSeq::PlayMIDI() {
     if (m_impl->th_play_midi_running) return;
+    m_impl->mididev = (BaseMidiOutDevice*) m_impl->tsfdev;
 
     m_impl->th_play_midi_running = true;
     m_impl->read_clk_play_start = true;
@@ -489,6 +491,7 @@ namespace vinfony {
 
   void DawSeq::SetTSFDevice(TinySoundFontDevice * dev) {
     m_impl->tsfdev = dev;
+    m_impl->mididev = (BaseMidiOutDevice*)dev;
   }
 
   void DawSeq::SetBASSDevice(BassMidiDevice * dev) {
@@ -510,17 +513,16 @@ static float starting_time = 0;
 static long processing_samples = 0;
     jdksmidi::MIDITimedBigMessage msg;
     int ev_track;
-    const float samplePeriodMs = 1000.0/(float)m_impl->tsfdev->GetAudioSampleRate();
+    const float samplePeriodMs = 1000.0/(float)m_impl->mididev->GetAudioSampleRate();
 
     if (m_impl->midi_seq && m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
       // request to update cursor
       if (m_impl->read_clk_play_start) {
         bool isRewinding = m_impl->clk_play_start_time == 0;
         if (isRewinding)
-          m_impl->tsfdev->Reset();
+          m_impl->mididev->Reset();
 
         AllMIDINoteOff();
-        m_impl->tsfdev->FlushToRealMsgOut();
 
         m_impl->midi_seq->GoToTime( isRewinding && m_impl->doc ? m_impl->doc->m_firstNoteAppearClk : m_impl->clk_play_start_time );
         pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
@@ -590,7 +592,7 @@ static long processing_samples = 0;
               }
             }
 
-            if (!m_impl->tsfdev->RealHardwareMsgOut( msg )) {
+            if (!m_impl->mididev->HardwareMsgOut( msg, nullptr )) {
               return;
             }
 
@@ -606,7 +608,6 @@ static long processing_samples = 0;
         }
       }
 
-      m_impl->tsfdev->FlushToRealMsgOut();
       m_impl->tsfdev->RenderStereoFloat((float*)stream, SampleBlock);
 
       stream += (SampleBlock * sizeOfStereoSample);

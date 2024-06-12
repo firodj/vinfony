@@ -23,6 +23,7 @@ public:
   }
   virtual void Reset() {};
   virtual void UpdateMIDITicks() {};
+  virtual int GetAudioSampleRate() { return 44100; };
 };
 
 }

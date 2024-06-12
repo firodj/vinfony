@@ -35,7 +35,7 @@ bool BassMidiDevice::Init() {
     fmt::println("An incorrect version of BASS.DLL was loaded expect: {} got: {}", BASSVERSION,  dllbassversion);
     return false;
   }
-  if (!BASS_Init(-1, 44100, 0, nullptr, NULL)) {
+  if (!BASS_Init(-1, m_impl->SampleRate, 0, nullptr, NULL)) {
     fmt::println("Can't initialize device");
     return false;
   }
@@ -85,5 +85,6 @@ bool BassMidiDevice::HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg, d
 }
 void BassMidiDevice::Reset() {};
 void BassMidiDevice::UpdateMIDITicks() {};
+int BassMidiDevice::GetAudioSampleRate() { return m_impl->SampleRate; }
 
 }

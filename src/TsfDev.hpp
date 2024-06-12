@@ -30,7 +30,7 @@ public:
   void Reset() override;
 
   void StdAudioCallback(uint8_t *stream, int len);
-  int GetAudioSampleRate();
+  int GetAudioSampleRate() override;
   void RenderStereoFloat(float* stream, int samples);
   void FlushToRealMsgOut();
   int GetDrumPart(int ch);

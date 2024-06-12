@@ -112,8 +112,10 @@ bool TinySoundFontDevice::HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &
   {
     TinyMIDIMessage tinymsg;
     tinymsg.msg = msg;
-    if (!msgTimeShiftMs) {
-      tinymsg.SetTicks();
+    if (!msgTimeShiftMs) {  // immediate
+      tinymsg.SetTicks(); // maybe not used ?
+      RealHardwareMsgOut(tinymsg.msg);
+      return true;
     } else {
 #if USE_SDLTICK == 1
       tinymsg.ticks = m_impl->m_midiTicks + *msgTimeShiftMs;
@@ -122,6 +124,7 @@ bool TinySoundFontDevice::HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &
 #endif
       ;
     }
+
     if ( !m_impl->buffer.push(tinymsg) ) {
       // retry for 1 second
       fprintf(stderr, "WARNING: circular fifo buffer is full, retrying...\n");
@@ -184,6 +187,7 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
  * RenderStereoFloat, call this inside Audio Callback thread,
  */
 void TinySoundFontDevice::RenderStereoFloat(float* stream, int samples) {
+  FlushToRealMsgOut(); //if any
   if (m_impl->g_TinySoundFont)
     tsf_render_float(m_impl->g_TinySoundFont, stream, samples, /* mixing */ 0);
   else

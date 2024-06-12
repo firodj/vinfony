@@ -13,6 +13,7 @@ public:
   bool HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs ) override;
   void Reset() override;
   void UpdateMIDITicks() override;
+  int GetAudioSampleRate() override;
 };
 
 };
