@@ -27,7 +27,6 @@ PianoButtonStyle DefaultPianoButtonStyle() {
     8,
     40,
     true,
-    false,
   };
 }
 
@@ -40,7 +39,6 @@ PianoButtonState & PianoButtonStateGet(int * pInOutIDX, PianoButtonStyle * style
 
   // calculate all needed size
   if (style) m_szPiano.style = *style; else m_szPiano.style = DefaultPianoButtonStyle();
-
 
 	const float midWhite = (1+m_szPiano.style.whiteWidth) - m_szPiano.style.blackWidth/2;
 
@@ -170,8 +168,81 @@ void PianoButton(const char *label, PianoButtonStyle * style) {
         drawList->AddLine(ptuts + ImVec2{m_szPiano.style.whiteWidth, 0}, ptuts + ImVec2{m_szPiano.style.whiteWidth, m_szPiano.style.whiteHeight}, IM_COL32_BLACK);
     }
   }
+}
 
-  //ImGui::Text("%f %f %d", mousePos.x, mousePos.y, noteOn);
+int PianoCheckPointV(PianoButtonState & m_szPiano, ImVec2 point) {
+// outer piano area
+	if (point.x >= m_szPiano.style.whiteHeight ||
+		point.y >= m_szPiano.width_all)
+		return -1;
+	if (point.y < 0 || point.x < 0)
+		return -1;
+
+	// check tuts number;
+	int n_octave = point.y / m_szPiano.width_octave;
+	// check tuts hitam;
+	int n_x = (int)point.y % (int)m_szPiano.width_octave;
+	int i;
+	// check black note first,
+	if (point.x < m_szPiano.style.blackHeight || m_szPiano.style.equalize)
+		for (i = 0; i<12; i++)
+			if (m_szPiano.tuts_type[i] == 3)
+				if ( n_x >= m_szPiano.tuts_start[i] &&
+					n_x <  m_szPiano.tuts_end[i] ) {
+          int n = i+(n_octave*12);
+          return n > 127 ? 127 : n;
+        }
+	// nothing b4, then check in white note
+	for (i=0; i<12; i++)
+		if (m_szPiano.tuts_type[i] < 3)
+			if ( n_x >= m_szPiano.tuts_start[i] &&
+				n_x <  m_szPiano.tuts_end[i] ) {
+			  int n = i+(n_octave*12);
+        return n > 127 ? 127 : n;
+      }
+	// something wrong happen, give bad result
+	return -1;
+}
+
+void PianoButtonV(const char *label, PianoButtonStyle * style) {
+  ImGuiID pianoID = ImGui::GetID(label);
+  int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
+  PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
+  g_lastPianoButtonID = pianoID;
+
+  ImVec2 pmin = ImGui::GetCursorScreenPos();
+  ImVec2 pmax = pmin + ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all};
+  ImGui::InvisibleButton("##button", ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all});
+  ImVec2 mousePos;
+  int noteOn = -1;
+  if (ImGui::IsItemHovered()) {
+    mousePos = ImGui::GetMousePos() - pmin;
+    noteOn = PianoCheckPointV(m_szPiano, mousePos);
+  }
+  auto drawList = ImGui::GetWindowDrawList();
+  drawList->AddRectFilled(pmin, pmax, IM_COL32_WHITE);
+
+  ImVec2 ptuts = pmin;
+  if (noteOn != -1 && m_szPiano.tuts_type[noteOn % 12] != 3) {
+    ptuts = pmin + ImVec2{ 0, m_szPiano.width_octave * (noteOn/12) } + ImVec2{ 0.0, m_szPiano.tuts_start[noteOn%12]};
+    drawList->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.style.whiteHeight, m_szPiano.style.whiteWidth}, IM_COL32(255, 0,0, 255));
+  }
+
+  ptuts = pmin;
+  for (int i=0; i<128; i++) {
+    if (i && ((i%12) == 0)) pmin += ImVec2{ 0, m_szPiano.width_octave };
+    ptuts = pmin + ImVec2{0.0, m_szPiano.tuts_start[i%12]};
+    switch (m_szPiano.tuts_type[i % 12]) {
+    case 3:
+      drawList->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.style.blackHeight, m_szPiano.style.blackWidth}, i == noteOn ? IM_COL32(255, 0,0, 255) : IM_COL32_BLACK);
+      if (m_szPiano.style.equalize)
+        drawList->AddLine(ptuts + ImVec2{ m_szPiano.style.blackHeight, m_szPiano.style.blackWidth/2 }, ptuts + ImVec2{ m_szPiano.style.whiteHeight, m_szPiano.style.blackWidth/2 }, IM_COL32_BLACK);
+      break;
+    default:
+      if (!m_szPiano.style.equalize || m_szPiano.tuts_type[(i+1) % 12] != 3)
+        drawList->AddLine(ptuts + ImVec2{ 0.0, m_szPiano.style.whiteWidth }, ptuts + ImVec2{ m_szPiano.style.whiteHeight, m_szPiano.style.whiteWidth }, IM_COL32_BLACK);
+    }
+  }
 }
 
 bool PianoRegion(const  char *label, int start, int stop, int center, bool selected) {

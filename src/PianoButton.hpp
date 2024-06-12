@@ -8,9 +8,9 @@ struct PianoButtonStyle {
   float blackWidth;
   float blackHeight;
   bool equalize;
-  bool vertical;
 };
 
 void PianoButton(const char *label, PianoButtonStyle * style = nullptr);
+void PianoButtonV(const char *label, PianoButtonStyle * style = nullptr);
 bool PianoRegion(const char *label, int start, int stop, int center, bool selected);
 };
