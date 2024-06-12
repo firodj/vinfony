@@ -81,6 +81,7 @@ struct MainApp::Impl {
   int pianoWidth,pianoHeight;
 
   SDL_AudioSpec OutputAudioSpec;
+  bool showSoundFont;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -96,6 +97,7 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
   m_impl = std::make_unique<Impl>();
   m_windowTitle = "Vinfony";
   m_showDemoWindow = false;
+  m_impl->showSoundFont = false;
 }
 
 MainApp::~MainApp() {
@@ -246,9 +248,10 @@ void MainApp::RunImGui() {
     }
     if (ImGui::BeginMenu("Window"))
     {
-        ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
-        //ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
-        ImGui::EndMenu();
+      ImGui::MenuItem("SoundFont",    nullptr, &m_impl->showSoundFont);
+      ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
+      //ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
+      ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
   }
@@ -277,13 +280,15 @@ void MainApp::RunImGui() {
   }
   ImGui::End();
 
-  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-  if (ImGui::Begin("SoundFont")) {
-    vinfony::DawSoundFont( m_impl->tsfdev.get() );
+  if (m_impl->showSoundFont) {
+    ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+    if (ImGui::Begin("SoundFont", &m_impl->showSoundFont)) {
+      vinfony::DawSoundFont( m_impl->tsfdev.get() );
+    }
+    ImGui::End();
   }
-  ImGui::End();
 
-#if 0
+#if 1
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("Piano")) {
     vinfony::PianoButton("piano");
