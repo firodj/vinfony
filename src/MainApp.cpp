@@ -174,8 +174,7 @@ void MainApp::ToolbarUI()
   }
   ImGui::SameLine();
 	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {
-    //m_impl->sequencer.AsyncPlayMIDI();
-    m_impl->sequencer.PlayMIDI();
+    m_impl->sequencer.AsyncPlayMIDI();
   }
   ImGui::SameLine();
   if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
@@ -209,7 +208,7 @@ void MainApp::RunImGui() {
   m_impl->sequencer.ProcessMessage([&](vinfony::SeqMsg &msg) -> bool {
     switch ( msg.type ) {
       case vinfony::IsAsyncPlayMIDITerminated: // ThreadTerminate
-        //m_impl->sequencer.AsyncPlayMIDIStopped();
+        m_impl->sequencer.AsyncPlayMIDIStopped();
         fmt::println("message: ThreadTerminate");
         break;
       case vinfony::IsMIDIFileLoaded:
@@ -301,7 +300,6 @@ void MainApp::RunImGui() {
     if (ifd::FileDialog::Instance().HasResult()) {
       const std::vector<std::filesystem::path>& res = ifd::FileDialog::Instance().GetResults();
       for (const auto& r : res) { // MidiFileOpenDialog supports multiselection
-        //printf("OPEN[%s]\n", r.u8string().c_str());
         m_impl->sequencer.AsyncReadMIDIFile(r.u8string());
       }
     }
@@ -346,7 +344,7 @@ void MainApp::Init() {
   m_impl->OutputAudioSpec.channels = 2;
   m_impl->OutputAudioSpec.samples = 4096 >> 2;
   m_impl->OutputAudioSpec.userdata = this;
-  m_impl->OutputAudioSpec.callback = AudioCallback;
+  m_impl->OutputAudioSpec.callback = nullptr; //AudioCallback;
 
   // Request the desired audio output format
   if (SDL_OpenAudio(&m_impl->OutputAudioSpec, nullptr) < 0)

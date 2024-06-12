@@ -42,7 +42,7 @@ namespace vinfony {
     std::atomic<bool> th_read_midi_file_done{false};
     std::atomic<bool> th_read_midi_file_running{false};
     bool midi_file_loaded{};
-    //std::thread th_play_midi{};
+    std::thread th_play_midi{};
     std::atomic<bool> th_play_midi_running{false};
     std::atomic<bool> request_stop_midi{false};
 
@@ -82,7 +82,7 @@ namespace vinfony {
     if (m_impl->th_read_midi_file.joinable())
         m_impl->th_read_midi_file.join();
     StopMIDI();
-    //AsyncPlayMIDIStopped();
+    AsyncPlayMIDIStopped();
   }
 
   void DawSeq::ProcessMessage(std::function<bool(SeqMsg&)> proc) {
@@ -307,8 +307,7 @@ namespace vinfony {
     m_impl->mididev->Reset();
   }
 
-#if 0
- // AsyncPlayMIDIStopped being calledd by OnAsyncPlayMIDITerminated
+  // AsyncPlayMIDIStopped being calledd by OnAsyncPlayMIDITerminated
   void DawSeq::AsyncPlayMIDIStopped() {
     if (m_impl->th_play_midi.joinable()) {
       m_impl->th_play_midi.join();
@@ -317,6 +316,7 @@ namespace vinfony {
 
   void DawSeq::AsyncPlayMIDI() {
     if (m_impl->th_play_midi_running) return;
+    m_impl->mididev = (BaseMidiOutDevice*) m_impl->bassdev;
 
     m_impl->th_play_midi_running = true;
     m_impl->read_clk_play_start = true;
@@ -349,15 +349,12 @@ namespace vinfony {
 #endif
       ) {
 
-        if (false) {
-
         if (m_impl->read_clk_play_start) {
           bool isRewinding = m_impl->clk_play_start_time == 0;
           if (isRewinding)
-            m_impl->tsfdev->Reset();
+            m_impl->mididev->Reset();
 
           AllMIDINoteOff();
-          m_impl->tsfdev->FlushToRealMsgOut();
 
           m_impl->midi_seq->GoToTime( isRewinding && m_impl->doc ? m_impl->doc->m_firstNoteAppearClk : m_impl->clk_play_start_time );
           pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
@@ -381,7 +378,7 @@ namespace vinfony {
         CalcCurrentMIDITimeBeat(pretend_clock_time);
 
         // TODO: Send SyncTime
-        m_impl->tsfdev->UpdateMIDITicks();
+        m_impl->mididev->UpdateMIDITicks();
 
         // find all events that came before or a the current time
         while ( next_event_time <= pretend_clock_time ) {
@@ -424,7 +421,7 @@ namespace vinfony {
             }
 
             double shiftMs = m_impl->midi_seq->GetCurrentTimeInMs() - pretend_clock_time;
-            if (!m_impl->tsfdev->HardwareMsgOut( msg, &shiftMs )) {
+            if (!m_impl->mididev->HardwareMsgOut( msg, &shiftMs )) {
               return;
             }
 
@@ -437,8 +434,6 @@ namespace vinfony {
               break;
             }
           }
-        }
-
         }
 
         // 10ms when using namespace std::chrono_literals;
@@ -455,20 +450,11 @@ namespace vinfony {
       AllMIDINoteOff();
     });
   }
-#endif
 
   void DawSeq::StopMIDI() {
     if (m_impl->th_play_midi_running) {
       m_impl->request_stop_midi = true;
     }
-  }
-
-  void DawSeq::PlayMIDI() {
-    if (m_impl->th_play_midi_running) return;
-    m_impl->mididev = (BaseMidiOutDevice*) m_impl->tsfdev;
-
-    m_impl->th_play_midi_running = true;
-    m_impl->read_clk_play_start = true;
   }
 
   bool DawSeq::IsPlaying() {
