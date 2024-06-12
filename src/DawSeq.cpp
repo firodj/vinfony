@@ -1,7 +1,6 @@
 #include "DawSeq.hpp"
 
 #define USE_SDLTICK 1
-#define USE_TSFRENDER 1
 
 #include <iostream>
 #include <thread>
@@ -348,7 +347,7 @@ namespace vinfony {
       ) {
 
 
-#if USE_TSFRENDER != 1
+        if (false) {
 
         if (m_impl->read_clk_play_start) {
           if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
@@ -433,7 +432,7 @@ namespace vinfony {
           }
         }
 
-#endif
+        }
 
         // 10ms when using namespace std::chrono_literals;
 #if USE_SDLTICK == 1
@@ -475,9 +474,6 @@ namespace vinfony {
 
   void DawSeq::SetDevice(TinySoundFontDevice * dev) {
     m_impl->audioDevice = dev;
-#if USE_TSFRENDER == 1
-    m_impl->audioDevice->SetAudioCallback( [&](uint8_t * stream, int len){ this->RenderMIDICallback (stream, len); } );
-#endif
   }
 
   void DawSeq::RenderMIDICallback(uint8_t * stream, int len) {

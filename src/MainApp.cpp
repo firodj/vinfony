@@ -24,6 +24,8 @@
 #include "stb_image.h"
 #include "PianoButton.hpp"
 
+#define SAMPLE_RATE 44100.0
+
 static std::unique_ptr<MainApp> g_mainapp;
 
 static std::mutex g_mtxMainapp;
@@ -75,6 +77,8 @@ struct MainApp::Impl {
   std::string soundfontPath;
   GLuint texPiano{0};
   int pianoWidth,pianoHeight;
+
+  SDL_AudioSpec OutputAudioSpec;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -302,6 +306,16 @@ void MainApp::RunImGui() {
   }
 }
 
+void AudioCallback(void* data, uint8_t *stream, int len)
+{
+  MainApp *app = static_cast<MainApp*>(data);
+  app->StdAudioCallback(stream, len);
+}
+
+void MainApp::StdAudioCallback(uint8_t *stream, int len) {
+  m_impl->sequencer.RenderMIDICallback (stream, len);
+}
+
 void MainApp::Init() {
   ReadIniConfig();
   EngineBase::Init();
@@ -316,10 +330,31 @@ void MainApp::Init() {
   m_impl->sequencer.SetDevice( m_impl->audiodevice.get() );
 
   bool ret = LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
+
+  // Define the desired audio output format we request
+  m_impl->OutputAudioSpec.freq = SAMPLE_RATE;
+  m_impl->OutputAudioSpec.format = AUDIO_F32;
+  m_impl->OutputAudioSpec.channels = 2;
+  m_impl->OutputAudioSpec.samples = 4096 >> 2;
+  m_impl->OutputAudioSpec.userdata = this;
+  m_impl->OutputAudioSpec.callback = AudioCallback;
+
+  // Request the desired audio output format
+  if (SDL_OpenAudio(&m_impl->OutputAudioSpec, nullptr) < 0)
+  {
+    fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
+  } else {
+    fprintf(stdout, "Audio Buffer = %d\n", m_impl->OutputAudioSpec.samples);
+  }
+
+  SDL_PauseAudio(0);
 }
 
 void MainApp::Clean() {
   EngineBase::Clean();
+
+  SDL_PauseAudio(1);
+  SDL_CloseAudio();
   if (m_impl->audiodevice) m_impl->audiodevice->Shutdown();
 }
 

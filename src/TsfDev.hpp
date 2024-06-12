@@ -7,15 +7,10 @@
 #include <functional>
 
 struct tsf;
-
 namespace jdksmidi {
   class MIDITimedBigMessage;
 };
-
 namespace vinfony {
-
-using TsfAudioCallback = std::function<void(uint8_t *stream, int len)>;
-
 class TinySoundFontDevice: public BaseMidiOutDevice {
 protected:
   struct Impl;
@@ -31,7 +26,8 @@ public:
 
   bool RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg );
 
-  void SetAudioCallback(TsfAudioCallback cb);
+  void SetSampleRate(int sampleRate);
+  void Advance(int sampleCount);
   void Reset() override;
 
   void StdAudioCallback(uint8_t *stream, int len);

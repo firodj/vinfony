@@ -23,7 +23,6 @@ using namespace std::chrono_literals;
 #include "circularfifo1.h"
 #include "DawSysEx.hpp"
 
-#define SAMPLE_RATE 44100.0
 
 #define USE_SDLTICK 1
 
@@ -47,7 +46,7 @@ public:
 };
 
 struct TinySoundFontDevice::Impl {
-  SDL_AudioSpec OutputAudioSpec;
+  //SDL_AudioSpec OutputAudioSpec;
   tsf* g_TinySoundFont;
   CircularFifo<TinyMIDIMessage, 8> buffer{};
 #if USE_SDLTICK == 1
@@ -63,13 +62,13 @@ struct TinySoundFontDevice::Impl {
 #else
    std::chrono::time_point<std::chrono::steady_clock> m_midiTicks{};
 #endif
-  TsfAudioCallback callback;
+  int SampleRate;
 };
 
 TinySoundFontDevice::TinySoundFontDevice(std::string soundfontPath) {
   m_impl = std::make_unique<Impl>();
   m_impl->m_soundfontPath = soundfontPath;
-  m_impl->callback = nullptr;
+  m_impl->SampleRate = 44100;
 }
 
 TinySoundFontDevice::~TinySoundFontDevice() {
@@ -77,11 +76,7 @@ TinySoundFontDevice::~TinySoundFontDevice() {
     tsf_close(m_impl->g_TinySoundFont);
 }
 
-void TinySoundFontDevice::SetAudioCallback(TsfAudioCallback cb)
-{
-  m_impl->callback = cb;
-}
-
+void TinySoundFontDevice::SetSampleRate(int sampleRate) { m_impl->SampleRate = sampleRate; }
 void TinySoundFontDevice::UpdateMIDITicks()  {
 #if USE_SDLTICK == 1
   m_impl->m_midiTicks = SDL_GetTicks64();
@@ -91,14 +86,6 @@ void TinySoundFontDevice::UpdateMIDITicks()  {
 };
 
 bool TinySoundFontDevice::Init()  {
-  // Define the desired audio output format we request
-  m_impl->OutputAudioSpec.freq = SAMPLE_RATE;
-  m_impl->OutputAudioSpec.format = AUDIO_F32;
-  m_impl->OutputAudioSpec.channels = 2;
-  m_impl->OutputAudioSpec.samples = 4096 >> 2;
-  m_impl->OutputAudioSpec.userdata = this;
-  m_impl->OutputAudioSpec.callback = TinySoundFontAudioCallback;
-
   // Load the SoundFont from a file
   m_impl->g_TinySoundFont = tsf_load_filename(m_impl->m_soundfontPath.c_str());
   if (!m_impl->g_TinySoundFont)
@@ -108,31 +95,20 @@ bool TinySoundFontDevice::Init()  {
 
   Reset();
 
-  // Request the desired audio output format
-  if (SDL_OpenAudio(&m_impl->OutputAudioSpec, TSF_NULL) < 0)
-  {
-    fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
-    return false;
-  } else {
-    fprintf(stdout, "Audio Buffer = %d\n", m_impl->OutputAudioSpec.samples);
-  }
-
   // Start the actual audio playback here
   // The audio thread will begin to call our AudioCallback function
-  int bufferDurationTicks = m_impl->OutputAudioSpec.samples * (1000.0 / m_impl->OutputAudioSpec.freq);
+  //int bufferDurationTicks = m_impl->OutputAudioSpec.samples * (1000.0 / m_impl->OutputAudioSpec.freq);
 #if USE_SDLTICK == 1
   m_impl->startingTicks = SDL_GetTicks64(); // - bufferDurationTicks;
 #else
   m_impl->startingTicks = std::chrono::high_resolution_clock::now();
 #endif
-  SDL_PauseAudio(0);
 
   return true;
 }
 
 void TinySoundFontDevice::Shutdown()  {
-  SDL_PauseAudio(1);
-  SDL_CloseAudio();
+
 }
 
 bool TinySoundFontDevice::HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs )  {
@@ -172,9 +148,25 @@ bool TinySoundFontDevice::HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &
   return true;
 }
 
-void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
-  if (m_impl->callback) return m_impl->callback(stream, len);
+void TinySoundFontDevice::Advance(int sampleCount) {
+  m_impl->processingSamples += sampleCount;
 
+#if USE_SDLTICK == 1
+  Uint64 processingMarker = m_impl->processingSamples * (1000.0 / m_impl->SampleRate);
+#else
+  std::chrono::time_point<std::chrono::steady_clock> processingMarker = std::chrono::milliseconds((long)(m_impl->processingSamples * (1000.0 / m_impl->SampleRate)));
+#endif
+
+  TinyMIDIMessage tinymsg;
+  while (m_impl->buffer.peek(tinymsg)) {
+    if (processingMarker >= tinymsg.ticks) {
+      RealHardwareMsgOut(tinymsg.msg);
+      m_impl->buffer.skip();
+    } else break;
+  }
+}
+
+void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
   //Number of samples to process
   int SampleCount  = (len / (2 * sizeof(float))); //2 output channels
   int BlockCount   = (SampleCount / TSF_RENDER_EFFECTSAMPLEBLOCK);
@@ -182,30 +174,13 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
   int LastSampleMarker = 0;
 
   for (;BlockCount;--BlockCount) {
-    // NOTE: if startingTicks too close with current event, we may reduce it with bufferDurationTicks
-#if USE_SDLTICK == 1
-    Uint64 processingMarker = m_impl->startingTicks + (m_impl->processingSamples * (1000.0 / SAMPLE_RATE));
-#else
-    std::chrono::time_point<std::chrono::steady_clock> processingMarker = m_impl->startingTicks + std::chrono::milliseconds((long)(m_impl->processingSamples * (1000.0 / SAMPLE_RATE)));
-#endif
-
-    TinyMIDIMessage tinymsg;
-    while (m_impl->buffer.peek(tinymsg)) {
-      if (processingMarker >= tinymsg.ticks) {
-        RealHardwareMsgOut(tinymsg.msg);
-        m_impl->buffer.skip();
-      } else break;
-    }
-
     int SampleBlock = SampleMarker - LastSampleMarker;
-
-    RenderStereoFloat((float *)stream, SampleBlock);
-
-    stream += (SampleBlock * (2 * sizeof(float)));
-    m_impl->processingSamples += SampleBlock;
-
     LastSampleMarker = SampleMarker;
     SampleMarker += TSF_RENDER_EFFECTSAMPLEBLOCK;
+
+    Advance(SampleBlock);
+    RenderStereoFloat((float *)stream, SampleBlock);
+    stream += (SampleBlock * (2 * sizeof(float)));
   }
 }
 
@@ -215,7 +190,7 @@ void TinySoundFontDevice::StdAudioCallback(uint8_t *stream, int len) {
 void TinySoundFontDevice::RenderStereoFloat(float* stream, int samples) {
   if (m_impl->g_TinySoundFont)
     tsf_render_float(m_impl->g_TinySoundFont, stream, samples, /* mixing */ 0);
-   else
+  else
     memset(stream, 0, samples);
 }
 
@@ -235,7 +210,7 @@ void TinySoundFontDevice::Reset() {
   tsf_reset(m_impl->g_TinySoundFont);
 
   // Set the SoundFont rendering output mode
-  tsf_set_output(m_impl->g_TinySoundFont, TSF_STEREO_INTERLEAVED, m_impl->OutputAudioSpec.freq, 0.0f);
+  tsf_set_output(m_impl->g_TinySoundFont, TSF_STEREO_INTERLEAVED, m_impl->SampleRate, 0.0f);
 
   // Set Midi Drums
   for (auto &d : m_impl->m_midiDrumParts) d = 0;
@@ -243,17 +218,12 @@ void TinySoundFontDevice::Reset() {
 
   //Initialize preset on special 10th MIDI channel to use percussion sound bank (128) if available
   tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 9, 128, 0);
-  tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 10, 128, 0);
+
+  m_impl->processingSamples = 0;
 };
 
 int TinySoundFontDevice::GetAudioSampleRate() {
-  return m_impl->OutputAudioSpec.freq;
-}
-
-void TinySoundFontAudioCallback(void* data, uint8_t *stream, int len)
-{
-  TinySoundFontDevice *dev = static_cast<TinySoundFontDevice*>(data);
-  dev->StdAudioCallback(stream, len);
+  return m_impl->SampleRate;
 }
 
 int TinySoundFontDevice::GetDrumPart(int ch) {

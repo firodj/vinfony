@@ -29,4 +29,5 @@ public:
     void Init() override;
     void Clean() override;
     std::string GetResourcePath(const char *path, const char *file) override;
+    void StdAudioCallback(uint8_t *stream, int len);
 };
