@@ -42,7 +42,7 @@ namespace vinfony {
     std::atomic<bool> th_read_midi_file_done{false};
     std::atomic<bool> th_read_midi_file_running{false};
     bool midi_file_loaded{};
-    std::thread th_play_midi{};
+    //std::thread th_play_midi{};
     std::atomic<bool> th_play_midi_running{false};
     std::atomic<bool> request_stop_midi{false};
 
@@ -81,7 +81,7 @@ namespace vinfony {
     if (m_impl->th_read_midi_file.joinable())
         m_impl->th_read_midi_file.join();
     StopMIDI();
-    AsyncPlayMIDIStopped();
+    //AsyncPlayMIDIStopped();
   }
 
   void DawSeq::ProcessMessage(std::function<bool(SeqMsg&)> proc) {
@@ -266,13 +266,6 @@ namespace vinfony {
     }, filename);
   }
 
-  // AsyncPlayMIDIStopped being calledd by OnAsyncPlayMIDITerminated
-  void DawSeq::AsyncPlayMIDIStopped() {
-    if (m_impl->th_play_midi.joinable()) {
-      m_impl->th_play_midi.join();
-    }
-  }
-
   void DawSeq::AllMIDINoteOff() {
     jdksmidi::MIDITimedBigMessage msg;
     for (int chan=0; chan<16; ++chan) {
@@ -311,6 +304,14 @@ namespace vinfony {
 
   void DawSeq::Reset() {
     m_impl->tsfdev->Reset();
+  }
+
+#if 0
+ // AsyncPlayMIDIStopped being calledd by OnAsyncPlayMIDITerminated
+  void DawSeq::AsyncPlayMIDIStopped() {
+    if (m_impl->th_play_midi.joinable()) {
+      m_impl->th_play_midi.join();
+    }
   }
 
   void DawSeq::AsyncPlayMIDI() {
@@ -453,6 +454,7 @@ namespace vinfony {
       AllMIDINoteOff();
     });
   }
+#endif
 
   void DawSeq::StopMIDI() {
     if (m_impl->th_play_midi_running) {
@@ -460,8 +462,16 @@ namespace vinfony {
     }
   }
 
+  void DawSeq::PlayMIDI() {
+    if (m_impl->th_play_midi_running) return;
+
+    m_impl->th_play_midi_running = true;
+    m_impl->read_clk_play_start = true;
+  }
+
   bool DawSeq::IsPlaying() {
-    return m_impl->th_play_midi_running;
+    return !m_impl->request_stop_midi;
+    //return m_impl->th_play_midi_running;
   }
 
   bool DawSeq::IsRewinding() {
@@ -605,6 +615,11 @@ static long processing_samples = 0;
       SampleMarker += blockSize;
     }
 
+    if (m_impl->request_stop_midi && m_impl->th_play_midi_running) {
+      AllMIDINoteOff();
+      m_impl->th_play_midi_running = false;
+      m_impl->request_stop_midi = false;
+    }
   }
 
   TinySoundFontDevice * DawSeq::GetTSFDevice() {

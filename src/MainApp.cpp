@@ -174,7 +174,8 @@ void MainApp::ToolbarUI()
   }
   ImGui::SameLine();
 	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {
-    m_impl->sequencer.AsyncPlayMIDI();
+    //m_impl->sequencer.AsyncPlayMIDI();
+    m_impl->sequencer.PlayMIDI();
   }
   ImGui::SameLine();
   if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
@@ -208,7 +209,7 @@ void MainApp::RunImGui() {
   m_impl->sequencer.ProcessMessage([&](vinfony::SeqMsg &msg) -> bool {
     switch ( msg.type ) {
       case vinfony::IsAsyncPlayMIDITerminated: // ThreadTerminate
-        m_impl->sequencer.AsyncPlayMIDIStopped();
+        //m_impl->sequencer.AsyncPlayMIDIStopped();
         fmt::println("message: ThreadTerminate");
         break;
       case vinfony::IsMIDIFileLoaded:

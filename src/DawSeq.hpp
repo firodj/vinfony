@@ -49,8 +49,9 @@ namespace vinfony {
 
     void AsyncReadMIDIFile(std::string filename);
     bool IsFileLoaded();
-    void AsyncPlayMIDI();
-    void AsyncPlayMIDIStopped();
+    //void AsyncPlayMIDI();
+    //void AsyncPlayMIDIStopped();
+    void PlayMIDI();
     void StopMIDI();
     void CloseMIDIFile();
     void CalcCurrentMIDITimeBeat(uint64_t now_ms);
