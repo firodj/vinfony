@@ -259,22 +259,21 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
   else if ( msg.IsSystemExclusive() )
   {
     {
-      std::unique_ptr<GMSysEx> gmsyx(GMSysEx::Create(msg.GetSysEx()));
-      if (gmsyx)
+      std::unique_ptr<BaseSysEx> gmsyx(BaseSysEx::Create(msg.GetSysEx()));
+      if (gmsyx && gmsyx->m_sysxVendor == SYSX_GM)
         fmt::print(fmt::fg(fmt::color::wheat), "GM: {}\n", gmsyx->Info());
-    }
-
-    {
-      std::unique_ptr<GSSysEx> gssyx(GSSysEx::Create(msg.GetSysEx()));
-      if (gssyx) {
-        fmt::print(fmt::fg(fmt::color::wheat), "GS: {}\n", gssyx->Info());
-        if (gssyx->IsUseRhythmPart()) {
-          int channel = gssyx->GetPart()-1;
-          int drumgrp = gssyx->GetUseRhythmPart();
-          int preset_number = tsf_channel_get_preset_number(m_impl->g_TinySoundFont, channel);
-          m_impl->m_midiDrumParts[channel] = drumgrp;
-          tsf_channel_set_bank(m_impl->g_TinySoundFont, channel, drumgrp == 0 ? 0 : 128);
-          tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, channel, preset_number, drumgrp != 0);
+      if  (gmsyx && gmsyx->m_sysxVendor == SYSX_GS) {
+        GSSysEx * gssyx = (GSSysEx*)gmsyx.get();
+        if (gssyx) {
+          fmt::print(fmt::fg(fmt::color::wheat), "GS: {}\n", gssyx->Info());
+          if (gssyx->IsUseRhythmPart()) {
+            int channel = gssyx->GetPart()-1;
+            int drumgrp = gssyx->GetUseRhythmPart();
+            int preset_number = tsf_channel_get_preset_number(m_impl->g_TinySoundFont, channel);
+            m_impl->m_midiDrumParts[channel] = drumgrp;
+            tsf_channel_set_bank(m_impl->g_TinySoundFont, channel, drumgrp == 0 ? 0 : 128);
+            tsf_channel_set_presetnumber(m_impl->g_TinySoundFont, channel, preset_number, drumgrp != 0);
+          }
         }
       }
     }

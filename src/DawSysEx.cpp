@@ -24,18 +24,19 @@
 
 namespace vinfony {
 
-// GMSysEx
-GMSysEx::GMSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex): m_midi_sysex(midi_sysex) {
-  Parse();
-};
-
-GMSysEx * GMSysEx::Create(const jdksmidi::MIDISystemExclusive *midi_sysex) {
-  if (midi_sysex->GetLength() < 5) return nullptr;
+BaseSysEx * BaseSysEx::Create(const jdksmidi::MIDISystemExclusive *midi_sysex) {
+  if (midi_sysex->GetLength() < 5)
+    return nullptr;
   if (midi_sysex->GetData(0) == 0x7E)
     return new GMSysEx(midi_sysex);
+  if (midi_sysex->GetData(0) == 0x41)
+    return new GSSysEx(midi_sysex);
+  if (midi_sysex->GetData(0) == 0x43)
+    return new XGSysEx(midi_sysex);
   return nullptr;
 }
 
+// GMSysEx
 bool GMSysEx::IsGMReset() {
   return (m_devID == 0x7F &&
     m_subID1 == 0x09 &&
@@ -44,42 +45,31 @@ bool GMSysEx::IsGMReset() {
 }
 
 void GMSysEx::Parse() {
-  m_devID  = m_midi_sysex->GetData(1);
-  m_subID1 = m_midi_sysex->GetData(2);
-  m_subID2 = m_midi_sysex->GetData(3);
+  m_devID  = m_midi_sysex.GetData(1);
+  m_subID1 = m_midi_sysex.GetData(2);
+  m_subID2 = m_midi_sysex.GetData(3);
 
-  m_eoxAt = m_midi_sysex->GetData( m_midi_sysex->GetLength() - 1 ) == 0xF7 ? m_midi_sysex->GetLength() : 0;
+  m_eoxAt = m_midi_sysex.GetData( m_midi_sysex.GetLength() - 1 ) == 0xF7 ? m_midi_sysex.GetLength() : 0;
 }
 
 std::string GMSysEx::Info() {
   if (IsGMReset()) {
     return "GM Reset";
   }
-  return "??";
+  return "GM: ??";
 }
 
 // GSSysEx
-GSSysEx::GSSysEx(const  jdksmidi::MIDISystemExclusive *midi_sysex): m_midi_sysex(midi_sysex) {
-  Parse();
-};
-
-GSSysEx * GSSysEx::Create(const jdksmidi::MIDISystemExclusive *midi_sysex) {
-  if (midi_sysex->GetLength() < 10) return nullptr;
-  if (midi_sysex->GetData(0) == 0x41)
-    return new GSSysEx(midi_sysex);
-  return nullptr;
-}
-
 void GSSysEx::Parse() {
-  m_devID  = m_midi_sysex->GetData(1);
-  m_mdlID  = m_midi_sysex->GetData(2);
-  m_cmdID  = m_midi_sysex->GetData(3); // 0x11=RQ1 / 0x12=DT1
-  m_cmdAddr = ( m_midi_sysex->GetData(4) << 16 ) |
-    ( m_midi_sysex->GetData(5) << 8 ) |
-    ( m_midi_sysex->GetData(6) );
-  m_chkHash = m_midi_sysex->GetData(4) + m_midi_sysex->GetData(5) + m_midi_sysex->GetData(6);
-  m_buf = m_midi_sysex->GetBuf() + 7;
-  m_bufLen = m_midi_sysex->GetLength() - 9;
+  m_devID  = m_midi_sysex.GetData(1); //  dev: 00H-1FH (1-32), Initial value is 10H (17))
+  m_mdlID  = m_midi_sysex.GetData(2);
+  m_cmdID  = m_midi_sysex.GetData(3); // 0x11=RQ1 / 0x12=DT1
+  m_cmdAddr = ( m_midi_sysex.GetData(4) << 16 ) |
+    ( m_midi_sysex.GetData(5) << 8 ) |
+    ( m_midi_sysex.GetData(6) );
+  m_chkHash = m_midi_sysex.GetData(4) + m_midi_sysex.GetData(5) + m_midi_sysex.GetData(6);
+  m_buf = m_midi_sysex.GetBuf() + 7;
+  m_bufLen = m_midi_sysex.GetLength() - 9;
 }
 
 bool GSSysEx::IsPartPatch() {
@@ -153,7 +143,37 @@ std::string GSSysEx::Info() {
     }
     return fmt::format("Part Patch {} Address {:04X}h", GetPart(), GetPartAddress());
   }
-  return "??";
+  return "GS: ??";
 }
+
+std::string XGSysEx::Info() {
+  if (IsXGReset()) {
+    return "XG Reset";
+  }
+  return "XG: ??";
+}
+
+void XGSysEx::Parse() {
+  m_devID  = m_midi_sysex.GetData(1);
+  m_mdlID  = m_midi_sysex.GetData(2);
+  m_cmdAddr = ( m_midi_sysex.GetData(3) << 16 ) |
+    ( m_midi_sysex.GetData(4) << 8 ) |
+    ( m_midi_sysex.GetData(5) );
+  m_buf = m_midi_sysex.GetBuf() + 6;
+  m_bufLen = m_midi_sysex.GetLength() - 7;
+}
+
+bool XGSysEx::IsXGReset() {
+  return ((m_devID & 0xF0) == 0x10) && (m_mdlID == 0x4C) && (m_cmdAddr == 0x7E) && GetDataLen() == 1 && GetData(0) == 0x00;
+}
+
+size_t XGSysEx::GetDataLen() const {
+  return m_bufLen;
+}
+
+unsigned char XGSysEx::GetData(int i) const {
+  return m_buf[i];
+}
+
 
 }

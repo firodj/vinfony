@@ -9,23 +9,38 @@ namespace jdksmidi {
 
 namespace vinfony {
 
-class GMSysEx {
-public:
-  GMSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex);
+enum SysxVendor {
+  SYSX_NONE, SYSX_GM, SYSX_GS, SYSX_XG
+};
 
-  static GMSysEx * Create(const jdksmidi::MIDISystemExclusive *midi_sysex);
+class BaseSysEx {
+public:
+  BaseSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex) : m_midi_sysex(*midi_sysex), m_sysxVendor(SYSX_NONE) {};
+  virtual ~BaseSysEx() {};
+  virtual std::string Info() = 0;
+  virtual void Parse() = 0;
+  static BaseSysEx * Create(const jdksmidi::MIDISystemExclusive *midi_sysex);
+
+  SysxVendor m_sysxVendor;
+
+protected:
+  const jdksmidi::MIDISystemExclusive m_midi_sysex;
+};
+
+class GMSysEx: public BaseSysEx {
+public:
+  GMSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex): BaseSysEx(midi_sysex) { m_sysxVendor = SYSX_GM; Parse(); };
 
   bool IsGMReset();
-  void Parse();
-  std::string Info();
+  void Parse() override;
+  std::string Info() override;
 
 private:
-  const jdksmidi::MIDISystemExclusive * m_midi_sysex;
   unsigned char m_devID{}, m_subID1{}, m_subID2{};
   int m_eoxAt{};
 };
 
-class GSSysEx {
+class GSSysEx: public BaseSysEx {
 public:
   enum {
     CMD_RQ1 = 0x11,
@@ -34,10 +49,9 @@ public:
     MDL_GS = 0x42,
   };
 
-  GSSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex);
-  static GSSysEx * Create(const jdksmidi::MIDISystemExclusive *midi_sysex);
+  GSSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex): BaseSysEx(midi_sysex) { m_sysxVendor = SYSX_GS; Parse(); };
 
-  void Parse();
+  void Parse() override;
   bool IsPartPatch();
   bool IsModelGS();
   int GetPart();
@@ -52,11 +66,28 @@ public:
   int GetUseRhythmPart();
   unsigned char GetSystemMode();
 
-  std::string Info();
+  std::string Info() override;
 
 private:
-  const jdksmidi::MIDISystemExclusive * m_midi_sysex;
   unsigned char m_devID{}, m_mdlID{}, m_cmdID{}, m_chkSum;
+  unsigned int m_cmdAddr{};
+  int m_chkHash{};
+  const unsigned char *m_buf;
+  int m_bufLen;
+};
+
+class XGSysEx: public BaseSysEx {
+public:
+  XGSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex): BaseSysEx(midi_sysex) { m_sysxVendor = SYSX_XG; Parse(); };
+
+  std::string Info() override;
+  void Parse() override;
+  bool IsXGReset();
+  size_t GetDataLen() const;
+  unsigned char GetData(int i) const;
+
+private:
+  unsigned char m_devID{}, m_mdlID{}, m_chkSum;
   unsigned int m_cmdAddr{};
   int m_chkHash{};
   const unsigned char *m_buf;

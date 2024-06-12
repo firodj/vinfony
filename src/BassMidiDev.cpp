@@ -2,7 +2,9 @@
 #include "bass.h"
 #include "bassmidi.h"
 #include <fmt/core.h>
+#include <fmt/color.h>
 #include <string>
+#include "DawSysEx.hpp"
 
 namespace vinfony {
 
@@ -45,7 +47,7 @@ bool BassMidiDevice::Init() {
   BASS_ChannelSetAttribute(m_impl->stream, BASS_ATTRIB_BUFFER, 0); // no buffering for minimum latency
   BASS_ChannelSetAttribute(m_impl->stream, BASS_ATTRIB_MIDI_SRC, 0); // 2 point linear interpolation
   //BASS_ChannelSetSync(stream, BASS_SYNC_MIDI_EVENT | BASS_SYNC_MIXTIME, MIDI_EVENT_PROGRAM, ProgramEventSync, &stream); // catch program/preset changes
-  BASS_MIDI_StreamEvent(m_impl->stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_GS); // send GS system reset event
+  BASS_MIDI_StreamEvent(m_impl->stream, 0, MIDI_EVENT_SYSTEM, MIDI_SYSTEM_DEFAULT); // send GS system reset event
 
   m_impl->font = BASS_MIDI_FontInit(m_impl->m_soundfontPath.c_str(), 0);
   if (m_impl->font) {
@@ -71,14 +73,40 @@ bool BassMidiDevice::HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg, d
     m_impl->message[1] = msg.GetByte1();
     m_impl->message[2] = msg.GetByte2();
 
+    if ( msg.IsPitchBend() ) {
+      // fmt::println("Time:{} CH{}, Bend {}", msg.GetTime(), msg.GetChannel()+1, msg.GetBenderValue());
+    } else if (msg.IsControlChange() ) {
+      //
+    }
+
     BASS_MIDI_StreamEvents(m_impl->stream, BASS_MIDI_EVENTS_RAW, m_impl->message.data(), msg.GetLength());
   }
   else if ( msg.IsSystemExclusive() )
   {
+    fmt::print("Time:{} ", msg.GetTime());
+    fmt::print(fmt::fg(fmt::color::aqua), "SYSEX CH{}, Data {} =", msg.GetChannel()+1, msg.GetSysEx()->GetLength());
+
+    unsigned char * buf = (unsigned char *)msg.GetSysEx()->GetBuf();
+
+    std::string description;
+
+    fmt::print(fmt::fg(fmt::color::yellow_green), " {:02X}", msg.GetStatus());
+    for (int i=0; i<msg.GetSysEx()->GetLength(); i++, buf++) {
+      fmt::print(fmt::fg(fmt::color::aqua), " {:02X}", *buf);
+    }
+
+    {
+      std::unique_ptr<vinfony::BaseSysEx> gmsysex(vinfony::BaseSysEx::Create(msg.GetSysEx()));
+      if (gmsysex) description += gmsysex->Info();
+    }
+
+    fmt::print("\n=> {}\n", description);
+
     std::vector<unsigned char> sysexmessage((size_t)1+msg.GetSysEx()->GetLength());
 
     sysexmessage[0] = msg.GetStatus();
     memcpy( &sysexmessage[1], msg.GetSysEx()->GetBuf(), msg.GetSysEx()->GetLength() );
+
     BASS_MIDI_StreamEvents(m_impl->stream, BASS_MIDI_EVENTS_RAW, sysexmessage.data(), sysexmessage.size());
   }
   return true;

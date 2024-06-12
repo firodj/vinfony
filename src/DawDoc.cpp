@@ -229,13 +229,10 @@ bool DawDoc::LoadFromMIDIMultiTrack( jdksmidi::MIDIMultiTrack *mlt ) {
         }
 
         {
-          std::unique_ptr<vinfony::GMSysEx> gmsysex(vinfony::GMSysEx::Create(msg->GetSysEx()));
+          std::unique_ptr<vinfony::BaseSysEx> gmsysex(vinfony::BaseSysEx::Create(msg->GetSysEx()));
           if (gmsysex) description += gmsysex->Info();
         }
-        {
-          std::unique_ptr<vinfony::GSSysEx> gssysex(vinfony::GSSysEx::Create(msg->GetSysEx()));
-          if (gssysex) description += gssysex->Info();
-        }
+
         fmt::print("\n=> {}\n", description);
       }
       //fmt::println("time: {}", msg->GetTime());
