@@ -14,6 +14,7 @@ namespace jdksmidi {
 
 namespace vinfony {
   class TinySoundFontDevice;
+  class BassMidiDevice;
   class DawTrack;
 
   enum {
@@ -62,7 +63,8 @@ namespace vinfony {
     bool IsRewinding();
     bool IsPlaying();
     void AllMIDINoteOff();
-    void SetDevice(TinySoundFontDevice *dev);
+    void SetTSFDevice(TinySoundFontDevice *dev);
+    void SetBASSDevice(BassMidiDevice *dev);
     void Reset();
     void RenderMIDICallback(uint8_t * stream, int len);
     float GetTempoBPM();
@@ -70,7 +72,8 @@ namespace vinfony {
     void SendVolume(int chan, unsigned short value);
     void SendPan(int chan, unsigned short value);
     void SendFilter(int chan, unsigned short valFc, unsigned short valQ);
-    TinySoundFontDevice * GetAudioDevice();
+    TinySoundFontDevice * GetTSFDevice();
+    BassMidiDevice * GetBASSDevice();
 
     DawDisplayState displayState;
   };

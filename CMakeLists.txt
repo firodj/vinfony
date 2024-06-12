@@ -55,6 +55,7 @@ set(SOURCE
   src/DawMain.cpp
   src/DawSeq.cpp
   src/TsfDev.cpp
+  src/BassMidiDev.cpp
   src/DawTrack.cpp
   src/DawTrackNotes.cpp
   src/DawSysEx.cpp
@@ -75,6 +76,7 @@ set(HEADERS
   src/DawSeq.hpp
   src/BaseMidiOut.hpp
   src/TsfDev.hpp
+  src/BassMidiDev.hpp
   src/DawTrack.hpp
   src/DawTrackNotes.hpp
   src/DawSysEx.hpp
@@ -209,8 +211,21 @@ endif()
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT vinfony)
 
 ## -- others --
+
+# -- bass --
 message(STATUS "CMAKE_SIZEOF_VOID_P = ${CMAKE_SIZEOF_VOID_P}")
 set(BASSMIDI_MIRROR "${PROJECT_SOURCE_DIR}/bassmidi-mirror")
+
+if(WIN32)
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x64")
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x32")
+  endif()
+  message(STATUS "BASS_LIBRARY_DIR = ${BASS_LIBRARY_DIR}" )
+elseif(APPLE)
+  set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/osx")
+endif()
 
 add_executable(test_model
   examples/test_model.cpp
@@ -222,32 +237,9 @@ add_executable(test_model
 target_link_libraries(test_model jdksmidi tsf fmt libassert::assert)
 
 add_executable(test_sequencer examples/test_sequencer.cpp)
-if(WIN32)
-  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x64")
-  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x32")
-  endif()
-
-  message(STATUS "BASS_LIBRARY_DIR = ${BASS_LIBRARY_DIR}" )
-
-  add_custom_command(TARGET test_sequencer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${BASS_LIBRARY_DIR}/bass.dll"
-      $<TARGET_FILE_DIR:test_sequencer>)
-  add_custom_command(TARGET test_sequencer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${BASS_LIBRARY_DIR}/bassmidi.dll"
-      $<TARGET_FILE_DIR:test_sequencer>)
-elseif(APPLE)
-  set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/osx")
-
-endif()
-
 target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
 target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi SDL2-static tsf)
-
 target_compile_definitions(test_sequencer PUBLIC
   -DUSE_BASS -DUSE_TSF
 )
@@ -261,5 +253,19 @@ target_link_libraries(test_tsf2 SDL2-static tsf)
 add_executable(test_tsf3 "${PROJECT_SOURCE_DIR}/examples/tsf_example3.cpp")
 target_link_libraries(test_tsf3 SDL2-static tsf)
 
-target_link_libraries(vinfony tsf)
+# -- vinvonfy : bass --
+target_include_directories(vinfony PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
+target_link_directories(vinfony PRIVATE "${BASS_LIBRARY_DIR}")
+target_link_libraries(vinfony tsf bass bassmidi)
+if(WIN32)
+  add_custom_command(TARGET vinfony POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${BASS_LIBRARY_DIR}/bass.dll"
+      $<TARGET_FILE_DIR:vinfony>)
+  add_custom_command(TARGET vinfony POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${BASS_LIBRARY_DIR}/bassmidi.dll"
+      $<TARGET_FILE_DIR:vinfony>)
+endif()
+
 ## -- endothers --

@@ -247,7 +247,7 @@ const char * GetStdDrumName(int pg) {
 }
 
 int DawTrack::GetGetDrumPart() {
-  if (m_seq) return m_seq->GetAudioDevice()->GetDrumPart(ch ? (ch-1) & 0xF : 0);
+  if (m_seq) return m_seq->GetTSFDevice()->GetDrumPart(ch ? (ch-1) & 0xF : 0);
   return 0;
 }
 

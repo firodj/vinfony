@@ -21,6 +21,7 @@
 #include <regex>
 #include "circularfifo1.h"
 #include "TsfDev.hpp"
+#include "BassMidiDev.hpp"
 #include "stb_image.h"
 #include "PianoButton.hpp"
 
@@ -68,7 +69,8 @@ bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_wid
 }
 
 struct MainApp::Impl {
-  std::unique_ptr<vinfony::TinySoundFontDevice> audiodevice;
+  std::unique_ptr<vinfony::TinySoundFontDevice> tsfdev;
+  std::unique_ptr<vinfony::BassMidiDevice> bassdev;
   // FIXME: sequencer should afer audiodevice.
   // the order of these struct member by compiler is necessary for descrutor ordering.
   vinfony::DawSeq sequencer;
@@ -277,7 +279,7 @@ void MainApp::RunImGui() {
 
   ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
   if (ImGui::Begin("SoundFont")) {
-    vinfony::DawSoundFont( m_impl->audiodevice.get() );
+    vinfony::DawSoundFont( m_impl->tsfdev.get() );
   }
   ImGui::End();
 
@@ -322,12 +324,18 @@ void MainApp::Init() {
   // ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
-  m_impl->audiodevice = std::make_unique<vinfony::TinySoundFontDevice>(m_impl->soundfontPath);
-  if (!m_impl->audiodevice->Init()) {
-    fmt::println("Error init audio device");
+  m_impl->tsfdev = std::make_unique<vinfony::TinySoundFontDevice>(m_impl->soundfontPath);
+  if (!m_impl->tsfdev->Init()) {
+    fmt::println("Error init tsf device");
     return;
   }
-  m_impl->sequencer.SetDevice( m_impl->audiodevice.get() );
+  m_impl->bassdev = std::make_unique<vinfony::BassMidiDevice>(m_impl->soundfontPath);
+  if (!m_impl->bassdev->Init()) {
+    fmt::println("Error init bass device");
+    return;
+  }
+  m_impl->sequencer.SetTSFDevice( m_impl->tsfdev.get() );
+  m_impl->sequencer.SetBASSDevice( m_impl->bassdev.get() );
 
   bool ret = LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
 
@@ -355,7 +363,6 @@ void MainApp::Clean() {
 
   SDL_PauseAudio(1);
   SDL_CloseAudio();
-  if (m_impl->audiodevice) m_impl->audiodevice->Shutdown();
 }
 
 void MainApp::ReadIniConfig() {

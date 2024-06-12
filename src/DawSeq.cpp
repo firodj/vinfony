@@ -47,7 +47,8 @@ namespace vinfony {
     std::atomic<bool> request_stop_midi{false};
 
     CircularFifo<SeqMsg, 8> seqMessaging{};
-    TinySoundFontDevice * audioDevice{}; // should shared_ptr ?
+    TinySoundFontDevice * tsfdev{}; // should shared_ptr ?
+    BassMidiDevice * bassdev{}; // should shared_ptr ?
     jdksmidi::MIDIClockTime clk_play_start_time{0};
     bool read_clk_play_start{true};
     bool is_rewinding{false};
@@ -276,40 +277,40 @@ namespace vinfony {
     jdksmidi::MIDITimedBigMessage msg;
     for (int chan=0; chan<16; ++chan) {
       msg.SetPitchBend( chan, 0 );
-      m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+      m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
       msg.SetControlChange( chan, 0x40, 0 ); // C_DAMPER 0x40,     ///< hold pedal (sustain)
-      m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+      m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
       msg.SetAllNotesOff( (unsigned char)chan );
-      m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+      m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
     }
   }
 
   void DawSeq::SendVolume(int chan, unsigned short value) {
     jdksmidi::MIDITimedBigMessage msg;
     msg.SetControlChange( chan, jdksmidi::C_MAIN_VOLUME, (value & 0x3F80) >> 7);
-    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
     msg.SetControlChange( chan, jdksmidi::C_MAIN_VOLUME_LSB, value & 0x7F );
-    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::SendPan(int chan, unsigned short value) {
     jdksmidi::MIDITimedBigMessage msg;
     msg.SetControlChange( chan, jdksmidi::C_PAN, (value & 0x3F80) >> 7);
-    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
     msg.SetControlChange( chan, jdksmidi::C_PAN_LSB, value & 0x7F );
-    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::SendFilter(int chan, unsigned short valFc, unsigned short valQ) {
     jdksmidi::MIDITimedBigMessage msg;
     msg.SetControlChange( chan, jdksmidi::C_HARMONIC, valQ);
-    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
     msg.SetControlChange( chan, jdksmidi::C_BRIGHTNESS, valFc );
-    m_impl->audioDevice->HardwareMsgOut( msg, nullptr );
+    m_impl->tsfdev->HardwareMsgOut( msg, nullptr );
   }
 
   void DawSeq::Reset() {
-    m_impl->audioDevice->Reset();
+    m_impl->tsfdev->Reset();
   }
 
   void DawSeq::AsyncPlayMIDI() {
@@ -346,21 +347,25 @@ namespace vinfony {
 #endif
       ) {
 
-
         if (false) {
 
         if (m_impl->read_clk_play_start) {
-          if (m_impl->clk_play_start_time == 0) m_impl->audioDevice->Reset();
+          bool isRewinding = m_impl->clk_play_start_time == 0;
+          if (isRewinding)
+            m_impl->tsfdev->Reset();
 
           AllMIDINoteOff();
+          m_impl->tsfdev->FlushToRealMsgOut();
 
-          m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
-          //m_impl->midi_seq->GoToTimeMs( pretend_clock_time );
+          m_impl->midi_seq->GoToTime( isRewinding && m_impl->doc ? m_impl->doc->m_firstNoteAppearClk : m_impl->clk_play_start_time );
           pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
 
+          if (isRewinding)
+          m_impl->midi_seq->GoToTime( 0 );
+
           if ( !m_impl->midi_seq->GetNextEventTimeMs( &next_event_time ) ) {
-            fmt::println("DEBUG: empty next event, stop!");
-            return;
+            m_impl->request_stop_midi = true;
+            break;
           }
 
           // simulate a clock going forward with 10 ms resolution for 1 hour
@@ -374,7 +379,7 @@ namespace vinfony {
         CalcCurrentMIDITimeBeat(pretend_clock_time);
 
         // TODO: Send SyncTime
-        m_impl->audioDevice->UpdateMIDITicks();
+        m_impl->tsfdev->UpdateMIDITicks();
 
         // find all events that came before or a the current time
         while ( next_event_time <= pretend_clock_time ) {
@@ -417,7 +422,7 @@ namespace vinfony {
             }
 
             double shiftMs = m_impl->midi_seq->GetCurrentTimeInMs() - pretend_clock_time;
-            if (!m_impl->audioDevice->HardwareMsgOut( msg, &shiftMs )) {
+            if (!m_impl->tsfdev->HardwareMsgOut( msg, &shiftMs )) {
               return;
             }
 
@@ -472,8 +477,12 @@ namespace vinfony {
     return m_impl->doc->GetTrack(track_num);
   }
 
-  void DawSeq::SetDevice(TinySoundFontDevice * dev) {
-    m_impl->audioDevice = dev;
+  void DawSeq::SetTSFDevice(TinySoundFontDevice * dev) {
+    m_impl->tsfdev = dev;
+  }
+
+  void DawSeq::SetBASSDevice(BassMidiDevice * dev) {
+    m_impl->bassdev = dev;
   }
 
   void DawSeq::RenderMIDICallback(uint8_t * stream, int len) {
@@ -491,17 +500,17 @@ static float starting_time = 0;
 static long processing_samples = 0;
     jdksmidi::MIDITimedBigMessage msg;
     int ev_track;
-    const float samplePeriodMs = 1000.0/(float)m_impl->audioDevice->GetAudioSampleRate();
+    const float samplePeriodMs = 1000.0/(float)m_impl->tsfdev->GetAudioSampleRate();
 
     if (m_impl->midi_seq && m_impl->th_play_midi_running && !m_impl->request_stop_midi) {
       // request to update cursor
       if (m_impl->read_clk_play_start) {
         bool isRewinding = m_impl->clk_play_start_time == 0;
         if (isRewinding)
-          m_impl->audioDevice->Reset();
+          m_impl->tsfdev->Reset();
 
         AllMIDINoteOff();
-        m_impl->audioDevice->FlushToRealMsgOut();
+        m_impl->tsfdev->FlushToRealMsgOut();
 
         m_impl->midi_seq->GoToTime( isRewinding && m_impl->doc ? m_impl->doc->m_firstNoteAppearClk : m_impl->clk_play_start_time );
         pretend_clock_time = m_impl->midi_seq->GetCurrentTimeInMs();
@@ -571,7 +580,7 @@ static long processing_samples = 0;
               }
             }
 
-            if (!m_impl->audioDevice->RealHardwareMsgOut( msg )) {
+            if (!m_impl->tsfdev->RealHardwareMsgOut( msg )) {
               return;
             }
 
@@ -587,8 +596,8 @@ static long processing_samples = 0;
         }
       }
 
-      m_impl->audioDevice->FlushToRealMsgOut();
-      m_impl->audioDevice->RenderStereoFloat((float*)stream, SampleBlock);
+      m_impl->tsfdev->FlushToRealMsgOut();
+      m_impl->tsfdev->RenderStereoFloat((float*)stream, SampleBlock);
 
       stream += (SampleBlock * sizeOfStereoSample);
 
@@ -598,7 +607,7 @@ static long processing_samples = 0;
 
   }
 
-  TinySoundFontDevice * DawSeq::GetAudioDevice() {
-    return m_impl->audioDevice;
+  TinySoundFontDevice * DawSeq::GetTSFDevice() {
+    return m_impl->tsfdev;
   }
 }

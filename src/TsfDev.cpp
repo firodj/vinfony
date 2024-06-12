@@ -107,10 +107,6 @@ bool TinySoundFontDevice::Init()  {
   return true;
 }
 
-void TinySoundFontDevice::Shutdown()  {
-
-}
-
 bool TinySoundFontDevice::HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs )  {
   if ( msg.IsChannelEvent() || msg.IsSystemExclusive())
   {

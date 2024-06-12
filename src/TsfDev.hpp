@@ -21,7 +21,6 @@ public:
   ~TinySoundFontDevice();
   void UpdateMIDITicks() override;
   bool Init() override;
-  void Shutdown() override;
   bool HardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs ) override;
 
   bool RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessage &msg );
