@@ -316,7 +316,9 @@ namespace vinfony {
 
   void DawSeq::AsyncPlayMIDI() {
     if (m_impl->th_play_midi_running) return;
+
     m_impl->mididev = (BaseMidiOutDevice*) m_impl->bassdev;
+    printf( "Selecting MIDI Devices: %s\n", m_impl->mididev->GetName() );
 
     m_impl->th_play_midi_running = true;
     m_impl->read_clk_play_start = true;

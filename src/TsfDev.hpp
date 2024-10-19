@@ -36,6 +36,8 @@ public:
   int GetDrumPart(int ch);
 
   tsf * GetTSF();
+
+  const char * GetName() override;
 };
 
 };

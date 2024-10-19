@@ -120,4 +120,6 @@ void BassMidiDevice::Reset() {
 void BassMidiDevice::UpdateMIDITicks() {};
 int BassMidiDevice::GetAudioSampleRate() { return m_impl->SampleRate; }
 
+const char * BassMidiDevice::GetName() { return "BASSMidi"; }
+
 }

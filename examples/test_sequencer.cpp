@@ -90,9 +90,9 @@ static void DumpMIDITimedBigMessage( const MIDITimedBigMessage *msg )
   }
 }
 
-class BaseMidiOutDevice {
+class BaseMidiOutDeviceTest {
 public:
-  virtual ~BaseMidiOutDevice() {};
+  virtual ~BaseMidiOutDeviceTest() {};
   virtual bool Init() { return true; };
   virtual bool HardwareMsgOut( const MIDITimedBigMessage &msg ) {
     DumpMIDITimedBigMessage( &msg );
@@ -148,7 +148,7 @@ void DumpMIDIMultiTrack( MIDIMultiTrack *mlt )
   while ( i.GoToNextEvent() );
 }
 
-void PlaySequencer( MIDISequencer *seq, BaseMidiOutDevice *dev )
+void PlaySequencer( MIDISequencer *seq, BaseMidiOutDeviceTest *dev )
 {
   float pretend_clock_time = 0.0;
   float next_event_time = 0.0;
@@ -193,7 +193,7 @@ void PlaySequencer( MIDISequencer *seq, BaseMidiOutDevice *dev )
   }
 }
 
-class RtMidiDevice: public BaseMidiOutDevice {
+class RtMidiDevice: public BaseMidiOutDeviceTest {
 protected:
   RtMidiOut * pMidiOut{};
 public:
@@ -267,7 +267,7 @@ bool RtMidiDevice::HardwareMsgOut( const MIDITimedBigMessage &msg )
 }
 
 #ifdef USE_BASS
-class BassMidiDevice: public BaseMidiOutDevice {
+class BassMidiDevice: public BaseMidiOutDeviceTest {
 protected:
   std::vector<unsigned char> message;
   BASS_INFO info;
@@ -380,7 +380,7 @@ public:
   Uint64 ticks{};
 };
 
-class TinySoundFontDevice: public BaseMidiOutDevice {
+class TinySoundFontDevice: public BaseMidiOutDeviceTest {
 protected:
   SDL_AudioSpec OutputAudioSpec;
   tsf* g_TinySoundFont;
@@ -579,7 +579,7 @@ int main( int argc, char **argv )
       return -1;
     }
 
-    std::unique_ptr<BaseMidiOutDevice> dev{};
+    std::unique_ptr<BaseMidiOutDeviceTest> dev{};
     if ( argc > 2 )
     {
       cout << endl;
@@ -587,7 +587,7 @@ int main( int argc, char **argv )
       switch ( mode )
       {
       case 1:
-        dev = std::make_unique<BaseMidiOutDevice>();
+        dev = std::make_unique<BaseMidiOutDeviceTest>();
         break;
       case 2:
         dev = std::make_unique<RtMidiDevice>();
@@ -614,7 +614,7 @@ int main( int argc, char **argv )
 
     //      cout << MultiTrackAsText( tracks ); // new util fun
 
-    double dt = seq.GetMisicDurationInSeconds();
+    double dt = seq.GetMusicDurationInSeconds();
 
     cout << "\nMusic duration = " << dt << endl;
   }

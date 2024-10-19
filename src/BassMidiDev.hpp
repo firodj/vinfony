@@ -14,6 +14,7 @@ public:
   void Reset() override;
   void UpdateMIDITicks() override;
   int GetAudioSampleRate() override;
+  const char * GetName() override;
 };
 
 };

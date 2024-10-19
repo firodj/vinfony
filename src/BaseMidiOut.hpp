@@ -24,6 +24,7 @@ public:
   virtual void Reset() {};
   virtual void UpdateMIDITicks() {};
   virtual int GetAudioSampleRate() { return 44100; };
+  virtual const char * GetName() = 0;
 };
 
 }
