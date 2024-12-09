@@ -9,22 +9,21 @@
 #include "jdksmidi/sequencer.h"
 #include "jdksmidi/msg.h"
 
-namespace vinfony {
-
-void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg );
-
-class BaseMidiOutDevice {
-public:
-  virtual ~BaseMidiOutDevice() {};
-  virtual bool Init() { return true; };
-  virtual bool HardwareMsgOut( const jdksmidi::MIDITimedBigMessage &msg, double * msgTimeShiftMs ) {
-    DumpMIDITimedBigMessage( &msg );
-    return true;
-  }
-  virtual void Reset() {};
-  virtual void UpdateMIDITicks() {};
-  virtual int GetAudioSampleRate() { return 44100; };
-  virtual const char * GetName() = 0;
-};
+namespace vinfony
+{
+	class BaseMidiOutDevice
+	{
+	public:
+		virtual ~BaseMidiOutDevice();
+		virtual bool Init();
+		virtual bool HardwareMsgOut(
+			const jdksmidi::MIDITimedBigMessage &msg,
+			double * msgTimeShiftMs
+		);
+		virtual void Reset();
+		virtual void UpdateMIDITicks();
+		virtual int	GetAudioSampleRate();
+		virtual const char * GetName() = 0;
+	};
 
 }

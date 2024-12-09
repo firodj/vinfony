@@ -28,6 +28,7 @@ add_subdirectory(ext/fmt)
 add_subdirectory(ext/libassert)
 add_subdirectory(ext/jdksmidi)
 add_subdirectory(ext/tsf)
+add_subdirectory(ext/dynalo-sv)
 
 include_directories(SYSTEM
   ${OPENGL_INCLUDE_DIR}
@@ -55,6 +56,8 @@ set(SOURCE
   src/DawMain.cpp
   src/DawSeq.cpp
   src/TsfDev.cpp
+  src/Misc.cpp
+  src/BaseMidiOut.cpp
   src/BassMidiDev.cpp
   src/DawTrack.cpp
   src/DawTrackNotes.cpp
@@ -74,6 +77,7 @@ set(HEADERS
   src/MainApp.hpp
   src/DawMain.hpp
   src/DawSeq.hpp
+  src/Misc.hpp
   src/BaseMidiOut.hpp
   src/TsfDev.hpp
   src/BassMidiDev.hpp

@@ -13,8 +13,6 @@ namespace jdksmidi {
 
 namespace vinfony {
 
-void DumpMIDITimedBigMessage( const jdksmidi::MIDITimedBigMessage *msg );
-
 class DawDoc {
 public:
   DawDoc();
