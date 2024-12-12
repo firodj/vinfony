@@ -31,6 +31,8 @@ int main(int argc, char *argv[])
 	OutputAudioSpec.samples = 4096;
 	OutputAudioSpec.callback = AudioCallback;
 
+	tsf_debug_wantlearn();
+
 	// Initialize the audio system
 	if (SDL_AudioInit(TSF_NULL) < 0)
 	{

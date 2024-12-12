@@ -34,6 +34,9 @@ if len(args) >= 1:
       case "tsf":
         target = "test_tsf3"
         executable = "%s/%s/test_tsf3" %  (build_name, build_mode)
+      case "tsf2":
+        target = "test_tsf2"
+        executable = "%s/%s/test_tsf2" %  (build_name, build_mode)
       case "model":
         target = "test_model"
         executable = "%s/%s/test_model" %  (build_name, build_mode)
