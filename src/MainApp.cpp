@@ -349,16 +349,19 @@ void MainApp::Init() {
   m_impl->OutputAudioSpec.channels = 2;
   m_impl->OutputAudioSpec.samples = 4096 >> 2;
   m_impl->OutputAudioSpec.userdata = this;
-  m_impl->OutputAudioSpec.callback = nullptr; //AudioCallback;
+
+  // AudioCallback needed for TSF, otherwise BASSMIDI null
+  m_impl->OutputAudioSpec.callback = nullptr; // `AudioCallback` for tsf
 
   // Request the desired audio output format
+#if 0
   if (SDL_OpenAudio(&m_impl->OutputAudioSpec, nullptr) < 0)
   {
     fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
   } else {
     fprintf(stdout, "Audio Buffer = %d\n", m_impl->OutputAudioSpec.samples);
   }
-
+#endif
   SDL_PauseAudio(0);
 }
 

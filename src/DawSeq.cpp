@@ -317,7 +317,12 @@ namespace vinfony {
   void DawSeq::AsyncPlayMIDI() {
     if (m_impl->th_play_midi_running) return;
 
+    // Select MIDI devices, BASSMIDI or TSF
+#if 1
     m_impl->mididev = (BaseMidiOutDevice*) m_impl->bassdev;
+#else
+    m_impl->mididev = (BaseMidiOutDevice*) m_impl->tsfdev;
+#endif
     printf( "Selecting MIDI Devices: %s\n", m_impl->mididev->GetName() );
 
     m_impl->th_play_midi_running = true;
