@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
 	// The audio thread will begin to call our AudioCallback function
 	SDL_PauseAudio(0);
 
+#if 0
 	// Loop through all the presets in the loaded SoundFont
 	for (i = 0; i < tsf_get_presetcount(g_TinySoundFont); i++)
 	{
@@ -77,7 +78,18 @@ int main(int argc, char *argv[])
 		SDL_UnlockMutex(g_Mutex);
 		SDL_Delay(1000);
 	}
-
+#else
+	int patch = 0;
+	for (int vel=0; vel <= 10; vel++) {
+		float velocity = vel/10.0;
+		printf("Play note %d (vel:%.2f) with preset #%d '%s'\n", Notes[i % 7], velocity, patch, tsf_get_presetname(g_TinySoundFont, patch));
+		SDL_LockMutex(g_Mutex);
+		tsf_note_off(g_TinySoundFont, patch - 1, Notes[0]);
+		tsf_note_on(g_TinySoundFont, patch, Notes[0], velocity);
+		SDL_UnlockMutex(g_Mutex);
+		SDL_Delay(500);
+	}
+#endif
 	// We could call tsf_close(g_TinySoundFont) and SDL_DestroyMutex(g_Mutex)
 	// here to free the memory and resources but we just let the OS clean up
 	// because the process ends here.
