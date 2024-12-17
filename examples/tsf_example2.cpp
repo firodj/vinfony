@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 		SDL_UnlockMutex(g_Mutex);
 		SDL_Delay(1000);
 	}
-#else
+#elif 0
 	int patch = 0;
 	for (int vel=0; vel <= 10; vel++) {
 		float velocity = vel/10.0;
@@ -89,6 +89,24 @@ int main(int argc, char *argv[])
 		SDL_UnlockMutex(g_Mutex);
 		SDL_Delay(500);
 	}
+#else
+	int patch = 0;
+	float velocity = 1.0;
+	tsf_channel_set_presetindex(g_TinySoundFont, 0, patch);
+	tsf_channel_set_midipan(g_TinySoundFont, 0, 16383);
+	tsf_channel_set_midivolume(g_TinySoundFont, 0, 16383);
+	tsf_channel_note_on(g_TinySoundFont, 0, Notes[0], velocity);
+
+	for (int vol=20; vol >= 0; vol--) {
+		SDL_Delay(100);
+		int midiVol = vol * 16383/20;
+		tsf_channel_set_midipan(g_TinySoundFont, 0, midiVol);
+		printf("Set pan %d\n", midiVol);
+	}
+	SDL_Delay(100);
+	tsf_channel_note_off_all(g_TinySoundFont, 0);
+	SDL_Delay(1000);
+
 #endif
 	// We could call tsf_close(g_TinySoundFont) and SDL_DestroyMutex(g_Mutex)
 	// here to free the memory and resources but we just let the OS clean up
