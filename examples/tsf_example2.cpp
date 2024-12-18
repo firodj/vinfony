@@ -91,17 +91,20 @@ int main(int argc, char *argv[])
 	}
 #else
 	int patch = 0;
-	float velocity = 1.0;
+	float velocity = 0.8;
 	tsf_channel_set_presetindex(g_TinySoundFont, 0, patch);
-	tsf_channel_set_midipan(g_TinySoundFont, 0, 16383);
+	tsf_channel_set_midipan(g_TinySoundFont, 0, 8192);
 	tsf_channel_set_midivolume(g_TinySoundFont, 0, 16383);
 	tsf_channel_note_on(g_TinySoundFont, 0, Notes[0], velocity);
 
 	for (int vol=20; vol >= 0; vol--) {
 		SDL_Delay(100);
-		int midiVol = vol * 16383/20;
-		tsf_channel_set_midipan(g_TinySoundFont, 0, midiVol);
-		printf("Set pan %d\n", midiVol);
+
+		tsf_channel_set_midifilter(g_TinySoundFont, 0, vol * 0x7F / 20, 0x50);
+		//tsf_channel_set_midifilter(g_TinySoundFont, 0, 0x20, vol * 0x7F / 20);
+		//tsf_channel_set_midipan(g_TinySoundFont, 0, vol * 16383/20);
+		//tsf_channel_midi_control(g_TinySoundFont, 0, 1, vol * 0x7F / 20);
+		printf("Set ctrl value %d\n", vol);
 	}
 	SDL_Delay(100);
 	tsf_channel_note_off_all(g_TinySoundFont, 0);
