@@ -80,7 +80,6 @@ struct MainApp::Impl {
   GLuint texPiano{0};
   int pianoWidth,pianoHeight;
 
-  SDL_AudioSpec OutputAudioSpec;
   bool showSoundFont;
 };
 
@@ -312,14 +311,9 @@ void MainApp::RunImGui() {
   }
 }
 
-void AudioCallback(void* data, uint8_t *stream, int len)
-{
-  MainApp *app = static_cast<MainApp*>(data);
-  app->StdAudioCallback(stream, len);
-}
-
+// BASS Midi not usingn it!
 void MainApp::StdAudioCallback(uint8_t *stream, int len) {
-  m_impl->sequencer.RenderMIDICallback (stream, len);
+  //m_impl->sequencer.RenderMIDICallback (stream, len);
 }
 
 void MainApp::Init() {
@@ -342,34 +336,10 @@ void MainApp::Init() {
   m_impl->sequencer.SetBASSDevice( m_impl->bassdev.get() );
 
   bool ret = LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
-
-  // Define the desired audio output format we request
-  m_impl->OutputAudioSpec.freq = SAMPLE_RATE;
-  m_impl->OutputAudioSpec.format = AUDIO_F32;
-  m_impl->OutputAudioSpec.channels = 2;
-  m_impl->OutputAudioSpec.samples = 4096 >> 2;
-  m_impl->OutputAudioSpec.userdata = this;
-
-  // AudioCallback needed for TSF, otherwise BASSMIDI null
-  m_impl->OutputAudioSpec.callback = nullptr; // `AudioCallback` for tsf
-
-  // Request the desired audio output format
-#if 0
-  if (SDL_OpenAudio(&m_impl->OutputAudioSpec, nullptr) < 0)
-  {
-    fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
-  } else {
-    fprintf(stdout, "Audio Buffer = %d\n", m_impl->OutputAudioSpec.samples);
-  }
-#endif
-  SDL_PauseAudio(0);
 }
 
 void MainApp::Clean() {
   EngineBase::Clean();
-
-  SDL_PauseAudio(1);
-  SDL_CloseAudio();
 }
 
 void MainApp::ReadIniConfig() {

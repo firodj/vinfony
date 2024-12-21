@@ -318,7 +318,7 @@ namespace vinfony {
     if (m_impl->th_play_midi_running) return;
 
     // Select MIDI devices, BASSMIDI or TSF
-#if 1
+#if USE_BASSMIDI == 1
     m_impl->mididev = (BaseMidiOutDevice*) m_impl->bassdev;
 #else
     m_impl->mididev = (BaseMidiOutDevice*) m_impl->tsfdev;
@@ -484,7 +484,6 @@ namespace vinfony {
 
   void DawSeq::SetTSFDevice(TinySoundFontDevice * dev) {
     m_impl->tsfdev = dev;
-    m_impl->mididev = (BaseMidiOutDevice*)dev;
   }
 
   void DawSeq::SetBASSDevice(BassMidiDevice * dev) {

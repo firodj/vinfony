@@ -46,7 +46,7 @@ public:
 };
 
 struct TinySoundFontDevice::Impl {
-  //SDL_AudioSpec OutputAudioSpec;
+  SDL_AudioSpec OutputAudioSpec;
   tsf* g_TinySoundFont;
   CircularFifo<TinyMIDIMessage, 8> buffer{};
 #if USE_SDLTICK == 1
@@ -74,6 +74,9 @@ TinySoundFontDevice::TinySoundFontDevice(std::string soundfontPath) {
 TinySoundFontDevice::~TinySoundFontDevice() {
   if (m_impl->g_TinySoundFont)
     tsf_close(m_impl->g_TinySoundFont);
+
+  SDL_PauseAudio(1);
+  SDL_CloseAudio();
 }
 
 void TinySoundFontDevice::SetSampleRate(int sampleRate) { m_impl->SampleRate = sampleRate; }
@@ -85,7 +88,10 @@ void TinySoundFontDevice::UpdateMIDITicks()  {
 #endif
 };
 
-bool TinySoundFontDevice::Init()  {
+bool TinySoundFontDevice::Init() {
+  // Initialize lookup tables;
+  tsf_init_lut();
+
   // Load the SoundFont from a file
   m_impl->g_TinySoundFont = tsf_load_filename(m_impl->m_soundfontPath.c_str());
   if (!m_impl->g_TinySoundFont)
@@ -204,6 +210,13 @@ void TinySoundFontDevice::FlushToRealMsgOut() {
   }
 }
 
+void AudioCallback(void* data, uint8_t *stream, int len)
+{
+  TinySoundFontDevice *tsfdev = static_cast<TinySoundFontDevice*>(data);
+  tsfdev->StdAudioCallback(stream, len);
+}
+
+
 void TinySoundFontDevice::Reset() {
   if (!m_impl->g_TinySoundFont) return;
 
@@ -220,6 +233,26 @@ void TinySoundFontDevice::Reset() {
   tsf_channel_set_bank_preset(m_impl->g_TinySoundFont, 9, 128, 0);
 
   m_impl->processingSamples = 0;
+
+  // Define the desired audio output format we request
+  m_impl->OutputAudioSpec.freq = m_impl->SampleRate;
+  m_impl->OutputAudioSpec.format = AUDIO_F32;
+  m_impl->OutputAudioSpec.channels = 2;
+  m_impl->OutputAudioSpec.samples = 4096 >> 2;
+  m_impl->OutputAudioSpec.userdata = this;
+
+  // AudioCallback needed for TSF, otherwise BASSMIDI null
+  m_impl->OutputAudioSpec.callback = AudioCallback;
+
+  // Request the desired audio output format
+  if (SDL_OpenAudio(&m_impl->OutputAudioSpec, nullptr) < 0)
+  {
+    fprintf(stderr, "Could not open the audio hardware or the desired audio output format\n");
+  } else {
+    fprintf(stdout, "Audio Buffer = %d\n", m_impl->OutputAudioSpec.samples);
+  }
+
+  SDL_PauseAudio(0);
 };
 
 int TinySoundFontDevice::GetAudioSampleRate() {

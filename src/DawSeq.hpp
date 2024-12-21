@@ -7,6 +7,9 @@
 #include "circularfifo1.h"
 #include "DawDisplay.hpp"
 
+// Config
+#define USE_BASSMIDI 0
+
 namespace jdksmidi {
   class MIDITrack;
   class MIDIBigMessage;

@@ -94,6 +94,8 @@ int main(int argc, char *argv[])
 	//Set up the global MidiMessage pointer to the first MIDI message
 	g_MidiMessage = TinyMidiLoader;
 
+	tsf_init_lut();
+
 	// Load the SoundFont from a file
 	const char * def_sfpath = argc >= 3 ? argv[2] : "ext/tsf/examples/florestan-subset.sf2";
   const char * homepath;
@@ -111,6 +113,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Could not load SoundFont: %s\n", def_sfpath);
 		return 1;
 	}
+	printf("Using SoundFont: %s\n", def_sfpath);
 
 	//Initialize preset on special 10th MIDI channel to use percussion sound bank (128) if available
 	tsf_channel_set_bank_preset(g_TinySoundFont, 9, 128, 0);
