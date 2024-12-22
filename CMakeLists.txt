@@ -65,6 +65,7 @@ set(SOURCE
   src/DawDoc.cpp
   src/DawSoundFont.cpp
   src/PianoButton.cpp
+  src/UI/Splitter.cpp
 ## -- endsources --
 )
 
@@ -87,6 +88,7 @@ set(HEADERS
   src/DawDoc.hpp
   src/DawSoundFont.hpp
   src/PianoButton.hpp
+  src/UI/UI.hpp
 ## -- endheaders --
 )
 

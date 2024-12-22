@@ -8,7 +8,7 @@
 #include "DawDisplay.hpp"
 
 // Config
-#define USE_BASSMIDI 0
+#define USE_BASSMIDI 1
 
 namespace jdksmidi {
   class MIDITrack;
