@@ -274,4 +274,16 @@ if(WIN32)
       $<TARGET_FILE_DIR:vinfony>)
 endif()
 
+# -- dynalo
+
+#target_link_libraries(vinfony dynalo)
+#add_dependencies(vinfony demo_ui)
+
+add_library(demo_ui SHARED modules/shared.cpp)
+target_link_libraries(demo_ui dynalo)
+
+add_executable(test_loader examples/test_loader.cpp)
+target_link_libraries(test_loader dynalo)
+add_dependencies(test_loader demo_ui)
+
 ## -- endothers --

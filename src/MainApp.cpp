@@ -295,7 +295,7 @@ void MainApp::RunImGui() {
     ImGui::EndChild();
 
     if (m_impl->texPiano)
-      ImGui::Image((void*)(intptr_t)m_impl->texPiano, ImVec2(m_impl->pianoWidth, m_impl->pianoHeight));
+      ImGui::Image((ImTextureID)m_impl->texPiano, ImVec2(m_impl->pianoWidth, m_impl->pianoHeight));
   }
   ImGui::End();
 #endif
