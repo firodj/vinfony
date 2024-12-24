@@ -276,11 +276,17 @@ endif()
 
 # -- dynalo
 
-#target_link_libraries(vinfony dynalo)
-#add_dependencies(vinfony demo_ui)
-
-add_library(demo_ui SHARED modules/shared.cpp)
+add_library(demo_ui SHARED
+  src/modules/shared.cpp
+)
 target_link_libraries(demo_ui dynalo)
+set_target_properties(demo_ui PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
+  LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(vinfony dynalo)
+add_dependencies(vinfony demo_ui)
 
 add_executable(test_loader examples/test_loader.cpp)
 target_link_libraries(test_loader dynalo)
