@@ -1,22 +1,23 @@
 #pragma once
 
+#include "hscpp/module/GlobalUserData.h"
+
 struct ImGuiContext;
 
 namespace vinfony {
 
-struct MainWidget;
+class MainWidget;
 
 class Globals
 {
 public:
-    Globals();
-
     static Globals* GetInstance();
-    static Globals* Resolve();
+    static Globals* Resolve() {
+        return hscpp::GlobalUserData::GetAs<Globals>();
+    }
 
     ImGuiContext* pImGuiContext{nullptr};
     MainWidget * pMainWidget{nullptr};
-
 
     float toolbarSize{50};
 	float menuBarHeight{0};

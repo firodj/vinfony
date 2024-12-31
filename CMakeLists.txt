@@ -68,7 +68,6 @@ set(SOURCE
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
 ## -- sources --
   src/MainApp.cpp
-  src/Globals.cpp
   src/DawMain.cpp
   src/DawSeq.cpp
   src/TsfDev.cpp

@@ -78,6 +78,7 @@ bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_wid
 
 struct MainApp::Impl {
 	std::unique_ptr<hscpp::Hotswapper> swapper;
+	std::unique_ptr<vinfony::Globals> globals;
 
 	std::unique_ptr<vinfony::TinySoundFontDevice> tsfdev;
 	std::unique_ptr<vinfony::BassMidiDevice> bassdev;
@@ -116,7 +117,7 @@ MainApp::~MainApp() {
 
 void MainApp::ToolbarUI()
 {
-	vinfony::Globals *globals = vinfony::Globals::GetInstance();
+	vinfony::Globals *globals = vinfony::Globals::Resolve();
 
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 	ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + globals->menuBarHeight));
@@ -183,7 +184,7 @@ static ImVec2 labelMBTsize{};
 }
 
 void MainApp::RunImGui() {
-	vinfony::Globals *globals = vinfony::Globals::GetInstance();
+	vinfony::Globals *globals = vinfony::Globals::Resolve();
 	m_impl->swapper->Update();
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -304,18 +305,33 @@ void MainApp::Init() {
 	// InitSDL & InitImGui
 	EngineBase::Init();
 
+	m_impl->globals = std::make_unique<vinfony::Globals>();
+
 	m_impl->swapper = std::make_unique<hscpp::Hotswapper>();
+	m_impl->swapper->EnableFeature(hscpp::Feature::Preprocessor);
+#ifdef _WIN32
+    m_impl->swapper->SetVar("os", "Windows");
+#else
+    m_impl->swapper->SetVar("os", "Posix");
+#endif
 
 	auto srcPath = hscpp::fs::canonical( hscpp::fs::path(__FILE__).parent_path() );
-	m_impl->swapper->AddSourceDirectory(srcPath);
+	m_impl->swapper->SetVar("srcPath", srcPath);
+
+	m_impl->swapper->AddSourceDirectory(srcPath / "UI");
+	auto libPath = hscpp::util::GetHscppBuildPath();
+#ifdef HSCPP_DEBUG
+	libPath /= "Debug";
+#endif
+	m_impl->swapper->AddLibraryDirectory(libPath);
+	m_impl->swapper->SetVar("libPath", libPath);
 
 	hscpp::AllocationResolver* pAllocationResolver = m_impl->swapper->GetAllocationResolver();
-	vinfony::Globals *globals = vinfony::Globals::GetInstance();
-	m_impl->swapper->SetGlobalUserData(globals);
 
-	globals->pImGuiContext = ImGui::GetCurrentContext();
+	m_impl->swapper->SetGlobalUserData(m_impl->globals.get());
 
-	globals->pMainWidget = pAllocationResolver->Allocate<vinfony::MainWidget>();
+	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
+	m_impl->globals->pMainWidget = pAllocationResolver->Allocate<vinfony::MainWidget>();
 
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
@@ -338,6 +354,7 @@ void MainApp::Init() {
 
 void MainApp::Clean() {
 	m_impl->swapper.reset();
+	m_impl->globals.reset();
 
 	EngineBase::Clean();
 }

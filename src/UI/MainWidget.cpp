@@ -3,21 +3,51 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "Globals.hpp"
+#include "../Globals.hpp"
 
 #include <fmt/core.h>
 #include <regex>
+
+hscpp_require_include_dir("${srcPath}/../ext/imgui-docking")
+hscpp_require_include_dir("${srcPath}/../ext/fmt/include")
+
+hscpp_if (os == "Windows")
+    hscpp_require_library("${libPath}/imgui.lib")
+hscpp_elif (os == "Posix")
+    hscpp_require_library("${libPath}/libimgui.a")
+hscpp_else()
+    // Diagnostic messages can be printed to the build output with hscpp_message.
+    hscpp_message("Unknown OS ${os}.")
+hscpp_end()
 
 namespace vinfony {
 
 MainWidget::MainWidget()
 {
     auto cb = [this](hscpp::SwapInfo& info) {
-        // As an alternative to switching on info.Phase(), then Serializing and Unserializing, you
-        // can use the "Save" function, which does the same thing internally.
-        //info.Save("Widgets", m_Widgets);
-        //info.Save("Title", m_Title);
-        //info.Save("InputBuffer", m_InputBuffer);
+        switch (info.Phase())
+        {
+        case hscpp::SwapPhase::BeforeSwap:
+            // This object is about to be deleted, so serialize out its state. Any type can be
+            // serialized so long as it has a default constructor and is copyable.
+            //info.Serialize("Name", m_Name);
+            //info.Serialize("Index", m_Index);
+            break;
+        case hscpp::SwapPhase::AfterSwap:
+            // This object has just been created, replacing an older version.
+            //info.Unserialize("Name", m_Name);
+            //info.Unserialize("Index", m_Index);
+
+            // This new object is in a new dynamic library, but it still has access to global data
+            // in GlobalUserData.
+            vinfony::Globals* globals = vinfony::Globals::Resolve();
+
+            // After recompiling Printer.cpp, old instances of the Printer class will have been deleted,
+            // so the entries in the global printers array point to invalid data. Replace these instances
+            // with the newly constructed Printers.
+            globals->pMainWidget = this;
+            break;
+        }
     };
 
     Hscpp_SetSwapHandler(cb);
