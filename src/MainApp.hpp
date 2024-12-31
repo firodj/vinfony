@@ -16,7 +16,7 @@ protected:
     MainApp(/* dependency */);
     void RunImGui() override;
     void ReadIniConfig();
-    void DockSpaceUI();
+
     void ToolbarUI();
 
 public:

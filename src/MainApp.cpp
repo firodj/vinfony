@@ -30,6 +30,8 @@
 #include "hscpp/Hotswapper.h"
 #include "hscpp/Util.h"
 
+#include "UI/MainWidget.hpp"
+
 #include "Globals.hpp"
 
 #define SAMPLE_RATE 44100.0
@@ -75,7 +77,7 @@ bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_wid
 }
 
 struct MainApp::Impl {
-	hscpp::Hotswapper swapper;
+	std::unique_ptr<hscpp::Hotswapper> swapper;
 
 	std::unique_ptr<vinfony::TinySoundFontDevice> tsfdev;
 	std::unique_ptr<vinfony::BassMidiDevice> bassdev;
@@ -106,54 +108,18 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 	m_showDemoWindow = false;
 	m_impl->showSoundFont = false;
 
-	auto srcPath = hscpp::fs::canonical( hscpp::fs::path(__FILE__).parent_path() );
-	m_impl->swapper.AddSourceDirectory(srcPath);
-
 	std::string path = GetExeDirectory();
 }
 
 MainApp::~MainApp() {
 }
 
-// https://github.com/tpecholt/imrad/blob/main/src/imrad.cpp
-void MainApp::DockSpaceUI()
-{
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->Pos + ImVec2(0, m_impl->toolbarSize));
-	ImGui::SetNextWindowSize(viewport->Size - ImVec2(0, m_impl->toolbarSize));
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGuiWindowFlags window_flags = 0
-		| ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking
-		| ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
-		| ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-		| ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::Begin("Master DockSpace", NULL, window_flags);
-	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
-
-	// Save off menu bar height for later.
-	m_impl->menuBarHeight = ImGui::GetCurrentWindow()->MenuBarHeight;
-
-	ImGui::DockSpace(dockspace_id);
-
-	//ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
-	//ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
-
-
-	//ImGui::DockBuilderFinish(dockspace_id);
-
-	ImGui::End();
-
-	ImGui::PopStyleVar(3);
-}
-
 void MainApp::ToolbarUI()
 {
+	vinfony::Globals *globals = vinfony::Globals::GetInstance();
+
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + m_impl->menuBarHeight));
+	ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + globals->menuBarHeight));
 	ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, m_impl->toolbarSize));
 	ImGui::SetNextWindowViewport(viewport->ID);
 
@@ -217,6 +183,9 @@ static ImVec2 labelMBTsize{};
 }
 
 void MainApp::RunImGui() {
+	vinfony::Globals *globals = vinfony::Globals::GetInstance();
+	m_impl->swapper->Update();
+
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	ImColor clearColor(m_clearColor);
 	m_impl->sequencer.ProcessMessage([&](vinfony::SeqMsg &msg) -> bool {
@@ -237,7 +206,9 @@ void MainApp::RunImGui() {
 		return true;
 	});
 
-	DockSpaceUI();
+	globals->pMainWidget->Update();
+
+	//DockSpaceUI();
 	ToolbarUI();
 
 	// 1. Show the big demo window and another window
@@ -333,11 +304,18 @@ void MainApp::Init() {
 	// InitSDL & InitImGui
 	EngineBase::Init();
 
-	hscpp::AllocationResolver* pAllocationResolver = m_impl->swapper.GetAllocationResolver();
+	m_impl->swapper = std::make_unique<hscpp::Hotswapper>();
+
+	auto srcPath = hscpp::fs::canonical( hscpp::fs::path(__FILE__).parent_path() );
+	m_impl->swapper->AddSourceDirectory(srcPath);
+
+	hscpp::AllocationResolver* pAllocationResolver = m_impl->swapper->GetAllocationResolver();
 	vinfony::Globals *globals = vinfony::Globals::GetInstance();
-	m_impl->swapper.SetGlobalUserData(globals);
+	m_impl->swapper->SetGlobalUserData(globals);
 
 	globals->pImGuiContext = ImGui::GetCurrentContext();
+
+	globals->pMainWidget = pAllocationResolver->Allocate<vinfony::MainWidget>();
 
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
@@ -359,6 +337,8 @@ void MainApp::Init() {
 }
 
 void MainApp::Clean() {
+	m_impl->swapper.reset();
+
 	EngineBase::Clean();
 }
 

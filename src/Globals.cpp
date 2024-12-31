@@ -8,6 +8,8 @@ static std::mutex g_mtxGlobals;
 
 namespace vinfony {
 
+Globals::Globals() { }
+
 Globals* Globals::GetInstance() {
     std::lock_guard<std::mutex> lock(g_mtxGlobals);
 	if (g_globals == nullptr) {
