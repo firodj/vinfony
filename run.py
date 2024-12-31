@@ -40,12 +40,6 @@ if len(args) >= 1:
       case "model":
         target = "test_model"
         executable = "%s/%s/test_model" %  (build_name, build_mode)
-      case "demo_ui":
-        target = "demo_ui"
-        executable = None
-      case "loader":
-        target = "test_loader"
-        executable = "%s/%s/test_loader" %  (build_name, build_mode)
       case _:
         raise Exception("invalid cmd %s" % (cmd,))
 

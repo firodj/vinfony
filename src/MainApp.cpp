@@ -1,5 +1,4 @@
 #include "MainApp.hpp"
-#include <dynalo/dynalo.hpp>
 #include <thread>
 #include <mutex>
 #include <iostream>
@@ -26,7 +25,7 @@
 #include "BassMidiDev.hpp"
 #include "stb_image.h"
 #include "PianoButton.hpp"
-#include "modules/shared_imgui.hpp"
+
 #define SAMPLE_RATE 44100.0
 
 static std::unique_ptr<MainApp> g_mainapp;
@@ -83,8 +82,6 @@ struct MainApp::Impl {
 	int pianoWidth,pianoHeight;
 
 	bool showSoundFont;
-	dynalo::library shared_lib;
-	vinfony::ImGuiRemote imgui_remote;
 };
 
 MainApp *MainApp::GetInstance(/* dependency */) {
@@ -103,20 +100,9 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 	m_impl->showSoundFont = false;
 
 	std::string path = GetExeDirectory();
-	const std::filesystem::path lib_name = std::filesystem::path(path) / dynalo::to_native_name("demo_ui");
-	std::cout << "lib_name:" <<  lib_name.c_str() << std::endl;
-	dynalo::library lib(lib_name);
-	m_impl->shared_lib.open(lib_name);
-	m_impl->imgui_remote.Begin = ImGui::Begin;
-	m_impl->imgui_remote.End = ImGui::End;
-	m_impl->imgui_remote.BeginChild = ImGui::BeginChild;
-	m_impl->imgui_remote.EndChild = ImGui::EndChild;
-	m_impl->imgui_remote.Image = ImGui::Image;
-	m_impl->imgui_remote.SetNextWindowSize = ImGui::SetNextWindowSize;
 }
 
 MainApp::~MainApp() {
-	m_impl->shared_lib.close();
 }
 
 // https://github.com/tpecholt/imrad/blob/main/src/imrad.cpp
@@ -304,7 +290,6 @@ void MainApp::RunImGui() {
 		ImGui::End();
 	}
 
-#if 0
 	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
 	if (ImGui::Begin("Piano")) {
 		ImGui::BeginChild("piano", ImVec2{0.0, 200.0}, ImGuiChildFlags_ResizeY | ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysHorizontalScrollbar);
@@ -315,15 +300,6 @@ void MainApp::RunImGui() {
 			ImGui::Image((ImTextureID)m_impl->texPiano, ImVec2(m_impl->pianoWidth, m_impl->pianoHeight));
 	}
 	ImGui::End();
-#else
-	if (m_impl->shared_lib.is_loaded()) {
-		vinfony::DrawPianoRollParam param {
-			m_impl->texPiano, m_impl->pianoWidth, m_impl->pianoHeight,
-		};
-		auto DrawPianoRoll  = m_impl->shared_lib.get_function<int32_t(vinfony::ImGuiRemote *, vinfony::DrawPianoRollParam*)>("DrawPianoRoll");
-		DrawPianoRoll(&m_impl->imgui_remote, &param);
-	}
-#endif
 
 	if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
 		if (ifd::FileDialog::Instance().HasResult()) {

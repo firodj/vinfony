@@ -17,18 +17,20 @@ if (APPLE)
   unset (Python3_EXECUTABLE)
 endif()
 find_package(OpenGL REQUIRED)
-set("SDL_TEST" OFF)
-set("SDL2_DISABLE_SDL2MAIN" ON)
+set(SDL_TEST OFF)
+set(SDL2_DISABLE_SDL2MAIN ON)
 add_subdirectory(ext/sdl2)
-set("IMGUI_DIR" "ext/imgui-docking")
-set("GLAD_SOURCES_DIR" "${PROJECT_SOURCE_DIR}/ext/glad2")
+set(IMGUI_DIR "ext/imgui-docking")
+set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
 add_subdirectory(ext/fmt)
 add_subdirectory(ext/libassert)
 add_subdirectory(ext/jdksmidi)
 add_subdirectory(ext/tsf)
-add_subdirectory(ext/dynalo-sv)
+set(HSCPP_BUILD_EXAMPLES OFF)
+set(HSCPP_BUILD_TESTS OFF)
+add_subdirectory(ext/hscpp)
 
 include_directories(SYSTEM
   ${OPENGL_INCLUDE_DIR}
@@ -37,8 +39,7 @@ include_directories(SYSTEM
   ${IMGUI_DIR}/backends
   ${fmt_SOURCE_DIR}/include
 )
-
-set(IMGUI_SRC
+set(imgui_SOURCES
   ${IMGUI_DIR}/imgui.cpp
   ${IMGUI_DIR}/imgui_demo.cpp
   ${IMGUI_DIR}/imgui_draw.cpp
@@ -46,13 +47,16 @@ set(IMGUI_SRC
   ${IMGUI_DIR}/imgui_widgets.cpp
 )
 
-add_library(imgui SHARED
-  ${IMGUI_SRC}
+add_library(imgui STATIC
+  ${imgui_SOURCES}
 )
+
+if (imgui_SHARED)
 set_target_properties(imgui PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
   LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
 )
+endif()
 
 set(SOURCE
   ${VENDOR_DIR}/main.cpp
@@ -62,7 +66,6 @@ set(SOURCE
   ${VENDOR_DIR}/UtfConv.c
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
-
 ## -- sources --
   src/MainApp.cpp
   src/DawMain.cpp
@@ -209,6 +212,7 @@ add_compile_definitions(_USE_
 target_link_libraries(vinfony
   ${OPENGL_LIBRARIES}
   SDL2-static
+  imgui
   glad_gl_core_33
   fmt
   libassert::assert
@@ -247,12 +251,16 @@ endif()
 
 add_executable(test_model
   examples/test_model.cpp
+  src/TsfDev.cpp
+  src/BaseMidiOut.cpp
   src/DawTrackNotes.cpp
+  src/DawSeq.cpp
   src/DawSysEx.cpp
   src/DawDoc.cpp
   src/DawTrack.cpp
+  src/Misc.cpp
   )
-target_link_libraries(test_model jdksmidi tsf fmt libassert::assert)
+target_link_libraries(test_model jdksmidi tsf fmt libassert::assert SDL2-static)
 
 add_executable(test_sequencer examples/test_sequencer.cpp)
 target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
@@ -285,24 +293,5 @@ if(WIN32)
       "${BASS_LIBRARY_DIR}/bassmidi.dll"
       $<TARGET_FILE_DIR:vinfony>)
 endif()
-
-# -- dynalo
-
-add_library(demo_ui SHARED
-  src/modules/shared.cpp
-  src/PianoButton.cpp
-)
-target_link_libraries(demo_ui dynalo imgui)
-set_target_properties(demo_ui PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-  LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-)
-
-target_link_libraries(vinfony dynalo imgui)
-add_dependencies(vinfony demo_ui)
-
-add_executable(test_loader examples/test_loader.cpp)
-target_link_libraries(test_loader dynalo)
-add_dependencies(test_loader demo_ui)
 
 ## -- endothers --
