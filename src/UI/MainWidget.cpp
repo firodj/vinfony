@@ -13,17 +13,18 @@
 #include <fmt/core.h>
 #include <regex>
 
-hscpp_require_include_dir("${srcPath}")
-hscpp_require_include_dir("${srcPath}/../kosongg/cpp")
-hscpp_require_include_dir("${srcPath}/../ext/imgui-docking")
-hscpp_require_include_dir("${srcPath}/../ext/fmt/include")
+hscpp_require_include_dir("${projPath}/src")
+hscpp_require_include_dir("${projPath}/kosongg/cpp")
+hscpp_require_include_dir("${projPath}/ext/imgui-docking")
+hscpp_require_include_dir("${projPath}/ext/fmt/include")
 
 hscpp_if (os == "Windows")
-    hscpp_require_library("${libPath}/imgui.lib")
-    hscpp_require_library("${libPath}/../ext/fmt/Debug/fmtd.lib")
+    hscpp_require_library("${buildPath}/Debug/imgui.lib")
+    hscpp_require_library("${buildPath}/Debug/ext/fmt/Debug/fmtd.lib")
 hscpp_elif (os == "Posix")
-    hscpp_require_library("${libPath}/libimgui.a")
-    hscpp_require_library("${libPath}/../ext/fmt/Debug/libfmtd.a")
+    //hscpp_require_library("${buildPath}/Debug/libimgui.a")
+    hscpp_require_library("${projPath}/libimgui.dylib")
+    hscpp_require_library("${buildPath}/ext/fmt/Debug/libfmtd.a")
 hscpp_else()
     // Diagnostic messages can be printed to the build output with hscpp_message.
     hscpp_message("Unknown OS ${os}.")

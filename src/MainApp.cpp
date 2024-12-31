@@ -315,16 +315,12 @@ void MainApp::Init() {
     m_impl->swapper->SetVar("os", "Posix");
 #endif
 
-	auto srcPath = hscpp::fs::canonical( hscpp::fs::path(__FILE__).parent_path() );
-	m_impl->swapper->SetVar("srcPath", srcPath);
+	auto projPath = hscpp::fs::canonical( hscpp::fs::path(_PROJECT_SRC_PATH_) );
+	m_impl->swapper->SetVar("projPath", projPath);
 
-	m_impl->swapper->AddSourceDirectory(srcPath / "UI");
-	auto libPath = hscpp::util::GetHscppBuildPath();
-#ifdef HSCPP_DEBUG
-	libPath /= "Debug";
-#endif
-	m_impl->swapper->AddLibraryDirectory(libPath);
-	m_impl->swapper->SetVar("libPath", libPath);
+	m_impl->swapper->AddSourceDirectory(projPath / "src" / "UI");
+	auto buildPath = hscpp::util::GetHscppBuildPath();
+	m_impl->swapper->SetVar("buildPath", buildPath);
 
 	hscpp::AllocationResolver* pAllocationResolver = m_impl->swapper->GetAllocationResolver();
 

@@ -48,14 +48,20 @@ set(imgui_SOURCES
   ${VENDOR_DIR}/Component.cpp
 )
 
-add_library(imgui STATIC
-  ${imgui_SOURCES}
-)
+
+set(imgui_SHARED ON)
 
 if (imgui_SHARED)
+add_library(imgui SHARED
+  ${imgui_SOURCES}
+)
 set_target_properties(imgui PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
   LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
+)
+else()
+add_library(imgui STATIC
+  ${imgui_SOURCES}
 )
 endif()
 
@@ -210,6 +216,7 @@ endif()
 add_compile_definitions(_USE_
   SDL_MAIN_HANDLED
   _USE_HSCPP_
+  _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
 )
 
 target_link_libraries(vinfony
