@@ -68,6 +68,7 @@ set(SOURCE
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
 ## -- sources --
   src/MainApp.cpp
+  src/Globals.cpp
   src/DawMain.cpp
   src/DawSeq.cpp
   src/TsfDev.cpp
@@ -81,6 +82,7 @@ set(SOURCE
   src/DawSoundFont.cpp
   src/PianoButton.cpp
   src/UI/Splitter.cpp
+  src/UI/MainWidget.cpp
 ## -- endsources --
 )
 
@@ -91,6 +93,7 @@ set(HEADERS
   ${VENDOR_DIR}/kosongg/UtfConv.h
 ## -- headers --
   src/MainApp.hpp
+  src/Globals.hpp
   src/DawMain.hpp
   src/DawSeq.hpp
   src/Misc.hpp
@@ -104,6 +107,7 @@ set(HEADERS
   src/DawSoundFont.hpp
   src/PianoButton.hpp
   src/UI/UI.hpp
+  src/UI/MainWidget.hpp
 ## -- endheaders --
 )
 
@@ -207,6 +211,7 @@ endif()
 
 add_compile_definitions(_USE_
   SDL_MAIN_HANDLED
+  _USE_HSCPP_
 )
 
 target_link_libraries(vinfony
@@ -217,6 +222,7 @@ target_link_libraries(vinfony
   fmt
   libassert::assert
   jdksmidi
+  hscpp
   ifd
 )
 

@@ -21,7 +21,7 @@ protected:
 
 public:
     MainApp(MainApp &other) = delete;
-    ~MainApp();
+    ~MainApp() override;
     void operator=(const MainApp &) = delete;
 
     static MainApp *GetInstance(/* dependency */);

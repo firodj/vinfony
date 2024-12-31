@@ -26,10 +26,15 @@
 #include "stb_image.h"
 #include "PianoButton.hpp"
 
+#include "hscpp/Filesystem.h"
+#include "hscpp/Hotswapper.h"
+#include "hscpp/Util.h"
+
+#include "Globals.hpp"
+
 #define SAMPLE_RATE 44100.0
 
 static std::unique_ptr<MainApp> g_mainapp;
-
 static std::mutex g_mtxMainapp;
 
 // Simple helper function to load an image into a OpenGL texture with common settings
@@ -70,6 +75,8 @@ bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_wid
 }
 
 struct MainApp::Impl {
+	hscpp::Hotswapper swapper;
+
 	std::unique_ptr<vinfony::TinySoundFontDevice> tsfdev;
 	std::unique_ptr<vinfony::BassMidiDevice> bassdev;
 	// FIXME: sequencer should afer audiodevice.
@@ -98,6 +105,9 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 	m_windowTitle = "Vinfony";
 	m_showDemoWindow = false;
 	m_impl->showSoundFont = false;
+
+	auto srcPath = hscpp::fs::canonical( hscpp::fs::path(__FILE__).parent_path() );
+	m_impl->swapper.AddSourceDirectory(srcPath);
 
 	std::string path = GetExeDirectory();
 }
@@ -319,7 +329,16 @@ void MainApp::StdAudioCallback(uint8_t *stream, int len) {
 
 void MainApp::Init() {
 	ReadIniConfig();
+
+	// InitSDL & InitImGui
 	EngineBase::Init();
+
+	hscpp::AllocationResolver* pAllocationResolver = m_impl->swapper.GetAllocationResolver();
+	vinfony::Globals *globals = vinfony::Globals::GetInstance();
+	m_impl->swapper.SetGlobalUserData(globals);
+
+	globals->pImGuiContext = ImGui::GetCurrentContext();
+
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
