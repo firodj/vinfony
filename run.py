@@ -40,6 +40,9 @@ if len(args) >= 1:
       case "model":
         target = "test_model"
         executable = "%s/%s/test_model" %  (build_name, build_mode)
+      case "demo_ui":
+        target = "demo_ui"
+        executable = None
       case "loader":
         target = "test_loader"
         executable = "%s/%s/test_loader" %  (build_name, build_mode)
@@ -50,12 +53,13 @@ shellcmd = "cmake --build %s --target \"%s\" --config %s" % (build_name, target,
 print(shellcmd)
 subprocess.run(shellcmd, shell=True, check=True)
 
-shellcmd = "./%s" % (executable,)
-if os.name == 'nt':
-  shellcmd = "%s.exe" %  (executable.replace("/", "\\"),)
+if executable:
+  shellcmd = "./%s" % (executable,)
+  if os.name == 'nt':
+    shellcmd = "%s.exe" %  (executable.replace("/", "\\"),)
 
-if len(passargs) > 0:
-  shellcmd += " \"" + "\" \"".join(passargs) + "\""
+  if len(passargs) > 0:
+    shellcmd += " \"" + "\" \"".join(passargs) + "\""
 
-print(shellcmd)
-subprocess.run(shellcmd, shell=True, check=True)
+  print(shellcmd)
+  subprocess.run(shellcmd, shell=True, check=True)

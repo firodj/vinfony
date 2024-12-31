@@ -38,6 +38,22 @@ include_directories(SYSTEM
   ${fmt_SOURCE_DIR}/include
 )
 
+set(IMGUI_SRC
+  ${IMGUI_DIR}/imgui.cpp
+  ${IMGUI_DIR}/imgui_demo.cpp
+  ${IMGUI_DIR}/imgui_draw.cpp
+  ${IMGUI_DIR}/imgui_tables.cpp
+  ${IMGUI_DIR}/imgui_widgets.cpp
+)
+
+add_library(imgui SHARED
+  ${IMGUI_SRC}
+)
+set_target_properties(imgui PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
+  LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
+)
+
 set(SOURCE
   ${VENDOR_DIR}/main.cpp
   ${VENDOR_DIR}/Engine.cpp
@@ -46,11 +62,7 @@ set(SOURCE
   ${VENDOR_DIR}/UtfConv.c
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
-  ${IMGUI_DIR}/imgui.cpp
-  ${IMGUI_DIR}/imgui_demo.cpp
-  ${IMGUI_DIR}/imgui_draw.cpp
-  ${IMGUI_DIR}/imgui_tables.cpp
-  ${IMGUI_DIR}/imgui_widgets.cpp
+
 ## -- sources --
   src/MainApp.cpp
   src/DawMain.cpp
@@ -278,14 +290,15 @@ endif()
 
 add_library(demo_ui SHARED
   src/modules/shared.cpp
+  src/PianoButton.cpp
 )
-target_link_libraries(demo_ui dynalo)
+target_link_libraries(demo_ui dynalo imgui)
 set_target_properties(demo_ui PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
   LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
 )
 
-target_link_libraries(vinfony dynalo)
+target_link_libraries(vinfony dynalo imgui)
 add_dependencies(vinfony demo_ui)
 
 add_executable(test_loader examples/test_loader.cpp)
