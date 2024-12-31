@@ -6,6 +6,7 @@
 
 #include "circularfifo1.h"
 #include "DawDisplay.hpp"
+#include "Interfaces/Dawseq.hpp"
 
 // Config
 #define USE_BASSMIDI 1
@@ -38,7 +39,7 @@ namespace vinfony {
     }
   };
 
-  class DawSeq {
+  class DawSeq: public DawSeqI {
   private:
     struct Impl;
     std::unique_ptr<Impl> m_impl{};
@@ -51,13 +52,13 @@ namespace vinfony {
     ~DawSeq();
 
     void AsyncReadMIDIFile(std::string filename);
-    bool IsFileLoaded();
-    void AsyncPlayMIDI();
-    void AsyncPlayMIDIStopped();
-    void StopMIDI();
+    bool IsFileLoaded() override;
+    void AsyncPlayMIDI() override;
+    void AsyncPlayMIDIStopped() override;
+    void StopMIDI() override;
     void CloseMIDIFile();
     void CalcCurrentMIDITimeBeat(uint64_t now_ms);
-    void SetMIDITimeBeat(float time_beat);
+    void SetMIDITimeBeat(float time_beat) override;
     void ProcessMessage(std::function<bool(SeqMsg&)> proc);
     void CalcDuration();
     DawTrack * GetTrack(int track_num);
@@ -70,8 +71,8 @@ namespace vinfony {
     void SetBASSDevice(BassMidiDevice *dev);
     void Reset();
     void RenderMIDICallback(uint8_t * stream, int len);
-    float GetTempoBPM();
-    void GetCurrentMBT(int &m, int &b, int &t);
+    float GetTempoBPM() override;
+    void GetCurrentMBT(int &m, int &b, int &t) override;
     void SendVolume(int chan, unsigned short value);
     void SendPan(int chan, unsigned short value);
     void SendFilter(int chan, unsigned short valFc, unsigned short valQ);

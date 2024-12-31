@@ -45,6 +45,7 @@ set(imgui_SOURCES
   ${IMGUI_DIR}/imgui_draw.cpp
   ${IMGUI_DIR}/imgui_tables.cpp
   ${IMGUI_DIR}/imgui_widgets.cpp
+  ${VENDOR_DIR}/Component.cpp
 )
 
 add_library(imgui STATIC
@@ -62,7 +63,6 @@ set(SOURCE
   ${VENDOR_DIR}/main.cpp
   ${VENDOR_DIR}/Engine.cpp
   ${VENDOR_DIR}/GLUtil.cpp
-  ${VENDOR_DIR}/Component.cpp
   ${VENDOR_DIR}/UtfConv.c
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
@@ -88,7 +88,6 @@ set(SOURCE
 set(HEADERS
   ${VENDOR_DIR}/kosongg/Engine.h
   ${VENDOR_DIR}/kosongg/GLUtil.h
-  ${VENDOR_DIR}/kosongg/Component.h
   ${VENDOR_DIR}/kosongg/UtfConv.h
 ## -- headers --
   src/MainApp.hpp

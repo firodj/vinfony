@@ -7,6 +7,7 @@ struct ImGuiContext;
 namespace vinfony {
 
 class MainWidget;
+class DawSeqI;
 
 class Globals
 {
@@ -18,6 +19,7 @@ public:
 
     ImGuiContext* pImGuiContext{nullptr};
     MainWidget * pMainWidget{nullptr};
+    DawSeqI *sequencer{nullptr};
 
     float toolbarSize{50};
 	float menuBarHeight{0};

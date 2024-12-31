@@ -15,6 +15,7 @@ public:
 
 protected:
     void DockSpaceUI();
+    void ToolbarUI();
 };
 
 };

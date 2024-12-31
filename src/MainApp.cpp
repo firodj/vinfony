@@ -170,7 +170,7 @@ void MainApp::ToolbarUI()
 	int curM, curB, curT;
 	m_impl->sequencer.GetCurrentMBT(curM, curB, curT);
 	label = fmt::format(ICON_FA_CLOCK " {:3d}:{:01d}:{:03d}", curM, curB, curT);
-static ImVec2 labelMBTsize{};
+	static ImVec2 labelMBTsize{};
 	if (labelMBTsize.x == 0) {
 		labelMBTsize = ImGui::CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
 	}
@@ -210,7 +210,7 @@ void MainApp::RunImGui() {
 	globals->pMainWidget->Update();
 
 	//DockSpaceUI();
-	ToolbarUI();
+	//ToolbarUI();
 
 	// 1. Show the big demo window and another window
 	EngineBase::RunImGui();
@@ -332,6 +332,7 @@ void MainApp::Init() {
 
 	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
 	m_impl->globals->pMainWidget = pAllocationResolver->Allocate<vinfony::MainWidget>();
+	m_impl->globals->sequencer = &m_impl->sequencer;
 
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
