@@ -23,7 +23,7 @@ hscpp_if (os == "Windows")
     hscpp_require_library("${buildPath}/Debug/ext/fmt/Debug/fmtd.lib")
 hscpp_elif (os == "Posix")
     //hscpp_require_library("${buildPath}/Debug/libimgui.a")
-    hscpp_require_library("${projPath}/libimgui.dylib")
+    hscpp_require_library("${projPath}/bin/libimgui.dylib")
     hscpp_require_library("${buildPath}/ext/fmt/Debug/libfmtd.a")
 hscpp_else()
     // Diagnostic messages can be printed to the build output with hscpp_message.

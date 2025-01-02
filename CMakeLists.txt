@@ -7,6 +7,10 @@ set(CMAKE_C_STANDARD 17)
 set(VENDOR_DIR kosongg/cpp)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(BUILD_APPLE_BUNDLE "Build Apple Bundle" OFF)
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin")
 
 if (APPLE)
   ## update the environment with VIRTUAL_ENV variable (mimic the activate script)
@@ -48,22 +52,9 @@ set(imgui_SOURCES
   ${VENDOR_DIR}/Component.cpp
 )
 
-
-set(imgui_SHARED ON)
-
-if (imgui_SHARED)
-add_library(imgui SHARED
+add_library(imgui
   ${imgui_SOURCES}
 )
-set_target_properties(imgui PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-  LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-)
-else()
-add_library(imgui STATIC
-  ${imgui_SOURCES}
-)
-endif()
 
 set(SOURCE
   ${VENDOR_DIR}/main.cpp
@@ -213,10 +204,10 @@ else()
   endif()
 endif()
 
-add_compile_definitions(_USE_
+add_compile_definitions(
+  _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
   SDL_MAIN_HANDLED
   _USE_HSCPP_
-  _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
 )
 
 target_link_libraries(vinfony
@@ -235,8 +226,8 @@ if (BUILD_APPLE_BUNDLE)
 
 else()
 set_target_properties(vinfony PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-  VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin"
+  VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
   DEBUG_POSTFIX "d"
 )
 endif()
