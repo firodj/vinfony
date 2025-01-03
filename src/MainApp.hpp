@@ -17,8 +17,6 @@ protected:
     void RunImGui() override;
     void ReadIniConfig();
 
-    void ToolbarUI();
-
 public:
     MainApp(MainApp &other) = delete;
     ~MainApp() override;

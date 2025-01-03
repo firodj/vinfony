@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hscpp/module/GlobalUserData.h"
+#include "hscpp/mem/Ref.h"
 
 struct ImGuiContext;
 
@@ -18,7 +19,7 @@ public:
     }
 
     ImGuiContext* pImGuiContext{nullptr};
-    MainWidget * pMainWidget{nullptr};
+    hscpp::mem::UniqueRef<MainWidget> pMainWidget;
     DawSeqI *sequencer{nullptr};
 
     float toolbarSize{50};

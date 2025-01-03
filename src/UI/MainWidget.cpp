@@ -19,6 +19,7 @@ hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
 hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
+hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
 hscpp_if (os == "Windows")
     //hscpp_require_library("${buildPath}/Debug/imgui.lib")
@@ -30,6 +31,7 @@ hscpp_elif (os == "Posix")
     hscpp_require_library("${projPath}/bin/libimgui.dylib")
     hscpp_require_library("${projPath}/bin/libfmtd.dylib")
 	hscpp_require_library("${projPath}/bin/libifd.dylib")
+	hscpp_require_library("${projPath}/bin/libhscpp-mem.dylib")
 hscpp_else()
     // Diagnostic messages can be printed to the build output with hscpp_message.
     hscpp_message("Unknown OS ${os}.")
@@ -67,7 +69,7 @@ MainWidget::MainWidget()
             // After recompiling Printer.cpp, old instances of the Printer class will have been deleted,
             // so the entries in the global printers array point to invalid data. Replace these instances
             // with the newly constructed Printers.
-            globals->pMainWidget = this;
+            //globals->pMainWidget = this;
             break;
         }
     };

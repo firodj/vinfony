@@ -47,6 +47,7 @@ static std::mutex g_mtxMainapp;
 struct MainApp::Impl {
 	std::unique_ptr<hscpp::Hotswapper> swapper;
 	std::unique_ptr<vinfony::Globals> globals;
+	hscpp::mem::UniqueRef<hscpp::mem::MemoryManager> memoryManager;
 
 	std::unique_ptr<vinfony::TinySoundFontDevice> tsfdev;
 	std::unique_ptr<vinfony::BassMidiDevice> bassdev;
@@ -81,74 +82,6 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 }
 
 MainApp::~MainApp() {
-}
-
-void MainApp::ToolbarUI()
-{
-	vinfony::Globals *globals = vinfony::Globals::Resolve();
-
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + globals->menuBarHeight));
-	ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, m_impl->toolbarSize));
-	ImGui::SetNextWindowViewport(viewport->ID);
-
-	ImGuiWindowFlags window_flags = 0
-		| ImGuiWindowFlags_NoDocking
-		| ImGuiWindowFlags_NoTitleBar
-		| ImGuiWindowFlags_NoResize
-		| ImGuiWindowFlags_NoMove
-		| ImGuiWindowFlags_NoScrollbar
-		| ImGuiWindowFlags_NoSavedSettings
-		;
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	ImGui::Begin("TOOLBAR", NULL, window_flags);
-	ImGui::PopStyleVar();
-
-	const bool disabled = !m_impl->sequencer.IsFileLoaded();
-
-	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 4.0f));
-	ImGui::PushItemFlag(ImGuiItemFlags_Disabled, disabled);
-
-	if (disabled) {
-		ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0xFF, 0xFF, 0xFF, 0x80));
-		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0x00, 0x00, 0x00, 0x40));
-	} else {
-		ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0x00, 0x7A, 0xFF, 0xFF));
-		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
-	}
-
-	if (ImGui::ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
-		m_impl->sequencer.SetMIDITimeBeat(0);
-	}
-	ImGui::SameLine();
-	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {
-		m_impl->sequencer.AsyncPlayMIDI();
-	}
-	ImGui::SameLine();
-	if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
-		m_impl->sequencer.StopMIDI();
-	}
-	ImGui::SameLine();
-
-	std::string label = fmt::format(ICON_FA_GAUGE " {:.2f}", m_impl->sequencer.GetTempoBPM());
-	ImGui::ColoredButtonV1(label.c_str());
-	ImGui::SameLine();
-
-	int curM, curB, curT;
-	m_impl->sequencer.GetCurrentMBT(curM, curB, curT);
-	label = fmt::format(ICON_FA_CLOCK " {:3d}:{:01d}:{:03d}", curM, curB, curT);
-	static ImVec2 labelMBTsize{};
-	if (labelMBTsize.x == 0) {
-		labelMBTsize = ImGui::CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
-	}
-	ImGui::ColoredButtonV1(label.c_str(), labelMBTsize);
-
-	ImGui::PopItemFlag();
-	ImGui::PopStyleColor(2);
-	ImGui::PopStyleVar(2);
-
-	ImGui::End();
 }
 
 void MainApp::RunImGui() {
@@ -259,12 +192,16 @@ void MainApp::Init() {
 	auto buildPath = hscpp::util::GetHscppBuildPath();
 	m_impl->swapper->SetVar("buildPath", buildPath);
 
-	hscpp::AllocationResolver* pAllocationResolver = m_impl->swapper->GetAllocationResolver();
+	hscpp::mem::MemoryManager::Config config;
+	config.pAllocationResolver = m_impl->swapper->GetAllocationResolver();
+	m_impl->memoryManager = hscpp::mem::MemoryManager::Create(config);
+	m_impl->swapper->SetAllocator(&m_impl->memoryManager);
 
 	m_impl->swapper->SetGlobalUserData(m_impl->globals.get());
 
 	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
-	m_impl->globals->pMainWidget = pAllocationResolver->Allocate<vinfony::MainWidget>();
+	m_impl->globals->pMainWidget = m_impl->memoryManager->Allocate<vinfony::MainWidget>();
+
 	m_impl->globals->sequencer = &m_impl->sequencer;
 
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
@@ -288,8 +225,8 @@ void MainApp::Init() {
 }
 
 void MainApp::Clean() {
-	m_impl->swapper.reset();
 	m_impl->globals.reset();
+	m_impl->swapper.reset();
 
 	EngineBase::Clean();
 }
