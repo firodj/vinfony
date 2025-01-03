@@ -151,6 +151,7 @@ list(APPEND ifd_SOURCES
   ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.hpp
   ${VENDOR_DIR}/ifd/DirectoryIterator.hpp
   ${VENDOR_DIR}/ifd/DirectoryIterator.cpp
+  ${VENDOR_DIR}/UtfConv.c
 )
 
 if (APPLE)
@@ -166,13 +167,13 @@ if (WIN32)
   )
 endif()
 
-add_library(ifd STATIC ${ifd_SOURCES})
+add_library(ifd ${ifd_SOURCES})
 
 if (APPLE)
   # Cocoa
   find_library(COCOA_LIBRARY Cocoa)
   find_library(APPKIT_LIB AppKit)
-  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB})
+  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB} imgui glad_gl_core_33)
 endif()
 
 if (MSVC)
@@ -212,13 +213,13 @@ add_compile_definitions(
 
 target_link_libraries(vinfony
   ${OPENGL_LIBRARIES}
-  SDL2-static
+  SDL2
   imgui
   glad_gl_core_33
   fmt
   libassert::assert
   jdksmidi
-  hscpp
+  hscpp hscpp-mem
   ifd
 )
 
@@ -262,24 +263,24 @@ add_executable(test_model
   src/DawTrack.cpp
   src/Misc.cpp
   )
-target_link_libraries(test_model jdksmidi tsf fmt libassert::assert SDL2-static)
+target_link_libraries(test_model jdksmidi tsf fmt libassert::assert SDL2)
 
 add_executable(test_sequencer examples/test_sequencer.cpp)
 target_include_directories(test_sequencer PRIVATE "${BASSMIDI_MIRROR}/bass24/include")
 target_link_directories(test_sequencer PRIVATE "${BASS_LIBRARY_DIR}")
-target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi SDL2-static tsf)
+target_link_libraries(test_sequencer jdksmidi rtmidi bass bassmidi SDL2 tsf)
 target_compile_definitions(test_sequencer PUBLIC
   -DUSE_BASS -DUSE_TSF
 )
 
 add_executable(test_tsf1 "${PROJECT_SOURCE_DIR}/examples/tsf_example1.cpp")
-target_link_libraries(test_tsf1 SDL2-static tsf)
+target_link_libraries(test_tsf1 SDL2 tsf)
 
 add_executable(test_tsf2 "${PROJECT_SOURCE_DIR}/examples/tsf_example2.cpp")
-target_link_libraries(test_tsf2 SDL2-static tsf)
+target_link_libraries(test_tsf2 SDL2 tsf)
 
 add_executable(test_tsf3 "${PROJECT_SOURCE_DIR}/examples/tsf_example3.cpp")
-target_link_libraries(test_tsf3 SDL2-static tsf)
+target_link_libraries(test_tsf3 SDL2 tsf)
 
 # -- vinvonfy : bass --
 target_include_directories(vinfony PRIVATE "${BASSMIDI_MIRROR}/bass24/include")

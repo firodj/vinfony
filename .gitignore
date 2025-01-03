@@ -7,6 +7,7 @@ venv/
 build-*/
 *.dSYM/
 ext/
+bin/
 vinfony
 vinfony.exe
 vinfonyd

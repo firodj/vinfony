@@ -5,6 +5,8 @@
 #include "imgui_internal.h"
 #include "../Globals.hpp"
 
+#include <ifd/ImFileDialog.hpp>
+
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"
 
@@ -19,12 +21,15 @@ hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
 
 hscpp_if (os == "Windows")
-    hscpp_require_library("${buildPath}/Debug/imgui.lib")
-    hscpp_require_library("${buildPath}/Debug/ext/fmt/Debug/fmtd.lib")
+    //hscpp_require_library("${buildPath}/Debug/imgui.lib")
+    hscpp_require_library("${projPath}/bin/imgui.dll")
+    hscpp_require_library("${projPath}/bin/fmtd.dll")
+	hscpp_require_library("${projPath}/bin/ifd.dll")
 hscpp_elif (os == "Posix")
     //hscpp_require_library("${buildPath}/Debug/libimgui.a")
     hscpp_require_library("${projPath}/bin/libimgui.dylib")
-    hscpp_require_library("${buildPath}/ext/fmt/Debug/libfmtd.a")
+    hscpp_require_library("${projPath}/bin/libfmtd.dylib")
+	hscpp_require_library("${projPath}/bin/libifd.dylib")
 hscpp_else()
     // Diagnostic messages can be printed to the build output with hscpp_message.
     hscpp_message("Unknown OS ${os}.")
@@ -40,13 +45,20 @@ MainWidget::MainWidget()
         case hscpp::SwapPhase::BeforeSwap:
             // This object is about to be deleted, so serialize out its state. Any type can be
             // serialized so long as it has a default constructor and is copyable.
-            //info.Serialize("Name", m_Name);
-            //info.Serialize("Index", m_Index);
+           	info.Serialize("showDemoWindow",   m_showDemoWindow);
+			info.Serialize("showToolMetrics",  m_showToolMetrics);
+			info.Serialize("showToolDebugLog", m_showToolDebugLog);
+			info.Serialize("showToolAbout",    m_showToolAbout);
+			info.Serialize("showSoundFont",    m_showSoundFont);
+
             break;
         case hscpp::SwapPhase::AfterSwap:
             // This object has just been created, replacing an older version.
-            //info.Unserialize("Name", m_Name);
-            //info.Unserialize("Index", m_Index);
+            info.Unserialize("showDemoWindow",   m_showDemoWindow);
+			info.Unserialize("showToolMetrics",  m_showToolMetrics);
+			info.Unserialize("showToolDebugLog", m_showToolDebugLog);
+			info.Unserialize("showToolAbout",    m_showToolAbout);
+			info.Unserialize("showSoundFont",    m_showSoundFont);
 
             // This new object is in a new dynamic library, but it still has access to global data
             // in GlobalUserData.
@@ -61,6 +73,12 @@ MainWidget::MainWidget()
     };
 
     Hscpp_SetSwapHandler(cb);
+
+	if (Hscpp_IsSwapping()) {
+		return;
+	}
+
+	Creating();
 }
 
 MainWidget::~MainWidget()
@@ -69,6 +87,19 @@ MainWidget::~MainWidget()
     {
         return;
     }
+
+	Destroying();
+}
+
+void MainWidget::Creating() {
+	m_showDemoWindow   = false;
+    m_showToolMetrics  = false;
+    m_showToolDebugLog = false;
+    m_showToolAbout    = false;
+	m_showSoundFont    = false;
+}
+
+void MainWidget::Destroying() {
 
 }
 
@@ -182,6 +213,47 @@ void MainWidget::Update() {
 
     DockSpaceUI();
     ToolbarUI();
+
+	DemoUI();
+	MainMenuUI();
+}
+
+void MainWidget::DemoUI() {
+  if (m_showDemoWindow)
+    ImGui::ShowDemoWindow(&m_showDemoWindow);
+  if (m_showToolMetrics)
+    ImGui::ShowMetricsWindow(&m_showToolMetrics);
+  if (m_showToolDebugLog)
+    ImGui::ShowDebugLogWindow(&m_showToolDebugLog);
+  if (m_showToolAbout)
+    ImGui::ShowAboutWindow(&m_showToolAbout);
+}
+
+void MainWidget::MainMenuUI() {
+	// 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("New", "CTRL+N")) {}
+			if (ImGui::MenuItem("Open", "CTRL+O")) {
+				ifd::FileDialog::Instance().Open("MidiFileOpenDialog",
+					"Open a MIDI file", "Midi file (*.mid;*.rmi){.mid,.rmi},.*"
+				);
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Exit", "CTRL+W")) {}
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Window"))
+		{
+			ImGui::MenuItem("SoundFont",    nullptr, &m_showSoundFont);
+			ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
+			//ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
 }
 
 }

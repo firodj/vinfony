@@ -6,7 +6,7 @@
 
 #include "circularfifo1.h"
 #include "DawDisplay.hpp"
-#include "Interfaces/Dawseq.hpp"
+#include "Interfaces/DawSeq.hpp"
 
 // Config
 #define USE_BASSMIDI 1

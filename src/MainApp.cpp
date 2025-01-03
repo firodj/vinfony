@@ -5,9 +5,11 @@
 #include <vector>
 
 #include <SDL.h>
+
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
+
 #include "DawMain.hpp"
 #include "DawSeq.hpp"
 #include "DawSoundFont.hpp"
@@ -23,12 +25,15 @@
 #include "circularfifo1.h"
 #include "TsfDev.hpp"
 #include "BassMidiDev.hpp"
-#include "stb_image.h"
+
 #include "PianoButton.hpp"
+#include "Misc.hpp"
 
 #include "hscpp/Filesystem.h"
 #include "hscpp/Hotswapper.h"
 #include "hscpp/Util.h"
+#include "hscpp/mem/Ref.h"
+#include "hscpp/mem/MemoryManager.h"
 
 #include "UI/MainWidget.hpp"
 
@@ -38,43 +43,6 @@
 
 static std::unique_ptr<MainApp> g_mainapp;
 static std::mutex g_mtxMainapp;
-
-// Simple helper function to load an image into a OpenGL texture with common settings
-bool LoadTextureFromFile(const char* filename, GLuint* out_texture, int* out_width, int* out_height)
-{
-	// Load from file
-	int image_width = 0;
-	int image_height = 0;
-	unsigned char* image_data = stbi_load(filename, &image_width, &image_height, NULL, 4);
-	if (image_data == NULL) {
-		fmt::println("Error LoadTextureFromFile {}", filename);
-		return false;
-	}
-
-	// Create a OpenGL texture identifier
-	GLuint image_texture;
-	glGenTextures(1, &image_texture);
-	glBindTexture(GL_TEXTURE_2D, image_texture);
-
-	// Setup filtering parameters for display
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
-
-	// Upload pixels into texture
-#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-#endif
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width, image_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
-	stbi_image_free(image_data);
-
-	*out_texture = image_texture;
-	*out_width = image_width;
-	*out_height = image_height;
-
-	return true;
-}
 
 struct MainApp::Impl {
 	std::unique_ptr<hscpp::Hotswapper> swapper;
@@ -88,7 +56,7 @@ struct MainApp::Impl {
 	float toolbarSize{50};
 	float menuBarHeight{0};
 	std::string soundfontPath;
-	GLuint texPiano{0};
+	unsigned int texPiano{0};
 	int pianoWidth,pianoHeight;
 
 	bool showSoundFont;
@@ -209,37 +177,6 @@ void MainApp::RunImGui() {
 
 	globals->pMainWidget->Update();
 
-	//DockSpaceUI();
-	//ToolbarUI();
-
-	// 1. Show the big demo window and another window
-	EngineBase::RunImGui();
-
-	// 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("New", "CTRL+N")) {}
-			if (ImGui::MenuItem("Open", "CTRL+O")) {
-				ifd::FileDialog::Instance().Open("MidiFileOpenDialog",
-					"Open a MIDI file", "Midi file (*.mid;*.rmi){.mid,.rmi},.*"
-				);
-			}
-			ImGui::Separator();
-			if (ImGui::MenuItem("Exit", "CTRL+W")) {}
-			ImGui::EndMenu();
-		}
-		if (ImGui::BeginMenu("Window"))
-		{
-			ImGui::MenuItem("SoundFont",    nullptr, &m_impl->showSoundFont);
-			ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
-			//ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
-			ImGui::EndMenu();
-		}
-		ImGui::EndMainMenuBar();
-	}
-
 #if 0
 	static int counter = 0;
 	if (ImGui::Begin("Welcome to vinfony!")) {      // Create a window called "Hello, world!" and append into it.
@@ -294,7 +231,7 @@ void MainApp::RunImGui() {
 	}
 }
 
-// BASS Midi not usingn it!
+// BASS Midi not using it!
 void MainApp::StdAudioCallback(uint8_t *stream, int len) {
 	//m_impl->sequencer.RenderMIDICallback (stream, len);
 }
@@ -346,7 +283,8 @@ void MainApp::Init() {
 	m_impl->sequencer.SetTSFDevice( m_impl->tsfdev.get() );
 	m_impl->sequencer.SetBASSDevice( m_impl->bassdev.get() );
 
-	bool ret = LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
+	bool ret = vinfony::LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
+	fmt::println("Loading images piano.png, status: {}", ret);
 }
 
 void MainApp::Clean() {
