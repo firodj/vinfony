@@ -24,8 +24,7 @@ public:
 
     static MainApp *GetInstance(/* dependency */);
 
-    void Init() override;
+    void Init(std::vector<std::string> &args) override;
     void Clean() override;
     std::string GetResourcePath(const char *path, const char *file) override;
-    void StdAudioCallback(uint8_t *stream, int len);
 };

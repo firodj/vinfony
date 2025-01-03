@@ -66,7 +66,7 @@ bool CircularFifo<Element, Size>::push(const Element& item_)
    else { assert (producer_id == std::this_thread::get_id()); }
 #endif
 
-   int nextTail = increment(tail);
+   unsigned int nextTail = increment(tail);
    if(nextTail != head)
    {
       array[tail] = item_;
@@ -154,7 +154,7 @@ bool CircularFifo<Element, Size>::isEmpty() const
 template<typename Element, unsigned int Size>
 bool CircularFifo<Element, Size>::isFull() const
 {
-   int tailCheck = (tail+1) & (Capacity-1);
+   unsigned int tailCheck = (tail+1) & (Capacity-1);
    return (tailCheck == head);
 }
 

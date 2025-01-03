@@ -62,7 +62,7 @@ void DawTrackNotes::ResetStats() {
   notes_processed = 0;
 }
 
-bool DawTrackNotes::NewNote(long t, char n) {
+bool DawTrackNotes::NewNote(long t, unsigned char n) {
   notes_processed++;
 
   if (note_value_to_slot[n] != -1) return false;
@@ -142,7 +142,7 @@ void DawTrackNotes::NoteOff(long t, char n) {
   KillNote(t, n, true);
 }
 
-bool DawTrackNotes::KillNote(long t, char n, bool destroy) {
+bool DawTrackNotes::KillNote(long t, unsigned char n, bool destroy) {
   int slot = note_value_to_slot[n];
   if (slot == -1) return false;
   auto &note_active = note_actives[slot];

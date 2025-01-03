@@ -4,8 +4,8 @@
 #include <string>
 #include <functional>
 
-#include "DawDisplay.hpp"
-#include "DawSeq.hpp"
+#include "../DawDisplay.hpp"
+#include "../DawSeq.hpp"
 
 namespace vinfony {
   struct DawProp;

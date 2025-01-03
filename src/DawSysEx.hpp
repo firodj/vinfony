@@ -15,7 +15,7 @@ enum SysxVendor {
 
 class BaseSysEx {
 public:
-  BaseSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex) : m_midi_sysex(*midi_sysex), m_sysxVendor(SYSX_NONE) {};
+  BaseSysEx(const jdksmidi::MIDISystemExclusive *midi_sysex) : m_sysxVendor(SYSX_NONE), m_midi_sysex(*midi_sysex) {};
   virtual ~BaseSysEx() {};
   virtual std::string Info() = 0;
   virtual void Parse() = 0;

@@ -65,7 +65,7 @@ set(SOURCE
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
 ## -- sources --
   src/MainApp.cpp
-  src/DawMain.cpp
+  src/UI/DawMain.cpp
   src/DawSeq.cpp
   src/TsfDev.cpp
   src/Misc.cpp
@@ -89,7 +89,7 @@ set(HEADERS
 ## -- headers --
   src/MainApp.hpp
   src/Globals.hpp
-  src/DawMain.hpp
+  src/UI/DawMain.hpp
   src/DawSeq.hpp
   src/Misc.hpp
   src/BaseMidiOut.hpp

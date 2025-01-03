@@ -7,7 +7,7 @@ namespace vinfony {
 struct DawNote {
   long time;
   long stop;
-  char note;
+  unsigned char note;
   int event_num;
   int used_prev;
   int used_next;
@@ -38,8 +38,8 @@ public:
   virtual void ResetStats();
 
 protected:
-  virtual bool NewNote(long t, char n);
-  virtual bool KillNote(long t, char n, bool destroy);
+  virtual bool NewNote(long t, unsigned char n);
+  virtual bool KillNote(long t, unsigned char n, bool destroy);
 };
 
 };

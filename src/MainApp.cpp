@@ -10,7 +10,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 
-#include "DawMain.hpp"
+#include "UI/DawMain.hpp"
 #include "DawSeq.hpp"
 #include "DawSoundFont.hpp"
 
@@ -164,16 +164,11 @@ void MainApp::RunImGui() {
 	}
 }
 
-// BASS Midi not using it!
-void MainApp::StdAudioCallback(uint8_t *stream, int len) {
-	//m_impl->sequencer.RenderMIDICallback (stream, len);
-}
-
-void MainApp::Init() {
+void MainApp::Init(std::vector<std::string> &args) {
 	ReadIniConfig();
 
 	// InitSDL & InitImGui
-	EngineBase::Init();
+	EngineBase::Init(args);
 
 	m_impl->globals = std::make_unique<vinfony::Globals>();
 
