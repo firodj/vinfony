@@ -5,29 +5,53 @@
 #include <functional>
 
 #include "hscpp/module/PreprocessorMacros.h" // Added so macros are available when using a tracked class.
+#include "hscpp/module/Tracker.h"
 
 #include "DawDisplay.hpp"
 #include "../IDawSeq.hpp"
 #include "../IDawTrack.hpp"
 
 namespace vinfony {
-  struct DawProp;
-  class DawTrack;
+	struct DawProp;
+	class DawTrack;
+	struct DawMainStorage;
 
-  struct DawPropDrawParam {
-    DawProp * self;
-    IDawTrack * track;
-    int r,c;
-  };
+	struct DawPropDrawParam {
+		DawProp * self;
+		IDawTrack * track;
+		int r,c;
+	};
 
-  using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, IDawSeq * seq)>;
+	using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, IDawSeq * seq)>;
 
-  struct DawProp {
-    int         id;
-    std::string name;
-    int         w;
-    DawPropDrawFunc DrawProp{};
-  };
+	struct DawProp {
+		int         id;
+		std::string name;
+		int         w;
+		DawPropDrawFunc DrawProp{};
+	};
 
-  void DawMain(const char *label, IDawSeq * seq);
+	void DawMain(const char *label, IDawSeq * seq);
+
+// DawMainProject
+class DawMainProject {
+
+	HSCPP_TRACK(DawMainProject, "DawMainProject");
+
+public:
+	hscpp_virtual ~DawMainProject();
+    DawMainProject();
+	hscpp_virtual void Update();
+
+	void Draw(const char *label, IDawSeq *seq);
+
+	void Creating();
+    void Destroying();
+
+	//std::vector<std::unique_ptr<DawMainStorage>> m_storages;
+	std::unique_ptr<DawMainStorage> m_storage;
+	bool m_showDebug;
+	bool m_needRedraw;
+};
+
 };

@@ -51,6 +51,7 @@ MainWidget::MainWidget()
 		info.Save("showToolDebugLog", m_showToolDebugLog);
 		info.Save("showToolAbout",    m_showToolAbout);
 		info.Save("showSoundFont",    m_showSoundFont);
+		info.SaveMove("pDawMainProject", m_pDawMainProject);
     };
 
     Hscpp_SetSwapHandler(cb);
@@ -78,6 +79,8 @@ void MainWidget::Creating() {
     m_showToolDebugLog = false;
     m_showToolAbout    = false;
 	m_showSoundFont    = false;
+
+	m_pDawMainProject = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawMainProject>();
 }
 
 void MainWidget::Destroying() {
@@ -198,13 +201,7 @@ void MainWidget::Update() {
 	DemoUI();
 	MainMenuUI();
 
-	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-	if (ImGui::Begin("Vinfony Project")) {
-		ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
-		vinfony::DawMain("untitled", Globals::Resolve()->sequencer);
-		ImGui::PopStyleVar();
-	}
-	ImGui::End();
+	m_pDawMainProject->Update();
 }
 
 void MainWidget::DemoUI() {

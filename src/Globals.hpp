@@ -2,6 +2,7 @@
 
 #include "hscpp/module/GlobalUserData.h"
 #include "hscpp/mem/Ref.h"
+#include "hscpp/mem/MemoryManager.h"
 
 struct ImGuiContext;
 
@@ -19,11 +20,15 @@ public:
     }
 
     ImGuiContext* pImGuiContext{nullptr};
-    hscpp::mem::UniqueRef<MainWidget> pMainWidget;
+    hscpp::mem::MemoryManager *pMemoryManager{nullptr};
+
     IDawSeq *sequencer{nullptr};
+    hscpp::mem::UniqueRef<MainWidget> pMainWidget;
 
     float toolbarSize{50};
 	float menuBarHeight{0};
+
+
 };
 
 };

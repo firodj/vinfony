@@ -195,6 +195,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 
 	m_impl->swapper->SetGlobalUserData(m_impl->globals.get());
 
+	m_impl->globals->pMemoryManager = &m_impl->memoryManager;
 	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
 	m_impl->globals->pMainWidget = m_impl->memoryManager->Allocate<vinfony::MainWidget>();
 
