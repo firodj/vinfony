@@ -10,16 +10,20 @@
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"
 
-#include "Interfaces/DawSeq.hpp"
+#include "../IDawSeq.hpp"
 
 #include <fmt/core.h>
 #include <regex>
+
+#include "DawMain.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
 hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
+
+hscpp_require_source("DawMain.cpp")
 
 hscpp_if (os == "Windows")
     //hscpp_require_library("${buildPath}/Debug/imgui.lib")
@@ -42,36 +46,11 @@ namespace vinfony {
 MainWidget::MainWidget()
 {
     auto cb = [this](hscpp::SwapInfo& info) {
-        switch (info.Phase())
-        {
-        case hscpp::SwapPhase::BeforeSwap:
-            // This object is about to be deleted, so serialize out its state. Any type can be
-            // serialized so long as it has a default constructor and is copyable.
-           	info.Serialize("showDemoWindow",   m_showDemoWindow);
-			info.Serialize("showToolMetrics",  m_showToolMetrics);
-			info.Serialize("showToolDebugLog", m_showToolDebugLog);
-			info.Serialize("showToolAbout",    m_showToolAbout);
-			info.Serialize("showSoundFont",    m_showSoundFont);
-
-            break;
-        case hscpp::SwapPhase::AfterSwap:
-            // This object has just been created, replacing an older version.
-            info.Unserialize("showDemoWindow",   m_showDemoWindow);
-			info.Unserialize("showToolMetrics",  m_showToolMetrics);
-			info.Unserialize("showToolDebugLog", m_showToolDebugLog);
-			info.Unserialize("showToolAbout",    m_showToolAbout);
-			info.Unserialize("showSoundFont",    m_showSoundFont);
-
-            // This new object is in a new dynamic library, but it still has access to global data
-            // in GlobalUserData.
-            vinfony::Globals* globals = vinfony::Globals::Resolve();
-
-            // After recompiling Printer.cpp, old instances of the Printer class will have been deleted,
-            // so the entries in the global printers array point to invalid data. Replace these instances
-            // with the newly constructed Printers.
-            //globals->pMainWidget = this;
-            break;
-        }
+		info.Save("showDemoWindow",   m_showDemoWindow);
+		info.Save("showToolMetrics",  m_showToolMetrics);
+		info.Save("showToolDebugLog", m_showToolDebugLog);
+		info.Save("showToolAbout",    m_showToolAbout);
+		info.Save("showSoundFont",    m_showSoundFont);
     };
 
     Hscpp_SetSwapHandler(cb);
@@ -218,6 +197,14 @@ void MainWidget::Update() {
 
 	DemoUI();
 	MainMenuUI();
+
+	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+	if (ImGui::Begin("Vinfony Project")) {
+		ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
+		vinfony::DawMain("untitled", Globals::Resolve()->sequencer);
+		ImGui::PopStyleVar();
+	}
+	ImGui::End();
 }
 
 void MainWidget::DemoUI() {

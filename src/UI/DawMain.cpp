@@ -9,11 +9,35 @@
 #include "kosongg/Component.h"
 #include <fmt/core.h>
 #include "jdksmidi/track.h"
-#include <libassert/assert.hpp>
+//#include <libassert/assert.hpp>
 
-#include "../DawTrack.hpp"
-#include "../DawTrackNotes.hpp"
+//#include "DawTrack.hpp"
+//#include "DawTrackNotes.hpp"
 #include "UI.hpp"
+#include "IDawTrackNotes.hpp"
+#include "DawNote.hpp"
+
+hscpp_require_include_dir("${projPath}/src")
+hscpp_require_include_dir("${projPath}/kosongg/cpp")
+hscpp_require_include_dir("${projPath}/ext/jdksmidi/include")
+hscpp_require_include_dir("${projPath}/ext/imgui-docking")
+hscpp_require_include_dir("${projPath}/ext/fmt/include")
+
+hscpp_require_source("Splitter.cpp")
+
+hscpp_if (os == "Windows")
+  //hscpp_require_library("${buildPath}/Debug/imgui.lib")
+  hscpp_require_library("${projPath}/bin/jdksmidi.dll")
+
+hscpp_elif (os == "Posix")
+  //hscpp_require_library("${buildPath}/Debug/libjdksmidi.a")
+  hscpp_require_library("${projPath}/bin/libimgui.dylib")
+  hscpp_require_library("${projPath}/bin/libjdksmidi.dylib")
+  hscpp_require_library("${projPath}/bin/libfmtd.dylib")
+hscpp_else()
+  // Diagnostic messages can be printed to the build output with hscpp_message.
+  hscpp_message("Unknown OS ${os}.")
+hscpp_end()
 
 namespace ImGui {
   ImVec2 GetScroll()
@@ -37,6 +61,108 @@ namespace vinfony {
     int leftPadding  = 40;
     int rightPadding = 40;
   };
+
+      class DawTrackNotesUI: public IDawTrackNotes {
+        public:
+
+        // UI
+        int scrnpos_x{0};
+        int scrnpos_y{0};
+        int track_h{0};
+        //ImDrawList * draw_list{nullptr};
+        DawDisplayState * displayState {nullptr};
+        DawUIStyle * uiStyle {nullptr};
+        long visible_start_clk;
+
+        // Statistics
+        int notes_to_draw{0};
+        int notes_to_hide{0};
+        int cur_event_num{-1};
+        int start_show_event_num{-1};
+        long start_show_event_clk{-1};
+
+        std::unique_ptr<IDawTrackNotes> m_base;
+
+        DawTrackNotesUI(IDawSeq * seq) {
+          m_base = seq->CreateDawTrackNotes();
+          m_base->SetDerived(this);
+        }
+
+        bool NewNote(long t, unsigned char n) override {
+          if (!m_base->NewNote(t, n)) return false;
+          int slot = m_base->GetNoteValueToSlot(n);
+          if (slot == -1) return false;
+          DawNote * note_active = m_base->GetNoteActive(slot);
+          note_active->event_num = cur_event_num;
+          return true;
+        }
+
+        bool KillNote(long t, unsigned char n, bool destroy) override {
+          return m_base->KillNote(t, n, destroy);
+        }
+
+        void DrawNote(int slot) override {
+          if (m_base->GetNoteActive(slot)->stop >= visible_start_clk) {
+            auto drawList = ImGui::GetWindowDrawList();
+            float y0 = (track_h * (float)(127 - m_base->GetNoteActive(slot)->note)/ 128);
+
+            //assert (note_actives[slot].note >= 0 && note_actives[slot].note <= 127);
+
+            float nh = (float)track_h/128;
+            float x0 = (m_base->GetNoteActive(slot)->time - visible_start_clk);
+            float x1 = (m_base->GetNoteActive(slot)->stop - visible_start_clk);
+
+            x0 = x0 * uiStyle->beatWd / displayState->ppqn;
+            x1 = x1 * uiStyle->beatWd / displayState->ppqn;
+            if (x1 - x0 < 1.0f) x1 = x0 + 1.0f;
+
+            ImVec2 p1{scrnpos_x + x0, scrnpos_y + y0};
+            ImVec2 p2{scrnpos_x + x1, scrnpos_y + y0};
+            if (nh >= 1.0) {
+              p2.y  += nh;
+              drawList->AddRectFilled(p1, p2, IM_COL32(255,64,64, 255));
+            } else {
+              drawList->AddLine(p1, p2, IM_COL32(255,64,64, 255));
+            }
+
+            if (start_show_event_clk == -1 || m_base->GetNoteActive(slot)->time <= start_show_event_clk) {
+              if (start_show_event_num == -1 || m_base->GetNoteActive(slot)->event_num < start_show_event_num) {
+                start_show_event_clk = m_base->GetNoteActive(slot)->time;
+                start_show_event_num = m_base->GetNoteActive(slot)->event_num;
+              }
+            }
+
+            notes_to_draw++;
+          } else {
+            notes_to_hide++;
+          }
+        }
+
+        DawNote* GetNoteActive(int slot) override {
+          return m_base->GetNoteActive(slot);
+        }
+        int GetNoteValueToSlot(unsigned char n) override {
+          return m_base->GetNoteValueToSlot(n);
+        }
+        void ResetStats() override {
+          return m_base->ResetStats();
+        }
+        void NoteOn(long t, char n, char v) override {
+          return m_base->NoteOn(t, n, v);
+        }
+        void NoteOff(long t, char n) override {
+          return m_base->NoteOff(t, n);
+        }
+        void ClipOff(long t) override {
+          return m_base->ClipOff(t);
+        }
+        int GetNoteProcessed() override {
+          return m_base->GetNoteProcessed();
+        }
+        void SetDerived(IDawTrackNotes *derived) override {
+          (void)derived;
+        }
+      };
 
   struct DawMainStorage {
     float scroll_y = 0.0f;
@@ -79,7 +205,7 @@ namespace vinfony {
   void InitDawMainStorage(DawMainStorage & storage) {
     int id;
     // Properties
-    id = NewProp(storage, "No", [](DawPropDrawParam * param, DawSeq *seq) {
+    id = NewProp(storage, "No", [](DawPropDrawParam * param, IDawSeq *seq) {
       (void)seq;
 
       std::string label = fmt::format("{:3d}", param->r);
@@ -90,12 +216,12 @@ namespace vinfony {
     });
     storage.props[id]->w = 20;
 
-    NewProp(storage, "Name", [](DawPropDrawParam * param, DawSeq *seq) {
+    NewProp(storage, "Name", [](DawPropDrawParam * param, IDawSeq *seq) {
       (void)seq;
 
-      ImGui::Text("%s", param->track->name.c_str() );
+      ImGui::Text("%s", param->track->GetName() );
     });
-    NewProp(storage, "Channel", [](DawPropDrawParam * param, DawSeq *seq) {
+    NewProp(storage, "Channel", [](DawPropDrawParam * param, IDawSeq *seq) {
       (void)seq;
 #if 0
       auto p1 = ImGui::GetCursorScreenPos();
@@ -106,67 +232,67 @@ namespace vinfony {
       const char* items[] = {"-", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"};
 
       ImGui::SetNextItemWidth(param->self->w);
-      ImGui::PushID(param->track->id);
-      ImGui::Combo("##channel", (int*)&param->track->ch, items, IM_ARRAYSIZE(items));
+      ImGui::PushID(param->track->GetId());
+      ImGui::Combo("##channel", (int*)&param->track->GetCh(), items, IM_ARRAYSIZE(items));
       ImGui::PopID();
     });
-    id = NewProp(storage, "Instrument", [](DawPropDrawParam * param, DawSeq *seq) {
+    id = NewProp(storage, "Instrument", [](DawPropDrawParam * param, IDawSeq *seq) {
       (void)seq;
 
-      if (param->track->pg) {
-        int grpdrum = param->track->GetGetDrumPart();
+      if (param->track->GetPg()) {
+        int grpdrum = param->track->GetDrumPart();
         if (!grpdrum)
-          ImGui::Text("%s (%04Xh : %d) ", GetStdProgramName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
+          ImGui::Text("%s (%04Xh : %d) ", seq->GetStdProgramName(param->track->GetPg()), param->track->GetBank() & 0x7FFF, param->track->GetPg() );
         else
-          ImGui::Text("%s (%04Xh : %d) ", GetStdDrumName(param->track->pg), param->track->bank & 0x7FFF, param->track->pg );
+          ImGui::Text("%s (%04Xh : %d) ", seq->GetStdDrumName(param->track->GetPg()), param->track->GetBank() & 0x7FFF, param->track->GetPg() );
       }
       else
         ImGui::Text("----");
     });
     storage.props[id]->w = 200;
-    id = NewProp(storage, "Volume", [](DawPropDrawParam * param, DawSeq *seq) {
-      if (param->track->ch) {
-        ImGui::PushID(param->track->id);
+    id = NewProp(storage, "Volume", [](DawPropDrawParam * param, IDawSeq *seq) {
+      if (param->track->GetCh()) {
+        ImGui::PushID(param->track->GetId());
         ImGui::SetNextItemWidth(param->self->w);
-        if (ImGui::SliderInt("##volume", &param->track->midiVolume, 0, 16383)) {
-          if (param->track->ch)
-            seq->SendVolume(param->track->ch-1, param->track->midiVolume);
+        if (ImGui::SliderInt("##volume", &param->track->GetMidiVolume(), 0, 16383)) {
+          if (param->track->GetCh())
+            seq->SendVolume(param->track->GetCh()-1, param->track->GetMidiVolume());
         }
         ImGui::PopID();
       } else
         ImGui::Text("----");
     });
-    id = NewProp(storage, "Pan", [](DawPropDrawParam * param, DawSeq *seq) {
-      if (param->track->ch) {
-        ImGui::PushID(param->track->id);
+    id = NewProp(storage, "Pan", [](DawPropDrawParam * param, IDawSeq *seq) {
+      if (param->track->GetCh()) {
+        ImGui::PushID(param->track->GetId());
         ImGui::SetNextItemWidth(param->self->w);
-        if (ImGui::SliderInt("##pan", &param->track->midiPan, 0, 16383)) {
-          if (param->track->ch)
-            seq->SendPan(param->track->ch-1, param->track->midiPan);
+        if (ImGui::SliderInt("##pan", &param->track->GetMidiPan(), 0, 16383)) {
+          if (param->track->GetCh())
+            seq->SendPan(param->track->GetCh()-1, param->track->GetMidiPan());
         }
         ImGui::PopID();
       } else
         ImGui::Text("----");
     });
-    id = NewProp(storage, "Fc", [](DawPropDrawParam * param, DawSeq *seq) {
-      if (param->track->ch) {
-        ImGui::PushID(param->track->id);
+    id = NewProp(storage, "Fc", [](DawPropDrawParam * param, IDawSeq *seq) {
+      if (param->track->GetCh()) {
+        ImGui::PushID(param->track->GetId());
         ImGui::SetNextItemWidth(param->self->w);
-        if (ImGui::SliderInt("##fc", &param->track->midiFilterFc, 0, 127)) {
-          if (param->track->ch)
-            seq->SendFilter(param->track->ch-1, param->track->midiFilterFc, param->track->midiFilterQ);
+        if (ImGui::SliderInt("##fc", &param->track->GetMidiFilterFc(), 0, 127)) {
+          if (param->track->GetCh())
+            seq->SendFilter(param->track->GetCh()-1, param->track->GetMidiFilterFc(), param->track->GetMidiFilterQ());
         }
         ImGui::PopID();
       } else
         ImGui::Text("----");
     });
-    id = NewProp(storage, "Q", [](DawPropDrawParam * param, DawSeq *seq) {
-      if (param->track->ch) {
-        ImGui::PushID(param->track->id);
+    id = NewProp(storage, "Q", [](DawPropDrawParam * param, IDawSeq *seq) {
+      if (param->track->GetCh()) {
+        ImGui::PushID(param->track->GetId());
         ImGui::SetNextItemWidth(param->self->w);
-        if (ImGui::SliderInt("##q", &param->track->midiFilterQ, 0, 127)) {
-          if (param->track->ch)
-            seq->SendFilter(param->track->ch-1, param->track->midiFilterQ, param->track->midiFilterQ);
+        if (ImGui::SliderInt("##q", &param->track->GetMidiFilterQ(), 0, 127)) {
+          if (param->track->GetCh())
+            seq->SendFilter(param->track->GetCh()-1, param->track->GetMidiFilterQ(), param->track->GetMidiFilterQ());
         }
         ImGui::PopID();
       } else
@@ -174,7 +300,7 @@ namespace vinfony {
     });
   }
 
-  void DawMain(const char *label, DawSeq *seq) {
+  void DawMain(const char *label, IDawSeq *seq) {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
@@ -232,7 +358,7 @@ namespace vinfony {
       if (seq->IsFileLoaded()) {
         float pos_y = xy0.y + h0;
         for (int r=0; r<seq->GetNumTracks(); r++) {
-          DawTrack * track = seq->GetTrack(r);
+          IDawTrack * track = seq->GetTrack(r);
           float pos_x = xy0.x;
           ImGui::SetCursorPosY(pos_y);
 
@@ -250,7 +376,7 @@ namespace vinfony {
               if (c > 0) ImGui::SameLine();
               ImGui::SetCursorPosX(pos_x);
               auto p1 = ImGui::GetCursorScreenPos();
-              auto p2 = p1 + ImVec2{(float)param.self->w, (float)param.track->h};
+              auto p2 = p1 + ImVec2{(float)param.self->w, (float)param.track->GetH()};
               ImGui::PushClipRect(p1, p2, true);
               prop->DrawProp(&param, seq);
               ImGui::PopClipRect();
@@ -261,9 +387,9 @@ namespace vinfony {
 
           // Draw Border R-Left
           pos_x = xy0.x;
-          pos_y += track->h;
+          pos_y += track->GetH();
           ImGui::PushID(r);
-          HSplitter({pos_x, pos_y}, tot_w, [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); });
+          HSplitter({pos_x, pos_y}, tot_w, [&]() { track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f); });
           ImGui::PopID();
 
           // Move to Next Row
@@ -316,7 +442,7 @@ namespace vinfony {
 
       //auto avail = ImGui::GetContentRegionAvail();
 
-      float far_x = storage.uiStyle.leftPadding + (seq->displayState.play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding;
+      float far_x = storage.uiStyle.leftPadding + (seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding;
       {
         auto xy0 = ImGui::GetCursorPos();
         ImGui::SetCursorPos({far_x, 0});
@@ -341,11 +467,11 @@ namespace vinfony {
         drawList->AddRectFilled({ wndpos.x, scrnpos.y}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Header));
         drawList->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+h0}, ImVec2{scrnmax.x, scrnpos.y+h0}, ImGui::GetColorU32(ImGuiCol_Border));
         int event_num = 0;
-        DawTrack * track0 = seq->IsFileLoaded() ? seq->GetTrack(0) :  nullptr;
+        IDawTrack * track0 = seq->IsFileLoaded() ? seq->GetTrack(0) :  nullptr;
         jdksmidi::MIDIClockTime cur_clk = 0, next_timesig_clk = 0;
         int timesig_numerator = 4;  // beats per measure
         int timesig_denominator = 4;  // width of beat
-        float beat_clk = seq->displayState.ppqn * 4.0f/timesig_denominator;
+        float beat_clk = seq->GetDisplayState()->ppqn * 4.0f/timesig_denominator;
         bool show_timesig = true;
         //float max_clk = scrnmax.x - scrnpos.x / storage.uiStyle.beatWd;
 
@@ -354,13 +480,13 @@ namespace vinfony {
 
           if (track0) {
 
-            while ( event_num < track0->midi_track->GetNumEvents() ) {
-              msg = track0->midi_track->GetEvent(event_num);
+            while ( event_num < track0->GetMidiTrack()->GetNumEvents() ) {
+              msg = track0->GetMidiTrack()->GetEvent(event_num);
               if (msg->IsTimeSig()) {
                 if (msg->GetTime() == cur_clk) {
                   timesig_numerator = msg->GetTimeSigNumerator();
                   timesig_denominator = msg->GetTimeSigDenominator();
-                  beat_clk = seq->displayState.ppqn * 4.0f/timesig_denominator;
+                  beat_clk = seq->GetDisplayState()->ppqn * 4.0f/timesig_denominator;
                   b = 0;
                   show_timesig = true;
                 } else {
@@ -391,7 +517,7 @@ namespace vinfony {
             next_timesig_clk = 0;
           }
 
-          scrnpos.x += storage.uiStyle.beatWd * delta_clk / seq->displayState.ppqn;
+          scrnpos.x += storage.uiStyle.beatWd * delta_clk / seq->GetDisplayState()->ppqn;
           cur_clk += delta_clk;
 
           b++;
@@ -404,7 +530,7 @@ namespace vinfony {
       // Cursor
       float cursor_x = storage.is_cursor_dragging ?
         storage.dragging_cursor_x :
-        storage.uiStyle.beatWd * seq->displayState.play_cursor;
+        storage.uiStyle.beatWd * seq->GetDisplayState()->play_cursor;
 
       {
         auto drawList = ImGui::GetWindowDrawList();
@@ -424,7 +550,7 @@ namespace vinfony {
             storage.dragging_cursor_x =
               ImClamp(storage.dragging_cursor_x + ImGui::GetIO().MouseDelta.x,
                 0.0f,
-                seq->displayState.play_duration * storage.uiStyle.beatWd);
+                seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd);
             storage.is_cursor_dragging = true;
           }
         }
@@ -451,72 +577,10 @@ namespace vinfony {
       auto v_p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
       auto v_p2 = v_p1 + wndsz.x;
 
-      long visible_clk_p1 = v_p1 * (float) seq->displayState.ppqn  / (storage.uiStyle.beatWd);
-      long visible_clk_p2 = v_p2 * (float) seq->displayState.ppqn  / (storage.uiStyle.beatWd);
+      long visible_clk_p1 = v_p1 * (float) seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
+      long visible_clk_p2 = v_p2 * (float) seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
 
-      class DawTrackNotesUI: public DawTrackNotes {
-        public:
 
-        // UI
-        int scrnpos_x{0};
-        int scrnpos_y{0};
-        int track_h{0};
-        //ImDrawList * draw_list{nullptr};
-        DawDisplayState * displayState {nullptr};
-        DawUIStyle * uiStyle {nullptr};
-        long visible_start_clk;
-
-        // Statistics
-        int notes_to_draw{0};
-        int notes_to_hide{0};
-        int cur_event_num{-1};
-        int start_show_event_num{-1};
-        long start_show_event_clk{-1};
-
-        bool NewNote(long t, unsigned char n) override {
-          if (!DawTrackNotes::NewNote(t, n)) return false;
-          int slot = note_value_to_slot[n];
-          if (slot == -1) return false;
-          auto &note_active = note_actives[slot];
-          note_active.event_num = cur_event_num;
-          return true;
-        }
-
-        void DrawNote(int slot) override {
-          if (note_actives[slot].stop >= visible_start_clk) {
-            auto drawList = ImGui::GetWindowDrawList();
-            float y0 = (track_h * (float)(127 - note_actives[slot].note)/ 128);
-            assert (note_actives[slot].note >= 0 && note_actives[slot].note <= 127);
-            float nh = (float)track_h/128;
-            float x0 = (note_actives[slot].time - visible_start_clk);
-            float x1 = (note_actives[slot].stop - visible_start_clk);
-
-            x0 = x0 * uiStyle->beatWd / displayState->ppqn;
-            x1 = x1 * uiStyle->beatWd / displayState->ppqn;
-            if (x1 - x0 < 1.0f) x1 = x0 + 1.0f;
-
-            ImVec2 p1{scrnpos_x + x0, scrnpos_y + y0};
-            ImVec2 p2{scrnpos_x + x1, scrnpos_y + y0};
-            if (nh >= 1.0) {
-              p2.y  += nh;
-              drawList->AddRectFilled(p1, p2, IM_COL32(255,64,64, 255));
-            } else {
-              drawList->AddLine(p1, p2, IM_COL32(255,64,64, 255));
-            }
-
-            if (start_show_event_clk == -1 || note_actives[slot].time <= start_show_event_clk) {
-              if (start_show_event_num == -1 || note_actives[slot].event_num < start_show_event_num) {
-                start_show_event_clk = note_actives[slot].time;
-                start_show_event_num = note_actives[slot].event_num;
-              }
-            }
-
-            notes_to_draw++;
-          } else {
-            notes_to_hide++;
-          }
-        }
-      };
 
       int dbg_start_show_event_num = -1;
       int dbg_notes_to_draw = 0, dbg_notes_to_hide = 0, dbg_notes_processed = 0;
@@ -528,28 +592,28 @@ namespace vinfony {
         float pos_y = 0 + h0;
 
         for (int r=0; r<seq->GetNumTracks(); r++) {
-          DawTrack * track = seq->GetTrack(r);
+          IDawTrack * track = seq->GetTrack(r);
 
-          DawTrackNotesUI trackNotes{};
+          DawTrackNotesUI trackNotes(seq);
           trackNotes.visible_start_clk = visible_clk_p1;
-          trackNotes.displayState = &seq->displayState;
+          trackNotes.displayState = seq->GetDisplayState();
           trackNotes.uiStyle = &storage.uiStyle;
           trackNotes.scrnpos_x = wndpos.x + pos_x;
           trackNotes.scrnpos_y = wndpos.y - storage.scroll_y + pos_y;
-          trackNotes.track_h = track->h;
+          trackNotes.track_h = track->GetH();
           trackNotes.start_show_event_num = -1;
           trackNotes.start_show_event_clk = -1;
           int event_num = 0;
 
-          if (track->viewcache_start_visible_clk >= 0 && track->viewcache_start_visible_clk <= visible_clk_p1) {
-            event_num = track->viewcache_start_event_num;
+          if (track->GetViewcacheStartVisibleClk() >= 0 && track->GetViewcacheStartVisibleClk() <= visible_clk_p1) {
+            event_num = track->GetViewcacheStartEventNum();
           }
 
           ImGui::PushID(r);
 
-          for (; event_num < track->midi_track->GetNumEvents(); ++event_num) {
+          for (; event_num < track->GetMidiTrack()->GetNumEvents(); ++event_num) {
             trackNotes.cur_event_num = event_num;
-            const jdksmidi::MIDITimedBigMessage * msg = track->midi_track->GetEvent(event_num);
+            const jdksmidi::MIDITimedBigMessage * msg = track->GetMidiTrack()->GetEvent(event_num);
             if ((signed long)msg->GetTime() >= visible_clk_p2) break; // event is ordered by time
 
             if (msg->IsNoteOn()) {
@@ -561,28 +625,28 @@ namespace vinfony {
 
           trackNotes.ClipOff(visible_clk_p2);
 
-          pos_y += track->h;
-          HSplitter({pos_x, pos_y}, storage.uiStyle.leftPadding + (seq->displayState.play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding,
-            [&]() { track->h = ImMax(track->h + ImGui::GetIO().MouseDelta.y, 20.0f); }
+          pos_y += track->GetH();
+          HSplitter({pos_x, pos_y}, storage.uiStyle.leftPadding + (seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding,
+            [&]() { track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f); }
           );
           ImGui::PopID();
           pos_y += 8;
 
-          if (visible_clk_p1 >= track->viewcache_start_visible_clk) {
-            track->viewcache_start_visible_clk = visible_clk_p1;
+          if (visible_clk_p1 >= track->GetViewcacheStartVisibleClk()) {
+            track->GetViewcacheStartVisibleClk() = visible_clk_p1;
             if (trackNotes.start_show_event_num != -1)
-              track->viewcache_start_event_num = trackNotes.start_show_event_num;
+              track->GetViewcacheStartEventNum() = trackNotes.start_show_event_num;
           } else {
-            track->viewcache_start_visible_clk = -1;
-            track->viewcache_start_event_num = 0;
+            track->GetViewcacheStartVisibleClk() = -1;
+            track->GetViewcacheStartEventNum() = 0;
           }
 
-          if (track->id == 5) { // only  check one track
-            dbg_start_show_event_num = track->viewcache_start_event_num;
+          if (track->GetId() == 5) { // only  check one track
+            dbg_start_show_event_num = track->GetViewcacheStartEventNum();
           }
           dbg_notes_to_draw   += trackNotes.notes_to_draw;
           dbg_notes_to_hide   += trackNotes.notes_to_hide;
-          dbg_notes_processed += trackNotes.notes_processed;
+          dbg_notes_processed += trackNotes.GetNoteProcessed();
         }
       }
       ImGui::PopClipRect();

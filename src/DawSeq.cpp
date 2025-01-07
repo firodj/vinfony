@@ -28,8 +28,10 @@ using namespace std::chrono_literals;
 #include <fmt/color.h>
 
 #include "TsfDev.hpp"
+#include "DawDisplay.hpp"
 #include "DawTrack.hpp"
 #include "DawDoc.hpp"
+#include "DawTrackNotes.hpp"
 
 namespace vinfony {
 
@@ -55,6 +57,8 @@ namespace vinfony {
     bool is_rewinding{false};
 
     DawSeq * self;
+
+    DawDisplayState displayState;
 
     Impl(DawSeq * owner): self(owner) {};
   };
@@ -85,6 +89,10 @@ namespace vinfony {
     AsyncPlayMIDIStopped();
   }
 
+  DawDisplayState *DawSeq::GetDisplayState() {
+    return &m_impl->displayState;
+  }
+
   void DawSeq::ProcessMessage(std::function<bool(SeqMsg&)> proc) {
     SeqMsg msg;
     while (m_impl->seqMessaging.pop(msg)) {
@@ -100,10 +108,10 @@ namespace vinfony {
 
     if (m_impl->doc && m_impl->doc->GetPPQN()) {
       if (m_impl->midi_seq && !IsPlaying()) m_impl->midi_seq->GoToTime( m_impl->clk_play_start_time );
-      displayState.play_cursor = (float)clk_time/m_impl->doc->GetPPQN();
+      m_impl->displayState.play_cursor = (float)clk_time/m_impl->doc->GetPPQN();
       if (m_impl->clk_play_start_time == 0) m_impl->is_rewinding = true;
     } else
-      displayState.play_cursor = 0;
+      m_impl->displayState.play_cursor = 0;
 
     m_impl->read_clk_play_start =  true;
   }
@@ -161,13 +169,13 @@ namespace vinfony {
       if (track->ch && track->midiFilterQ == -1)  track->midiFilterQ = 64;
     }
 
-    displayState.ppqn = m_impl->doc->GetPPQN();
-    fmt::println("Clocks per beat = {}", displayState.ppqn);
+    m_impl->displayState.ppqn = m_impl->doc->GetPPQN();
+    fmt::println("Clocks per beat = {}", m_impl->displayState.ppqn);
 
     m_impl->midi_seq = std::make_unique<jdksmidi::MIDISequencer>( m_impl->doc->m_midiMultiTrack.get() );
 
     CalcDuration();
-    fmt::println("Duration {} ms / {} beat", displayState.duration_ms, displayState.play_duration);
+    fmt::println("Duration {} ms / {} beat", m_impl->displayState.duration_ms, m_impl->displayState.play_duration);
     SetPlayClockTime(0);
 
     return true;
@@ -195,8 +203,8 @@ namespace vinfony {
           clk_time   = m_impl->midi_seq->GetCurrentMIDIClockTime();
       }
 
-      displayState.duration_ms = event_time;
-      displayState.play_duration = clk_time / m_impl->doc->GetPPQN();
+      m_impl->displayState.duration_ms = event_time;
+      m_impl->displayState.play_duration = clk_time / m_impl->doc->GetPPQN();
     }
   }
 
@@ -216,7 +224,7 @@ namespace vinfony {
     }
 
     m_impl->clk_play_start_time = time;
-    displayState.play_cursor = (float)time/ppqn;
+    m_impl->displayState.play_cursor = (float)time/ppqn;
   }
 
   float DawSeq::GetTempoBPM() {
@@ -230,7 +238,7 @@ namespace vinfony {
     if (m_impl->midi_seq) {
       m = m_impl->midi_seq->GetCurrentMeasure() + 1;
       b = m_impl->midi_seq->GetCurrentBeat() + 1;
-      t = displayState.ppqn > 0 ? (int)(displayState.play_cursor * displayState.ppqn) % displayState.ppqn : 0;
+      t = m_impl->displayState.ppqn > 0 ? (int)(m_impl->displayState.play_cursor * m_impl->displayState.ppqn) % m_impl->displayState.ppqn : 0;
     } else {
       m = 0;
       b = 0;
@@ -478,7 +486,7 @@ namespace vinfony {
   }
 
   // TODO: refactor
-  DawTrack * DawSeq::GetTrack(int track_num) {
+  IDawTrack * DawSeq::GetTrack(int track_num) {
     return m_impl->doc->GetTrack(track_num);
   }
 
@@ -618,4 +626,9 @@ static long processing_samples = 0;
   TinySoundFontDevice * DawSeq::GetTSFDevice() {
     return m_impl->tsfdev;
   }
+
+  std::unique_ptr<IDawTrackNotes> DawSeq::CreateDawTrackNotes() {
+    std::unique_ptr<IDawTrackNotes> obj = std::unique_ptr<IDawTrackNotes>(new DawTrackNotes());
+    return obj;
+  };
 }

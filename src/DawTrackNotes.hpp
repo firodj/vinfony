@@ -1,19 +1,11 @@
 #pragma once
 
-#include "DawSeq.hpp"
+#include "IDawTrackNotes.hpp"
+#include "DawNote.hpp"
 
 namespace vinfony {
 
-struct DawNote {
-  long time;
-  long stop;
-  unsigned char note;
-  int event_num;
-  int used_prev;
-  int used_next;
-};
-
-class DawTrackNotes {
+class DawTrackNotes: public IDawTrackNotes {
 public:
   int note_value_to_slot[128];
   DawNote note_actives[128];
@@ -26,20 +18,23 @@ public:
   // Statistics
   int notes_processed{0};
   bool dbg_notesDisOrder{false};
+  IDawTrackNotes *m_derived;
 
   DawTrackNotes();
-  void NoteOn(long t, char n, char v) ;
+  void NoteOn(long t, char n, char v) override;
   void DumpDbg();
-  void NoteOff(long t, char n);
-  void ClipOff(long t);
+  void NoteOff(long t, char n) override;
+  void ClipOff(long t) override;
 
-  virtual void DrawNote(int slot);
+  bool NewNote(long t, unsigned char n) override;
+  bool KillNote(long t, unsigned char n, bool destroy) override;
+  void DrawNote(int slot) override;
   void Reset();
-  virtual void ResetStats();
-
-protected:
-  virtual bool NewNote(long t, unsigned char n);
-  virtual bool KillNote(long t, unsigned char n, bool destroy);
+  void ResetStats() override;
+  DawNote* GetNoteActive(int slot) override { return &note_actives[slot]; };
+	int GetNoteValueToSlot(unsigned char n) override { return note_value_to_slot[n]; };
+  int GetNoteProcessed() override { return notes_processed; }
+  void SetDerived(IDawTrackNotes *derived) override { m_derived = derived; };
 };
 
 };

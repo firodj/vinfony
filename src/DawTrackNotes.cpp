@@ -26,7 +26,7 @@
 
 namespace vinfony {
 
-DawTrackNotes::DawTrackNotes() {
+DawTrackNotes::DawTrackNotes(): m_derived(this) {
   Reset();
   ResetStats();
 }
@@ -101,8 +101,8 @@ void DawTrackNotes::NoteOn(long t, char n, char v) {
     }
   }
 #endif
-  NoteOff(t, n);
-  if (v > 0) NewNote(t, n);
+  m_derived->NoteOff(t, n);
+  if (v > 0) m_derived->NewNote(t, n);
 }
 
 void DawTrackNotes::DumpDbg() {
@@ -139,7 +139,7 @@ void DawTrackNotes::NoteOff(long t, char n) {
     }
   }
 #endif
-  KillNote(t, n, true);
+  m_derived->KillNote(t, n, true);
 }
 
 bool DawTrackNotes::KillNote(long t, unsigned char n, bool destroy) {
@@ -152,7 +152,7 @@ bool DawTrackNotes::KillNote(long t, unsigned char n, bool destroy) {
   DEBUG_ASSERT((int)note_active.note == (int)n);
   note_value_to_slot[n] = -1;
 
-  DrawNote(slot);
+  m_derived->DrawNote(slot);
 
   if (destroy) {
     if (note_active.used_prev != -1) {
@@ -188,12 +188,13 @@ void DawTrackNotes::ClipOff(long t) {
     note_active = &note_actives[slot];
 
     DEBUG_ASSERT(note_value_to_slot[note_active->note] != -1);
-    KillNote(t, note_active->note, false);
+    m_derived->KillNote(t, note_active->note, false);
   }
   Reset();
 }
 
 void DawTrackNotes::DrawNote(int slot) {
+  fmt::println("TODO: DrawNote %d\n", slot);
 }
 
 }

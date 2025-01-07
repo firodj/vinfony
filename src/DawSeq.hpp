@@ -5,8 +5,7 @@
 #include <memory>
 
 #include "circularfifo1.h"
-#include "DawDisplay.hpp"
-#include "Interfaces/DawSeq.hpp"
+#include "IDawSeq.hpp"
 
 // Config
 #define USE_BASSMIDI 1
@@ -19,7 +18,7 @@ namespace jdksmidi {
 namespace vinfony {
   class TinySoundFontDevice;
   class BassMidiDevice;
-  class DawTrack;
+  class IDawTrack;
 
   enum {
     IsAsyncPlayMIDITerminated = 1,
@@ -39,7 +38,7 @@ namespace vinfony {
     }
   };
 
-  class DawSeq: public DawSeqI {
+  class DawSeq: public IDawSeq {
   private:
     struct Impl;
     std::unique_ptr<Impl> m_impl{};
@@ -61,11 +60,11 @@ namespace vinfony {
     void SetMIDITimeBeat(float time_beat) override;
     void ProcessMessage(std::function<bool(SeqMsg&)> proc);
     void CalcDuration();
-    DawTrack * GetTrack(int track_num);
-    int GetNumTracks();
+    IDawTrack * GetTrack(int track_num) override;
+    int GetNumTracks() override;
     void SetPlayClockTime(unsigned long clk_time);
-    bool IsRewinding();
-    bool IsPlaying();
+    bool IsRewinding() override;
+    bool IsPlaying() override;
     void AllMIDINoteOff();
     void SetTSFDevice(TinySoundFontDevice *dev);
     void SetBASSDevice(BassMidiDevice *dev);
@@ -73,12 +72,16 @@ namespace vinfony {
     void RenderMIDICallback(uint8_t * stream, int len);
     float GetTempoBPM() override;
     void GetCurrentMBT(int &m, int &b, int &t) override;
-    void SendVolume(int chan, unsigned short value);
-    void SendPan(int chan, unsigned short value);
-    void SendFilter(int chan, unsigned short valFc, unsigned short valQ);
+    void SendVolume(int chan, unsigned short value) override;
+    void SendPan(int chan, unsigned short value) override;
+    void SendFilter(int chan, unsigned short valFc, unsigned short valQ) override;
     TinySoundFontDevice * GetTSFDevice();
     BassMidiDevice * GetBASSDevice();
+    DawDisplayState *GetDisplayState() override;
 
-    DawDisplayState displayState;
+    const char * GetStdProgramName(int pg) override;
+    const char * GetStdDrumName(int pg) override;
+
+    std::unique_ptr<IDawTrackNotes> CreateDawTrackNotes() override;
   };
 };

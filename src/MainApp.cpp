@@ -19,6 +19,7 @@
 #include <ifd/ImFileDialog_opengl.hpp>
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"
+#include "kosongg/GLUtil.h"
 #include <kosongg/GetExeDirectory.h>
 #include <fmt/core.h>
 #include <regex>
@@ -125,7 +126,7 @@ void MainApp::RunImGui() {
 	}
 	ImGui::End();
 #endif
-
+#if 0
 	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
 	if (ImGui::Begin("Vinfony Project")) {
 		ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
@@ -133,7 +134,7 @@ void MainApp::RunImGui() {
 		ImGui::PopStyleVar();
 	}
 	ImGui::End();
-
+#endif
 	if (m_impl->showSoundFont) {
 		ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
 		if (ImGui::Begin("SoundFont", &m_impl->showSoundFont)) {
@@ -215,7 +216,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 	m_impl->sequencer.SetTSFDevice( m_impl->tsfdev.get() );
 	m_impl->sequencer.SetBASSDevice( m_impl->bassdev.get() );
 
-	bool ret = vinfony::LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
+	bool ret = kosongg::LoadTextureFromFile(GetResourcePath("images", "piano.png").c_str(), &m_impl->texPiano, &m_impl->pianoWidth, &m_impl->pianoHeight);
 	fmt::println("Loading images piano.png, status: {}", ret);
 }
 

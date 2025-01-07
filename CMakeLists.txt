@@ -67,6 +67,7 @@ set(SOURCE
   src/MainApp.cpp
   src/UI/DawMain.cpp
   src/DawSeq.cpp
+  src/DawSeqNames.cpp
   src/TsfDev.cpp
   src/Misc.cpp
   src/BaseMidiOut.cpp

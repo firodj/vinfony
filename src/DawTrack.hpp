@@ -1,8 +1,9 @@
 #pragma once
 
-#include <string>
 #include <functional>
 #include <memory>
+
+#include "IDawTrack.hpp"
 
 namespace jdksmidi
 {
@@ -15,7 +16,7 @@ namespace vinfony
 
 	class DawSeq;
 
-	class DawTrack {
+	class DawTrack: public IDawTrack {
 	public:
 		int id{0};
 		std::string name;
@@ -35,14 +36,27 @@ namespace vinfony
 		void SetVolume(const jdksmidi::MIDIBigMessage * msg);
 		void SetPan(const jdksmidi::MIDIBigMessage * msg);
 		void SetFilter(const jdksmidi::MIDIBigMessage * msg);
-		int GetGetDrumPart();
+		int GetDrumPart() override;
 		void SetSeq(DawSeq * seq) { m_seq = seq; }
+
+		unsigned int & GetCh() override { return ch; }
+		unsigned int GetPg() override { return pg; }
+		unsigned int GetBank() override { return bank; }
+		const char * GetName() override { return name.c_str(); }
+		int GetId() override { return id; }
+		int & GetMidiVolume() override { return midiVolume; }
+		int & GetMidiPan() override { return midiPan; }
+		int & GetMidiFilterFc() override { return midiFilterFc; }
+		int & GetMidiFilterQ() override { return midiFilterQ; }
+		int & GetH() override { return h; }
+		jdksmidi::MIDITrack * GetMidiTrack() override { return midi_track.get(); }
+
+		int & GetViewcacheStartEventNum() override { return viewcache_start_event_num; }
+		long & GetViewcacheStartVisibleClk() override { return viewcache_start_visible_clk; }
 
 	protected:
 		DawSeq * m_seq{nullptr};
 	};
 
-	const char * GetStdProgramName(int pg);
-	const char * GetStdDrumName(int pg);
 
 };

@@ -4,8 +4,11 @@
 #include <string>
 #include <functional>
 
-#include "../DawDisplay.hpp"
-#include "../DawSeq.hpp"
+#include "hscpp/module/PreprocessorMacros.h" // Added so macros are available when using a tracked class.
+
+#include "DawDisplay.hpp"
+#include "../IDawSeq.hpp"
+#include "../IDawTrack.hpp"
 
 namespace vinfony {
   struct DawProp;
@@ -13,11 +16,11 @@ namespace vinfony {
 
   struct DawPropDrawParam {
     DawProp * self;
-    DawTrack * track;
+    IDawTrack * track;
     int r,c;
   };
 
-  using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, DawSeq * seq)>;
+  using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, IDawSeq * seq)>;
 
   struct DawProp {
     int         id;
@@ -26,5 +29,5 @@ namespace vinfony {
     DawPropDrawFunc DrawProp{};
   };
 
-  void DawMain(const char *label, DawSeq * seq);
+  void DawMain(const char *label, IDawSeq * seq);
 };
