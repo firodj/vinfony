@@ -15,7 +15,7 @@
 #include <fmt/core.h>
 #include <regex>
 
-#include "DawMain.hpp"
+#include "DawMainProject.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
@@ -23,13 +23,14 @@ hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
-hscpp_require_source("DawMain.cpp")
+//hscpp_require_source("DawMainProject.cpp")
 
 hscpp_if (os == "Windows")
     //hscpp_require_library("${buildPath}/Debug/imgui.lib")
     hscpp_require_library("${projPath}/bin/imgui.dll")
     hscpp_require_library("${projPath}/bin/fmtd.dll")
 	hscpp_require_library("${projPath}/bin/ifd.dll")
+	hscpp_require_library("${projPath}/bin/hscpp-mem.dll")
 hscpp_elif (os == "Posix")
     //hscpp_require_library("${buildPath}/Debug/libimgui.a")
     hscpp_require_library("${projPath}/bin/libimgui.dylib")
@@ -164,7 +165,7 @@ void MainWidget::ToolbarUI()
 		globals->sequencer->AsyncPlayMIDI();
 	}
 	ImGui::SameLine();
-	if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
+	if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop2")) {
 		globals->sequencer->StopMIDI();
 	}
 	ImGui::SameLine();

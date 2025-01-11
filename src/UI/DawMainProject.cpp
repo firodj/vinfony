@@ -1,4 +1,4 @@
-#include "DawMain.hpp"
+#include "DawMainProject.hpp"
 
 #include <map>
 #include <memory>
@@ -18,6 +18,8 @@
 #include "DawNote.hpp"
 #include "../Globals.hpp"
 
+hscpp_module("DawMainProject");
+
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
 hscpp_require_include_dir("${projPath}/ext/jdksmidi/include")
@@ -25,7 +27,7 @@ hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
-hscpp_require_source("Splitter.cpp")
+//hscpp_require_source("Splitter.cpp")
 
 hscpp_if (os == "Windows")
 	//hscpp_require_library("${buildPath}/Debug/imgui.lib")
@@ -302,10 +304,10 @@ void InitDawMainStorage(DawMainStorage & storage) {
 
 void DawMainProject::Draw(const char *label, IDawSeq *seq)
 {
-	ImGuiContext& g = *GImGui;
-	ImGuiWindow* window = g.CurrentWindow;
-
-	const ImGuiID id = window->GetID(label);
+	(void)label;
+	//ImGuiContext& g = *GImGui;
+	//ImGuiWindow* window = g.CurrentWindow;
+	//const ImGuiID id = window->GetID(label);
 	//int * storageIdx = window->StateStorage.GetIntRef(id, -1);
 	if (m_needRedraw) {
 		if (m_storage) m_storage.reset();
@@ -319,7 +321,7 @@ void DawMainProject::Draw(const char *label, IDawSeq *seq)
 	}
 	DawMainStorage &storage = *m_storage;
 
-	static float w = 200.0f;
+	static float w = 100.0f;
 	float h0 = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
 
 	//ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
@@ -676,7 +678,7 @@ void DawMainProject::Draw(const char *label, IDawSeq *seq)
 			}
 			ImGui::SameLine();
 			//auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
-			ImGui::Text("visible (%ld - %ld), todraw = %d, tohide = %d, process = %d, startshow = %d",
+			ImGui::Text("Visible (%ld - %ld), todraw = %d, tohide = %d, process = %d, startshow = %d",
 				visible_clk_p1, visible_clk_p2, dbg_notes_to_draw, dbg_notes_to_hide, dbg_notes_processed,
 					dbg_start_show_event_num);
 		}

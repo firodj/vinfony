@@ -4,6 +4,8 @@
 
 #include "UI.hpp"
 
+hscpp_module("UI");
+
 namespace vinfony
 {
 	const int SplitterThickness = 8;

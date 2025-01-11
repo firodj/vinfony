@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "hscpp/module/GlobalUserData.h"
 #include "hscpp/mem/Ref.h"
 #include "hscpp/mem/MemoryManager.h"

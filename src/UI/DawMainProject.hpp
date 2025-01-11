@@ -11,27 +11,28 @@
 #include "../IDawSeq.hpp"
 #include "../IDawTrack.hpp"
 
+hscpp_module("DawMainProject");
+
 namespace vinfony {
-	struct DawProp;
-	class DawTrack;
-	struct DawMainStorage;
 
-	struct DawPropDrawParam {
-		DawProp * self;
-		IDawTrack * track;
-		int r,c;
-	};
+struct DawProp;
+class DawTrack;
+struct DawMainStorage;
 
-	using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, IDawSeq * seq)>;
+struct DawPropDrawParam {
+	DawProp * self;
+	IDawTrack * track;
+	int r,c;
+};
 
-	struct DawProp {
-		int         id;
-		std::string name;
-		int         w;
-		DawPropDrawFunc DrawProp{};
-	};
+using DawPropDrawFunc = std::function<void(DawPropDrawParam * param, IDawSeq * seq)>;
 
-	void DawMain(const char *label, IDawSeq * seq);
+struct DawProp {
+	int         id;
+	std::string name;
+	int         w;
+	DawPropDrawFunc DrawProp{};
+};
 
 // DawMainProject
 class DawMainProject {
@@ -48,7 +49,6 @@ public:
 	void Creating();
     void Destroying();
 
-	//std::vector<std::unique_ptr<DawMainStorage>> m_storages;
 	std::unique_ptr<DawMainStorage> m_storage;
 	bool m_showDebug;
 	bool m_needRedraw;

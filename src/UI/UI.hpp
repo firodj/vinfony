@@ -2,6 +2,9 @@
 
 #include <functional>
 #include <imgui.h>
+#include "hscpp/module/PreprocessorMacros.h"
+
+hscpp_module("UI");
 
 namespace vinfony {
 	extern const int SplitterThickness;

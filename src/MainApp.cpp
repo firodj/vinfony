@@ -10,7 +10,6 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 
-#include "UI/DawMain.hpp"
 #include "DawSeq.hpp"
 #include "DawSoundFont.hpp"
 
@@ -171,20 +170,28 @@ void MainApp::Init(std::vector<std::string> &args) {
 	// InitSDL & InitImGui
 	EngineBase::Init(args);
 
+	auto projPath = hscpp::fs::canonical( hscpp::fs::path(_PROJECT_SRC_PATH_) );
+
 	m_impl->globals = std::make_unique<vinfony::Globals>();
 
-	m_impl->swapper = std::make_unique<hscpp::Hotswapper>();
+	auto swapperConfig = std::make_unique<hscpp::Config>();
+	swapperConfig->compiler.projPath = projPath;
+
+	m_impl->swapper = std::make_unique<hscpp::Hotswapper>(std::move(swapperConfig));
 	m_impl->swapper->EnableFeature(hscpp::Feature::Preprocessor);
+	m_impl->swapper->EnableFeature(hscpp::Feature::DependentCompilation);
 #ifdef _WIN32
     m_impl->swapper->SetVar("os", "Windows");
 #else
     m_impl->swapper->SetVar("os", "Posix");
 #endif
 
-	auto projPath = hscpp::fs::canonical( hscpp::fs::path(_PROJECT_SRC_PATH_) );
+
 	m_impl->swapper->SetVar("projPath", projPath);
 
 	m_impl->swapper->AddSourceDirectory(projPath / "src" / "UI");
+	//m_impl->swapper->AddIncludeDirectory(projPath / "src" );
+
 	auto buildPath = hscpp::util::GetHscppBuildPath();
 	m_impl->swapper->SetVar("buildPath", buildPath);
 

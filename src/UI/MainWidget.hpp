@@ -24,7 +24,6 @@ public:
     bool m_showToolAbout;
     bool m_showSoundFont;
 
-
     hscpp::mem::UniqueRef<DawMainProject> m_pDawMainProject;
 protected:
     void DockSpaceUI();
