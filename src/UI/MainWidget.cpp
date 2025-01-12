@@ -165,7 +165,7 @@ void MainWidget::ToolbarUI()
 		globals->sequencer->AsyncPlayMIDI();
 	}
 	ImGui::SameLine();
-	if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop2")) {
+	if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
 		globals->sequencer->StopMIDI();
 	}
 	ImGui::SameLine();
