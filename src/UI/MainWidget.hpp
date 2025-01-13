@@ -18,18 +18,17 @@ public:
     void Creating();
     void Destroying();
 
-    bool m_showDemoWindow;
-    bool m_showToolMetrics;
-    bool m_showToolDebugLog;
-    bool m_showToolAbout;
-    bool m_showSoundFont;
-
     hscpp::mem::UniqueRef<DawMainProject> m_pDawMainProject;
 protected:
     void DockSpaceUI();
     void ToolbarUI();
     void DemoUI();
     void MainMenuUI();
+
+    bool m_showDemoWindow;
+    bool m_showToolMetrics;
+    bool m_showToolDebugLog;
+    bool m_showToolAbout;
 };
 
 };

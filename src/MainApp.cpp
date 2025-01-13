@@ -3,6 +3,7 @@
 #include <mutex>
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 #include <SDL.h>
 
@@ -11,7 +12,7 @@
 #include "imgui_internal.h"
 
 #include "DawSeq.hpp"
-#include "DawSoundFont.hpp"
+//#include "DawSoundFont.hpp"
 
 #include <kosongg/INIReader.h>
 #include <ifd/ImFileDialog.hpp>
@@ -86,7 +87,45 @@ MainApp::~MainApp() {
 
 void MainApp::RunImGui() {
 	vinfony::Globals *globals = vinfony::Globals::Resolve();
-	m_impl->swapper->Update();
+	static hscpp::Hotswapper::UpdateResult lastUpdateResult = hscpp::Hotswapper::UpdateResult::Idle;
+	auto updateResult = m_impl->swapper->Update();
+
+	static const char *lastCompilingText = "Ready";
+	static ImColor lastCompilingColor = ImColor{0, 0, 0};
+	static std::chrono::steady_clock::time_point startCompileTime;
+	static std::chrono::duration<float, std::milli> lastElapsedCompileTime;
+	//bool isCompiling = false;
+	switch (updateResult) {
+		case hscpp::Hotswapper::UpdateResult::Compiling:
+			lastCompilingText = "Compiling";
+			lastCompilingColor = ImColor{222, 222, 0};
+			lastElapsedCompileTime = std::chrono::high_resolution_clock::now() - startCompileTime;
+			break;
+		case hscpp::Hotswapper::UpdateResult::StartedCompiling:
+			startCompileTime = std::chrono::high_resolution_clock::now();
+			break;
+		case hscpp::Hotswapper::UpdateResult::PerformedSwap:
+			lastCompilingText = "PerformedSwap";
+			break;
+		case hscpp::Hotswapper::UpdateResult::FailedSwap:
+			lastCompilingColor = ImColor{172, 0, 0};
+			lastCompilingText = "FailedSwap";
+			break;
+		default:
+			switch (lastUpdateResult) {
+				case hscpp::Hotswapper::UpdateResult::Compiling:
+					lastCompilingColor = ImColor{172, 0, 0};
+					lastCompilingText = "Error";
+					break;
+				case hscpp::Hotswapper::UpdateResult::PerformedSwap:
+					lastCompilingColor = ImColor{0, 172, 0};
+					lastCompilingText = "Success";
+					break;
+				default:
+					break;
+			};
+	};
+	lastUpdateResult = updateResult;
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	ImColor clearColor(m_clearColor);
@@ -110,34 +149,11 @@ void MainApp::RunImGui() {
 
 	globals->pMainWidget->Update();
 
-#if 0
-	static int counter = 0;
-	if (ImGui::Begin("Welcome to vinfony!")) {      // Create a window called "Hello, world!" and append into it.
-		// Other Things
-		ImGui::ColorEdit3("clear color", (float*)&clearColor.Value); // Edit 3 floats representing a color
-
-		if (ImGui::Button("Button"))                           // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
-		ImGui::SameLine();
-		ImGui::Text("counter = %d", counter);
-
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-	}
-	ImGui::End();
-#endif
-#if 0
-	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-	if (ImGui::Begin("Vinfony Project")) {
-		ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
-		vinfony::DawMain("untitled", &m_impl->sequencer);
-		ImGui::PopStyleVar();
-	}
-	ImGui::End();
-#endif
-	if (m_impl->showSoundFont) {
-		ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-		if (ImGui::Begin("SoundFont", &m_impl->showSoundFont)) {
-			vinfony::DawSoundFont( m_impl->tsfdev.get() );
+	if (globals->showHotswapStatus)
+	{
+		if (ImGui::Begin("Hot-swap Compiler")) {      // Create a window called "Hello, world!" and append into it.
+			ImGui::TextColored(lastCompilingColor, "Status %s %.2f ms", lastCompilingText, lastElapsedCompileTime.count());
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 		}
 		ImGui::End();
 	}
@@ -209,6 +225,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 
 	m_impl->globals->sequencer = &m_impl->sequencer;
 
+
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
@@ -217,6 +234,8 @@ void MainApp::Init(std::vector<std::string> &args) {
 		fmt::println("Error init tsf device");
 		return;
 	}
+	m_impl->globals->pTinySoundFont = m_impl->tsfdev->GetTSF();
+
 	m_impl->bassdev = std::make_unique<vinfony::BassMidiDevice>(m_impl->soundfontPath);
 	if (!m_impl->bassdev->Init()) {
 		fmt::println("Error init bass device");

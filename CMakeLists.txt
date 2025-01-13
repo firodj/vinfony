@@ -76,7 +76,7 @@ set(SOURCE
   src/DawTrackNotes.cpp
   src/DawSysEx.cpp
   src/DawDoc.cpp
-  src/DawSoundFont.cpp
+  src/UI/DawSoundFont.cpp
   src/PianoButton.cpp
   src/UI/Splitter.cpp
   src/UI/MainWidget.cpp
@@ -100,7 +100,7 @@ set(HEADERS
   src/DawTrackNotes.hpp
   src/DawSysEx.hpp
   src/DawDoc.hpp
-  src/DawSoundFont.hpp
+  src/UI/DawSoundFont.hpp
   src/PianoButton.hpp
   src/UI/UI.hpp
   src/UI/MainWidget.hpp

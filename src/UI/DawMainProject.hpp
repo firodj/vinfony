@@ -11,8 +11,6 @@
 #include "../IDawSeq.hpp"
 #include "../IDawTrack.hpp"
 
-hscpp_module("DawMainProject");
-
 namespace vinfony {
 
 struct DawProp;
@@ -44,7 +42,7 @@ public:
     DawMainProject();
 	hscpp_virtual void Update();
 
-	void Draw(const char *label, IDawSeq *seq);
+	void Draw(IDawSeq *seq);
 
 	void Creating();
     void Destroying();

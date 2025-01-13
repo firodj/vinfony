@@ -23,7 +23,7 @@ hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
-//hscpp_require_source("DawMainProject.cpp")
+hscpp_require_source("DawMainProject.cpp")
 
 hscpp_if (os == "Windows")
     //hscpp_require_library("${buildPath}/Debug/imgui.lib")
@@ -51,7 +51,6 @@ MainWidget::MainWidget()
 		info.Save("showToolMetrics",  m_showToolMetrics);
 		info.Save("showToolDebugLog", m_showToolDebugLog);
 		info.Save("showToolAbout",    m_showToolAbout);
-		info.Save("showSoundFont",    m_showSoundFont);
 		info.SaveMove("pDawMainProject", m_pDawMainProject);
     };
 
@@ -79,7 +78,6 @@ void MainWidget::Creating() {
     m_showToolMetrics  = false;
     m_showToolDebugLog = false;
     m_showToolAbout    = false;
-	m_showSoundFont    = false;
 
 	m_pDawMainProject = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawMainProject>();
 }
@@ -217,6 +215,8 @@ void MainWidget::DemoUI() {
 }
 
 void MainWidget::MainMenuUI() {
+	vinfony::Globals *globals = vinfony::Globals::Resolve();
+
 	// 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
 	if (ImGui::BeginMainMenuBar())
 	{
@@ -234,9 +234,9 @@ void MainWidget::MainMenuUI() {
 		}
 		if (ImGui::BeginMenu("Window"))
 		{
-			ImGui::MenuItem("SoundFont",    nullptr, &m_showSoundFont);
+			ImGui::MenuItem("SoundFont",    nullptr, &globals->showSoundFont);
 			ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
-			//ImGui::MenuItem("Another Window", nullptr, &m_showAnotherWindow);
+			ImGui::MenuItem("Hotswap Status", nullptr, &globals->showHotswapStatus);
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();

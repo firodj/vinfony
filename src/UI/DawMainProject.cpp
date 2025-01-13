@@ -18,8 +18,6 @@
 #include "DawNote.hpp"
 #include "../Globals.hpp"
 
-hscpp_module("DawMainProject");
-
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
 hscpp_require_include_dir("${projPath}/ext/jdksmidi/include")
@@ -27,7 +25,7 @@ hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
-//hscpp_require_source("Splitter.cpp")
+hscpp_require_source("Splitter.cpp")
 
 hscpp_if (os == "Windows")
 	//hscpp_require_library("${buildPath}/Debug/imgui.lib")
@@ -43,6 +41,7 @@ hscpp_else()
 	hscpp_message("Unknown OS ${os}.")
 hscpp_end()
 
+// Helper
 namespace ImGui {
 	ImVec2 GetScroll()
 	{
@@ -302,9 +301,8 @@ void InitDawMainStorage(DawMainStorage & storage) {
 	});
 }
 
-void DawMainProject::Draw(const char *label, IDawSeq *seq)
+void DawMainProject::Draw(IDawSeq *seq)
 {
-	(void)label;
 	//ImGuiContext& g = *GImGui;
 	//ImGuiWindow* window = g.CurrentWindow;
 	//const ImGuiID id = window->GetID(label);
@@ -678,7 +676,7 @@ void DawMainProject::Draw(const char *label, IDawSeq *seq)
 			}
 			ImGui::SameLine();
 			//auto p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
-			ImGui::Text("Visible (%ld - %ld), todraw = %d, tohide = %d, process = %d, startshow = %d",
+			ImGui::Text(" Visible (%ld - %ld), todraw = %d, tohide = %d, process = %d, startshow = %d",
 				visible_clk_p1, visible_clk_p2, dbg_notes_to_draw, dbg_notes_to_hide, dbg_notes_processed,
 					dbg_start_show_event_num);
 		}
@@ -747,7 +745,7 @@ void DawMainProject::Update() {
 	if (ImGui::Begin("Vinfony Project")) {
 		ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 3.0f);
 
-		Draw("untitled", Globals::Resolve()->sequencer);
+		Draw(Globals::Resolve()->sequencer);
 
 		ImGui::PopStyleVar();
 	}

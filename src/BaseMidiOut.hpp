@@ -11,19 +11,20 @@
 
 namespace vinfony
 {
-	class BaseMidiOutDevice
-	{
-	public:
-		virtual ~BaseMidiOutDevice();
-		virtual bool Init();
-		virtual bool HardwareMsgOut(
-			const jdksmidi::MIDITimedBigMessage &msg,
-			double * msgTimeShiftMs
-		);
-		virtual void Reset();
-		virtual void UpdateMIDITicks();
-		virtual int	GetAudioSampleRate();
-		virtual const char * GetName() = 0;
-	};
+
+class BaseMidiOutDevice
+{
+public:
+	virtual ~BaseMidiOutDevice();
+	virtual bool Init();
+	virtual bool HardwareMsgOut(
+		const jdksmidi::MIDITimedBigMessage &msg,
+		double * msgTimeShiftMs
+	);
+	virtual void Reset();
+	virtual void UpdateMIDITicks();
+	virtual int	GetAudioSampleRate();
+	virtual const char * GetName() = 0;
+};
 
 }

@@ -1,4 +1,5 @@
 #include "DawSoundFont.hpp"
+
 #include "TsfDev.hpp"
 #include <tsf.h>
 #include <tsf_internal.h>
@@ -7,14 +8,22 @@
 #include <imgui_internal.h>
 #include <kosongg/IconsFontAwesome6.h>
 #include <fmt/core.h>
-#include "PianoButton.hpp"
-#include "UI/UI.hpp"
+#include "../PianoButton.hpp"
+#include "UI.hpp"
 
+#include "../Globals.hpp"
+
+hscpp_require_include_dir("${projPath}/src")
+hscpp_require_include_dir("${projPath}/kosongg/cpp")
+hscpp_require_include_dir("${projPath}/ext/jdksmidi/include")
+hscpp_require_include_dir("${projPath}/ext/imgui-docking")
+hscpp_require_include_dir("${projPath}/ext/fmt/include")
+hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
 namespace vinfony {
 
-void DawSoundFont(TinySoundFontDevice * device) {
-  tsf * g_TinySoundFont = device->GetTSF();
+void DawSoundFont::Draw(tsf *g_TinySoundFont) {
+
   if (!g_TinySoundFont) {
     ImGui::Text("SoundFont missing");
     return;
@@ -359,6 +368,53 @@ void DawSoundFont(TinySoundFontDevice * device) {
     }
   }
   ImGui::EndChild();
+}
+
+
+//
+DawSoundFont::DawSoundFont() {
+	auto cb = [this](hscpp::SwapInfo& info) {
+
+  };
+
+  Hscpp_SetSwapHandler(cb);
+
+	if (Hscpp_IsSwapping()) {
+		return;
+	}
+
+	Creating();
+}
+
+DawSoundFont::~DawSoundFont() {
+	if (Hscpp_IsSwapping())
+  {
+      return;
+  }
+
+	Destroying();
+}
+
+void DawSoundFont::Update()
+{
+  vinfony::Globals *globals = vinfony::Globals::Resolve();
+  ImGui::SetCurrentContext( Globals::Resolve()->pImGuiContext );
+
+  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+  if (ImGui::Begin("SoundFont", &globals->showSoundFont)) {
+    Draw( Globals::Resolve()->pTinySoundFont );
+  }
+  ImGui::End();
+}
+
+void DawSoundFont::Creating() {
+	fmt::println( "DawSoundFont::Creating" );
+
+
+}
+
+void DawSoundFont::Destroying() {
+	fmt::println( "DawSoundFont::Destroying" );
 }
 
 }

@@ -7,6 +7,7 @@
 #include "hscpp/mem/MemoryManager.h"
 
 struct ImGuiContext;
+struct tsf;
 
 namespace vinfony {
 
@@ -25,12 +26,13 @@ public:
     hscpp::mem::MemoryManager *pMemoryManager{nullptr};
 
     IDawSeq *sequencer{nullptr};
+    tsf *pTinySoundFont{nullptr};
     hscpp::mem::UniqueRef<MainWidget> pMainWidget;
 
     float toolbarSize{50};
 	float menuBarHeight{0};
-
-
+    bool showHotswapStatus{true};
+    bool showSoundFont{false};
 };
 
 };
