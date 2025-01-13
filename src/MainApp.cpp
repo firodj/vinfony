@@ -78,7 +78,7 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 	m_showDemoWindow = false;
 	m_impl->showSoundFont = false;
 
-	std::string path = GetExeDirectory();
+	std::string path = GetExeDirectory().u8string();
 }
 
 MainApp::~MainApp() {
@@ -175,7 +175,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 	m_impl->globals = std::make_unique<vinfony::Globals>();
 
 	auto swapperConfig = std::make_unique<hscpp::Config>();
-	swapperConfig->compiler.projPath = projPath;
+	swapperConfig->compiler.projPath = projPath.u8string();
 	swapperConfig->compiler.ninja = true;
 
 	m_impl->swapper = std::make_unique<hscpp::Hotswapper>(std::move(swapperConfig));
@@ -188,13 +188,13 @@ void MainApp::Init(std::vector<std::string> &args) {
 #endif
 
 
-	m_impl->swapper->SetVar("projPath", projPath);
+	m_impl->swapper->SetVar("projPath", projPath.u8string());
 
 	m_impl->swapper->AddSourceDirectory(projPath / "src" / "UI");
 	//m_impl->swapper->AddIncludeDirectory(projPath / "src" );
 
 	auto buildPath = hscpp::util::GetHscppBuildPath();
-	m_impl->swapper->SetVar("buildPath", buildPath);
+	m_impl->swapper->SetVar("buildPath", buildPath.u8string());
 
 	hscpp::mem::MemoryManager::Config config;
 	config.pAllocationResolver = m_impl->swapper->GetAllocationResolver();

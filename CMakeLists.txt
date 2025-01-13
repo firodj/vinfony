@@ -152,7 +152,6 @@ list(APPEND ifd_SOURCES
   ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.hpp
   ${VENDOR_DIR}/ifd/DirectoryIterator.hpp
   ${VENDOR_DIR}/ifd/DirectoryIterator.cpp
-  ${VENDOR_DIR}/UtfConv.c
 )
 
 if (APPLE)
@@ -168,13 +167,13 @@ if (WIN32)
   )
 endif()
 
-add_library(ifd ${ifd_SOURCES})
+add_library(ifd STATIC ${ifd_SOURCES})
 
 if (APPLE)
   # Cocoa
   find_library(COCOA_LIBRARY Cocoa)
   find_library(APPKIT_LIB AppKit)
-  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB} imgui glad_gl_core_33)
+  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB})
 endif()
 
 if (MSVC)
@@ -220,7 +219,8 @@ target_link_libraries(vinfony
   fmt
   libassert::assert
   jdksmidi
-  hscpp hscpp-mem
+  hscpp
+  hscpp-mem
   ifd
 )
 
