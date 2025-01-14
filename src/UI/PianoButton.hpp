@@ -40,8 +40,8 @@ class PianoButton {
 public:
   PianoButton();
 
-  void DrawH(const char *label, PianoButtonStyle * style = nullptr);
-  void DrawV(const char *label, PianoButtonStyle * style = nullptr);
+  void DrawH();
+  void DrawV();
   bool DrawRegion(const char *label, int start, int stop, int center, bool selected);
 
 private:

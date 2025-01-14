@@ -22,10 +22,6 @@ hscpp_end()
 
 namespace vinfony {
 
-
-//static std::vector<PianoButtonState> g_pianoButtonStates;
-//static ImGuiID g_lastPianoButtonID{0};
-
 PianoButtonStyle DefaultPianoButtonStyle() {
   return PianoButtonStyle{
     12,
@@ -37,10 +33,7 @@ PianoButtonStyle DefaultPianoButtonStyle() {
 }
 
 PianoButtonState::PianoButtonState(PianoButtonStyle * style) {
-  //if (*pInOutIDX != -1) return g_pianoButtonStates[*pInOutIDX];
-  //*pInOutIDX = g_pianoButtonStates.size();
-  //g_pianoButtonStates.push_back(PianoButtonState{});
-  //PianoButtonState & m_szPiano = g_pianoButtonStates[*pInOutIDX];
+
   PianoButtonState & m_szPiano = *this;
 
   // calculate all needed size
@@ -139,14 +132,8 @@ PianoButton::PianoButton()
 
 }
 
-void PianoButton::DrawH(const char *label, PianoButtonStyle * style)
+void PianoButton::DrawH()
 {
-  (void)label;
-  //ImGuiID pianoID = ImGui::GetID(label);
-  //int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
-  //PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
-  //g_lastPianoButtonID = pianoID;
-
   ImVec2 pmin = ImGui::GetCursorScreenPos();
   ImVec2 pmax = pmin + ImVec2{m_szPiano.width_all, m_szPiano.style.whiteHeight};
   ImGui::InvisibleButton("##button", ImVec2{m_szPiano.width_all, m_szPiano.style.whiteHeight});
@@ -216,14 +203,8 @@ int PianoCheckPointV(PianoButtonState & m_szPiano, ImVec2 point) {
 	return -1;
 }
 
-void PianoButton::DrawV(const char *label, PianoButtonStyle * style)
+void PianoButton::DrawV()
 {
-  (void)label;
-  //ImGuiID pianoID = ImGui::GetID(label);
-  //int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
-  //PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
-  //g_lastPianoButtonID = pianoID;
-
   ImVec2 pmin = ImGui::GetCursorScreenPos();
   ImVec2 pmax = pmin + ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all};
   ImGui::InvisibleButton("##button", ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all});
@@ -259,13 +240,8 @@ void PianoButton::DrawV(const char *label, PianoButtonStyle * style)
   }
 }
 
-bool PianoButton::DrawRegion(const  char *label, int start, int stop, int center, bool selected)
+bool PianoButton::DrawRegion(const char *label, int start, int stop, int center, bool selected)
 {
-  //if (g_lastPianoButtonID == 0) return false;
-  //int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(g_lastPianoButtonID, -1);
-  //if (*pianoStorageID == -1) return false;
-  //PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, nullptr);
-
   float regionH = m_szPiano.style.whiteWidth;
   ImVec2 pmin = ImGui::GetCursorScreenPos();
   ImVec2 pstart = pmin;

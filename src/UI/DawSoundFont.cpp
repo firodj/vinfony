@@ -166,7 +166,7 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 
 				ImVec2 pianopos = wndpos - ImVec2{ImGui::GetScrollX(), 0};
 				ImGui::SetCursorScreenPos(pianopos);
-				m_pPianoButton->DrawH("piano");
+				m_pPianoButton->DrawH();
 				ImVec2 pianoSz = ImGui::GetItemRectSize();
 
 				//ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetCursorScreenPos(), wndmax, IM_COL32_WHITE);

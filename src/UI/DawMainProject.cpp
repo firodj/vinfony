@@ -304,17 +304,11 @@ void InitDawMainStorage(DawMainStorage & storage) {
 
 void DawMainProject::Draw(IDawSeq *seq)
 {
-	//ImGuiContext& g = *GImGui;
-	//ImGuiWindow* window = g.CurrentWindow;
-	//const ImGuiID id = window->GetID(label);
-	//int * storageIdx = window->StateStorage.GetIntRef(id, -1);
 	if (m_needRedraw) {
 		if (m_storage) m_storage.reset();
 		m_needRedraw = false;
 	}
 	if (!m_storage) {
-	//if (*storageIdx == -1) {
-		//*storageIdx = m_storages.size();
 		m_storage = std::make_unique<DawMainStorage>();
 		InitDawMainStorage(*m_storage);
 	}
