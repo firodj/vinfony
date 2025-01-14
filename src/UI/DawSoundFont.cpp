@@ -1,5 +1,7 @@
 #include "DawSoundFont.hpp"
 
+#include <functional>
+
 #include "TsfDev.hpp"
 #include <tsf.h>
 #include <tsf_internal.h>
@@ -127,113 +129,114 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 
 				tsf_preset & curPreset = g_TinySoundFont->presets[m_selectedId];
 
-				if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY))
+				auto TableRowCustom = [&](std::string label, std::function<void()> draw) {
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(label.c_str());
+
+					ImGui::TableNextColumn();
+
+					draw();
+				};
+
+				if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerH))
             	{
 					ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
                 	ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 2.0f); // Default twice larger
-					ImGui::TableNextRow();
 
-					ImGui::TableNextColumn();
-
-					ImGui::TextUnformatted("Bank");
-					ImGui::TableNextColumn();
-
-					if (ImGui::InputScalar("##Bank", ImGuiDataType_U16, &curPreset.bank, NULL, NULL, "%d")) {
-						if (curPreset.bank < 0) curPreset.bank = 0;
-					}
-
-					ImGui::TableNextRow();
-					ImGui::TableNextColumn();
-					ImGui::TextUnformatted("Program");
-
-					ImGui::TableNextColumn();
-					if (ImGui::InputScalar("##Program", ImGuiDataType_U16, &curPreset.preset, NULL, NULL, "%d")) {
-						if (curPreset.preset < 0) curPreset.preset = 0;
-					}
-
-					ImGui::TableNextRow();
-					ImGui::TableNextColumn();
-					ImGui::TextUnformatted("Name");
-
-					ImGui::TableNextColumn();
-					ImGui::InputText("#Name", curPreset.presetName, 20);
+					TableRowCustom("Bank", [&]() {
+						if (ImGui::InputScalar("##Bank", ImGuiDataType_U16, &curPreset.bank, NULL, NULL, "%d")) {
+							if (curPreset.bank < 0) curPreset.bank = 0;
+						}
+					});
+					TableRowCustom("Program", [&]() {
+						if (ImGui::InputScalar("##Program", ImGuiDataType_U16, &curPreset.preset, NULL, NULL, "%d")) {
+							if (curPreset.preset < 0) curPreset.preset = 0;
+						}
+					});
+					TableRowCustom("Name", [&]() {
+						ImGui::InputText("##Name", curPreset.presetName, 20);
+					});
+					TableRowCustom("Regions", [&]() {
+						ImGui::Text("%d", curPreset.regionNum);
+					});
 
 					ImGui::EndTable();
 				}
 
+				if (ImGui::BeginChild("regionList", {0, 0}, ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None))
+				{
+					ImVec2 wndpos = ImGui::GetWindowPos();
+					ImVec2 wndmax = wndpos + ImGui::GetWindowSize();
 
-				ImGui::LabelText("Regions #", "%d", curPreset.regionNum);
+					ImVec2 pianopos = wndpos - ImVec2{ImGui::GetScrollX(), 0};
+					ImGui::SetCursorScreenPos(pianopos);
+					m_pPianoButton->DrawH();
+					ImVec2 pianoSz = ImGui::GetItemRectSize();
 
-				ImGui::BeginChild("regionList", {0, 0}, ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None);
-				ImVec2 wndpos = ImGui::GetWindowPos();
-				ImVec2 wndmax = wndpos + ImGui::GetWindowSize();
+					//ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetCursorScreenPos(), wndmax, IM_COL32_WHITE);
+					ImGui::PushClipRect(ImGui::GetCursorScreenPos(), wndmax, true);
+					ImVec2 instpos = ImVec2{0, ImGui::GetCursorPos().y - ImGui::GetScrollY()};
 
-				ImVec2 pianopos = wndpos - ImVec2{ImGui::GetScrollX(), 0};
-				ImGui::SetCursorScreenPos(pianopos);
-				m_pPianoButton->DrawH();
-				ImVec2 pianoSz = ImGui::GetItemRectSize();
+					int lastInstrumentID = -1; // HackyWay
+					for (int i = 0; i < curPreset.regionNum; i++) {
+						tsf_region & curRegion = curPreset.regions[i];
 
-				//ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetCursorScreenPos(), wndmax, IM_COL32_WHITE);
-				ImGui::PushClipRect(ImGui::GetCursorScreenPos(), wndmax, true);
-				ImVec2 instpos = ImVec2{0, ImGui::GetCursorPos().y - ImGui::GetScrollY()};
+						if (lastInstrumentID == -1) lastInstrumentID = curRegion.instrumentID;
+						else if (lastInstrumentID != curRegion.instrumentID) {
+							ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
+							ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
+							lastInstrumentID = curRegion.instrumentID;
+							instpos.y += 20;
+						}
 
-				int lastInstrumentID = -1; // HackyWay
-				for (int i = 0; i < curPreset.regionNum; i++) {
-					tsf_region & curRegion = curPreset.regions[i];
-
-					if (lastInstrumentID == -1) lastInstrumentID = curRegion.instrumentID;
-					else if (lastInstrumentID != curRegion.instrumentID) {
-						ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
-						ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
-						lastInstrumentID = curRegion.instrumentID;
-						instpos.y += 20;
+						ImGui::SetCursorPos(instpos);
+						ImGui::PushID(i);
+						if (m_pPianoButton->DrawRegion("region", curRegion.lokey, curRegion.hikey, curRegion.pitch_keycenter, m_regionSelected == i)) {
+							m_regionSelected = i;
+						}
+						ImGui::PopID();
 					}
 
-					ImGui::SetCursorPos(instpos);
-					ImGui::PushID(i);
-					if (m_pPianoButton->DrawRegion("region", curRegion.lokey, curRegion.hikey, curRegion.pitch_keycenter, m_regionSelected == i)) {
-						m_regionSelected = i;
-					}
-					ImGui::PopID();
-				}
+					ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
+					ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
 
-				ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
-				ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
+					ImGui::PopClipRect();
 
-				ImGui::PopClipRect();
-
-				ImGui::Text("DEBUG: %f", pianoSz.x);
-	#if 0
-				if (ImGui::TreeNode("Regions")) {
-					if (ImGui::BeginChild("childRegions", {0, 200}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
-					{
-						ImGuiListClipper clipper;
-						clipper.Begin(curPreset.regionNum);
-						while (clipper.Step())
+					ImGui::Text("DEBUG: %f", pianoSz.x);
+		#if 0
+					if (ImGui::TreeNode("Regions")) {
+						if (ImGui::BeginChild("childRegions", {0, 200}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 						{
-							for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-								tsf_region & curRegion = curPreset.regions[i];
-								std::string label4 = fmt::format("[{}]", i);
-								if (ImGui::Selectable(label4.c_str(), i == m_regionSelected)) {
-									m_regionSelected = i;
-								}
-								if (curRegion.sampleID >= 0) {
-									tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
-									ImGui::SameLine(); ImGui::Text("sampleRegion"); ImGui::SameLine();
-									std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
-									if (ImGui::Button(label3.c_str())) {
-										m_selectedId = curRegion.sampleID;
-										m_selectedType = 0;
+							ImGuiListClipper clipper;
+							clipper.Begin(curPreset.regionNum);
+							while (clipper.Step())
+							{
+								for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+									tsf_region & curRegion = curPreset.regions[i];
+									std::string label4 = fmt::format("[{}]", i);
+									if (ImGui::Selectable(label4.c_str(), i == m_regionSelected)) {
+										m_regionSelected = i;
+									}
+									if (curRegion.sampleID >= 0) {
+										tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
+										ImGui::SameLine(); ImGui::Text("sampleRegion"); ImGui::SameLine();
+										std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
+										if (ImGui::Button(label3.c_str())) {
+											m_selectedId = curRegion.sampleID;
+											m_selectedType = 0;
+										}
 									}
 								}
 							}
 						}
+						ImGui::EndChild();
+						ImGui::TreePop();
 					}
-					ImGui::EndChild();
-					ImGui::TreePop();
+		#endif
 				}
-	#endif
 				ImGui::EndChild();
+
 				ImGui::SameLine();
 				if (ImGui::BeginChild("regionContent", {0, 0}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 				{
@@ -368,18 +371,34 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 			} else {
 				if (m_selectedId < 0 || m_selectedId >= g_TinySoundFont->sampleNum) break;
 
-
-
 				tsf_sample & curSample = g_TinySoundFont->samples[m_selectedId];
-				ImGui::LabelText("Name", "%s", curSample.sampleName);
-				ImGui::LabelText("Start", "%d", curSample.start);
-				ImGui::LabelText("End", "%d", curSample.end);
-				ImGui::LabelText("Start Loop", "%d", curSample.startLoop);
-				ImGui::LabelText("End Loop", "%d", curSample.endLoop);
-				ImGui::LabelText("Original Pitch", "%d", curSample.originalPitch);
-				ImGui::LabelText("Pitch Correction", "%d", curSample.pitchCorrection);
-				ImGui::LabelText("Sample Rate", "%d", curSample.sampleRate);
-				ImGui::LabelText("Sample Type", "%d", curSample.sampleType);
+
+				auto TableRow = [&](std::string label, std::string value) {
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(label.c_str());
+
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(value.c_str());
+				};
+
+				if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerH))
+            	{
+					TableRow("Name", curSample.sampleName);
+					TableRow("Start", fmt::format("{}", curSample.start));
+					TableRow("End", fmt::format("{}", curSample.end));
+
+					TableRow("Start Loop", fmt::format("{}", curSample.startLoop));
+					TableRow("End Loop", fmt::format("{}", curSample.endLoop));
+					TableRow("Original Pitch", fmt::format("{}", curSample.originalPitch));
+					TableRow("Pitch Correction", fmt::format("{}", curSample.pitchCorrection));
+					TableRow("Sample Rate", fmt::format("{}", curSample.sampleRate));
+					TableRow("Sample Type", fmt::format("{}", curSample.sampleType));
+
+					ImGui::EndTable();
+				}
+
+
 				if (curSample.sampleType & 0x8000) {
 					ImGui::SameLine(); ImGui::Text("rom");
 				}
