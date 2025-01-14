@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hscpp/module/Tracker.h"
+#include "hscpp/mem/Ref.h"
 
 namespace vinfony {
 
@@ -37,12 +38,18 @@ public:
 
 class PianoButton {
 
+  HSCPP_TRACK(PianoButton, "PianoButton");
+
 public:
+  hscpp_virtual ~PianoButton();
   PianoButton();
 
-  void DrawH();
-  void DrawV();
-  bool DrawRegion(const char *label, int start, int stop, int center, bool selected);
+  void Creating();
+  void Destroying();
+
+  hscpp_virtual void DrawH();
+  hscpp_virtual void DrawV();
+  hscpp_virtual bool DrawRegion(const char *label, int start, int stop, int center, bool selected);
 
 private:
 
