@@ -6,6 +6,7 @@
 namespace vinfony {
 
 class DawMainProject;
+class DawSoundFont;
 
 class MainWidget {
 
@@ -19,6 +20,7 @@ public:
     void Destroying();
 
     hscpp::mem::UniqueRef<DawMainProject> m_pDawMainProject;
+    hscpp::mem::UniqueRef<DawSoundFont>   m_pDawSoundFont;
 protected:
     void DockSpaceUI();
     void ToolbarUI();

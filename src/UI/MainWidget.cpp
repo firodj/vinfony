@@ -16,6 +16,7 @@
 #include <regex>
 
 #include "DawMainProject.hpp"
+#include "DawSoundFont.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
@@ -24,6 +25,7 @@ hscpp_require_include_dir("${projPath}/ext/fmt/include")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
 
 hscpp_require_source("DawMainProject.cpp")
+hscpp_require_source("DawSoundFont.cpp")
 
 hscpp_if (os == "Windows")
     //hscpp_require_library("${buildPath}/Debug/imgui.lib")
@@ -52,6 +54,7 @@ MainWidget::MainWidget()
 		info.Save("showToolDebugLog", m_showToolDebugLog);
 		info.Save("showToolAbout",    m_showToolAbout);
 		info.SaveMove("pDawMainProject", m_pDawMainProject);
+		info.SaveMove("pDawSounFont",    m_pDawSoundFont);
     };
 
     Hscpp_SetSwapHandler(cb);
@@ -80,6 +83,7 @@ void MainWidget::Creating() {
     m_showToolAbout    = false;
 
 	m_pDawMainProject = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawMainProject>();
+	m_pDawSoundFont   = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawSoundFont>();
 }
 
 void MainWidget::Destroying() {
@@ -201,6 +205,7 @@ void MainWidget::Update() {
 	MainMenuUI();
 
 	m_pDawMainProject->Update();
+	m_pDawSoundFont->Update();
 }
 
 void MainWidget::DemoUI() {

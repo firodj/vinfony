@@ -27,7 +27,7 @@
 #include "TsfDev.hpp"
 #include "BassMidiDev.hpp"
 
-#include "PianoButton.hpp"
+//#include "PianoButton.hpp"
 #include "Misc.hpp"
 
 #include "hscpp/Filesystem.h"
@@ -158,6 +158,7 @@ void MainApp::RunImGui() {
 		ImGui::End();
 	}
 
+#if 0
 	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
 	if (ImGui::Begin("Piano")) {
 		ImGui::BeginChild("piano", ImVec2{0.0, 200.0}, ImGuiChildFlags_ResizeY | ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysHorizontalScrollbar);
@@ -168,6 +169,7 @@ void MainApp::RunImGui() {
 			ImGui::Image((ImTextureID)m_impl->texPiano, ImVec2(m_impl->pianoWidth, m_impl->pianoHeight));
 	}
 	ImGui::End();
+#endif
 
 	if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
 		if (ifd::FileDialog::Instance().HasResult()) {

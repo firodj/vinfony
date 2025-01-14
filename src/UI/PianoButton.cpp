@@ -3,22 +3,28 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 
+#include "hscpp/mem/Ref.h"
+
+hscpp_require_include_dir("${projPath}/ext/imgui-docking")
+
+hscpp_if (os == "Windows")
+  //hscpp_require_library("${buildPath}/Debug/imgui.lib")
+  hscpp_require_library("${projPath}/bin/imgui.dll")
+	hscpp_require_library("${projPath}/bin/hscpp-mem.dll")
+hscpp_elif (os == "Posix")
+  //hscpp_require_library("${buildPath}/Debug/libimgui.a")
+  hscpp_require_library("${projPath}/bin/libimgui.dylib")
+  hscpp_require_library("${projPath}/bin/libhscpp-mem.dylib")
+hscpp_else()
+  // Diagnostic messages can be printed to the build output with hscpp_message.
+  hscpp_message("Unknown OS ${os}.")
+hscpp_end()
+
 namespace vinfony {
 
-struct PianoButtonState {
-  PianoButtonStyle style;
 
-	float width_all;
-	float width_octave;
-
-	float tuts_start[12];
-	float tuts_end[12];
-	int	tuts_type[12];
-  int tuts_color[14];
-};
-
-static std::vector<PianoButtonState> g_pianoButtonStates;
-static ImGuiID g_lastPianoButtonID{0};
+//static std::vector<PianoButtonState> g_pianoButtonStates;
+//static ImGuiID g_lastPianoButtonID{0};
 
 PianoButtonStyle DefaultPianoButtonStyle() {
   return PianoButtonStyle{
@@ -30,12 +36,12 @@ PianoButtonStyle DefaultPianoButtonStyle() {
   };
 }
 
-PianoButtonState & PianoButtonStateGet(int * pInOutIDX, PianoButtonStyle * style) {
-  if (*pInOutIDX != -1) return g_pianoButtonStates[*pInOutIDX];
-
-  *pInOutIDX = g_pianoButtonStates.size();
-  g_pianoButtonStates.push_back(PianoButtonState{});
-  PianoButtonState & m_szPiano = g_pianoButtonStates[*pInOutIDX];
+PianoButtonState::PianoButtonState(PianoButtonStyle * style) {
+  //if (*pInOutIDX != -1) return g_pianoButtonStates[*pInOutIDX];
+  //*pInOutIDX = g_pianoButtonStates.size();
+  //g_pianoButtonStates.push_back(PianoButtonState{});
+  //PianoButtonState & m_szPiano = g_pianoButtonStates[*pInOutIDX];
+  PianoButtonState & m_szPiano = *this;
 
   // calculate all needed size
   if (style) m_szPiano.style = *style; else m_szPiano.style = DefaultPianoButtonStyle();
@@ -91,8 +97,7 @@ PianoButtonState & PianoButtonStateGet(int * pInOutIDX, PianoButtonStyle * style
 	const int z[12] = { 0,3,1,3,2, 0,3,1,3,1,3,2};
 	memcpy(m_szPiano.tuts_type, z, sizeof(z));
 
-
-  return m_szPiano;
+  //return m_szPiano;
 }
 
 int PianoCheckPoint(PianoButtonState & m_szPiano, ImVec2 point) {
@@ -129,11 +134,18 @@ int PianoCheckPoint(PianoButtonState & m_szPiano, ImVec2 point) {
 	return -1;
 }
 
-void PianoButton(const char *label, PianoButtonStyle * style) {
-  ImGuiID pianoID = ImGui::GetID(label);
-  int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
-  PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
-  g_lastPianoButtonID = pianoID;
+PianoButton::PianoButton()
+{
+
+}
+
+void PianoButton::DrawH(const char *label, PianoButtonStyle * style)
+{
+  (void)label;
+  //ImGuiID pianoID = ImGui::GetID(label);
+  //int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
+  //PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
+  //g_lastPianoButtonID = pianoID;
 
   ImVec2 pmin = ImGui::GetCursorScreenPos();
   ImVec2 pmax = pmin + ImVec2{m_szPiano.width_all, m_szPiano.style.whiteHeight};
@@ -204,11 +216,13 @@ int PianoCheckPointV(PianoButtonState & m_szPiano, ImVec2 point) {
 	return -1;
 }
 
-void PianoButtonV(const char *label, PianoButtonStyle * style) {
-  ImGuiID pianoID = ImGui::GetID(label);
-  int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
-  PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
-  g_lastPianoButtonID = pianoID;
+void PianoButton::DrawV(const char *label, PianoButtonStyle * style)
+{
+  (void)label;
+  //ImGuiID pianoID = ImGui::GetID(label);
+  //int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, -1);
+  //PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, style);
+  //g_lastPianoButtonID = pianoID;
 
   ImVec2 pmin = ImGui::GetCursorScreenPos();
   ImVec2 pmax = pmin + ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all};
@@ -245,11 +259,12 @@ void PianoButtonV(const char *label, PianoButtonStyle * style) {
   }
 }
 
-bool PianoRegion(const  char *label, int start, int stop, int center, bool selected) {
-  if (g_lastPianoButtonID == 0) return false;
-  int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(g_lastPianoButtonID, -1);
-  if (*pianoStorageID == -1) return false;
-  PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, nullptr);
+bool PianoButton::DrawRegion(const  char *label, int start, int stop, int center, bool selected)
+{
+  //if (g_lastPianoButtonID == 0) return false;
+  //int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(g_lastPianoButtonID, -1);
+  //if (*pianoStorageID == -1) return false;
+  //PianoButtonState & m_szPiano = PianoButtonStateGet(pianoStorageID, nullptr);
 
   float regionH = m_szPiano.style.whiteWidth;
   ImVec2 pmin = ImGui::GetCursorScreenPos();

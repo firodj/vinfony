@@ -8,7 +8,7 @@
 #include <imgui_internal.h>
 #include <kosongg/IconsFontAwesome6.h>
 #include <fmt/core.h>
-#include "../PianoButton.hpp"
+#include "PianoButton.hpp"
 #include "UI.hpp"
 
 #include "../Globals.hpp"
@@ -18,402 +18,461 @@ hscpp_require_include_dir("${projPath}/kosongg/cpp")
 hscpp_require_include_dir("${projPath}/ext/jdksmidi/include")
 hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/fmt/include")
+hscpp_require_include_dir("${projPath}/ext/tsf")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
+
+hscpp_require_source("PianoButton.cpp")
+hscpp_require_source("Splitter.cpp")
+
+hscpp_if (os == "Windows")
+	//hscpp_require_library("${buildPath}/Debug/imgui.lib")
+	hscpp_require_library("${projPath}/bin/imgui.dll")
+hscpp_elif (os == "Posix")
+	hscpp_require_library("${buildPath}/ext/tsf/Debug/libtsf.a")
+	hscpp_require_library("${projPath}/bin/libimgui.dylib")
+	hscpp_require_library("${projPath}/bin/libfmtd.dylib")
+hscpp_else()
+	// Diagnostic messages can be printed to the build output with hscpp_message.
+	hscpp_message("Unknown OS ${os}.")
+hscpp_end()
 
 namespace vinfony {
 
-void DawSoundFont::Draw(tsf *g_TinySoundFont) {
+void DawSoundFont::Draw(tsf *g_TinySoundFont)
+{
+	if (!g_TinySoundFont)
+	{
+		ImGui::Text("SoundFont missing");
+		return;
+	}
 
-  if (!g_TinySoundFont) {
-    ImGui::Text("SoundFont missing");
-    return;
-  }
+	if (ImGui::BeginChild("List", {200, 0}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border))
+	{
+		ImGuiContext& g = *GImGui;
+		auto wndsz = ImGui::GetWindowSize();
 
-  static int selectedId = -1;
-  static int selectedType = 0;
-  static int regionSelected = -1;
-  static float hSamples = 200.0f;
+		std::string label1 = fmt::format("Samples ({})", g_TinySoundFont->sampleNum);
+		if (ImGui::TreeNode(label1.c_str()))
+		{
+			const int max = g_TinySoundFont->sampleNum;
+			if (ImGui::BeginChild("childSamples", {0, m_heightSamples}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+			{
+				ImGuiListClipper clipper;
+				clipper.Begin(max);
+				while (clipper.Step())
+				{
+					for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+						std::string label = fmt::format(ICON_FA_FILE_AUDIO " [{}] {}", i+1, g_TinySoundFont->samples[i].sampleName);
+						if (ImGui::Selectable(label.c_str(), m_selectedId == i && m_selectedType == 0)) {
+							m_selectedId = i;
+							m_selectedType = 0;
+						}
+					}
+				}
+			}
+			ImGui::EndChild();
 
-  if (ImGui::BeginChild("List", {200, 0}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border))
-  {
-    ImGuiContext& g = *GImGui;
-    auto wndsz = ImGui::GetWindowSize();
+			ImGui::TreePop();
+		}
 
-    std::string label1 = fmt::format("Samples ({})", g_TinySoundFont->sampleNum);
-    if (ImGui::TreeNode(label1.c_str()))
-    {
-      const int max = g_TinySoundFont->sampleNum;
-      if (ImGui::BeginChild("childSamples", {0, hSamples}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
-      {
-        ImGuiListClipper clipper;
-        clipper.Begin(max);
-        while (clipper.Step())
-        {
-          for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-            std::string label = fmt::format(ICON_FA_FILE_AUDIO " [{}] {}", i+1, g_TinySoundFont->samples[i].sampleName);
-            if (ImGui::Selectable(label.c_str(), selectedId == i && selectedType == 0)) {
-              selectedId = i;
-              selectedType = 0;
-            }
-          }
-        }
-      }
-      ImGui::EndChild();
+		{
+			auto cursor = ImGui::GetCursorPos();
+			HSplitter(cursor, wndsz.x - g.Style.WindowPadding.x*2, [&]() { m_heightSamples = ImMax(m_heightSamples + ImGui::GetIO().MouseDelta.y, 200.0f); });
+		}
 
-      ImGui::TreePop();
-    }
+		std::string label2 = fmt::format("Presets ({})", g_TinySoundFont->presetNum);
+		if (ImGui::TreeNode(label2.c_str()))
+		{
+			auto cursor = ImGui::GetCursorPos();
+			float hPresets = wndsz.y - cursor.y - g.Style.WindowPadding.y;
 
-    auto cursor = ImGui::GetCursorPos();
-    HSplitter(cursor, wndsz.x - g.Style.WindowPadding.x*2, [&]() { hSamples = ImMax(hSamples + ImGui::GetIO().MouseDelta.y, 200.0f); });
+			const int max = g_TinySoundFont->presetNum;
+			if (ImGui::BeginChild("childPresets", {0, hPresets}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+			{
+				ImGuiListClipper clipper;
+				clipper.Begin(max);
+				while (clipper.Step())
+				{
+					for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+						std::string label = fmt::format(ICON_FA_MUSIC " [{}:{}] {}",
+							g_TinySoundFont->presets[i].bank,
+							g_TinySoundFont->presets[i].preset+1,
+							g_TinySoundFont->presets[i].presetName);
+						if (ImGui::Selectable(label.c_str(), m_selectedId == i && m_selectedType == 1)) {
+							m_selectedId = i;
+							m_selectedType = 1;
+							m_regionSelected = -1;
+						}
+					}
+				}
+			}
+			ImGui::EndChild();
+			ImGui::TreePop();
+		}
+	}
+	ImGui::EndChild();
 
-    std::string label2 = fmt::format("Presets ({})", g_TinySoundFont->presetNum);
-    if (ImGui::TreeNode(label2.c_str()))
-    {
-      auto cursor = ImGui::GetCursorPos();
-      float hPresets = wndsz.y - cursor.y - g.Style.WindowPadding.y;
+	ImGui::SameLine();
 
-      const int max = g_TinySoundFont->presetNum;
-      if (ImGui::BeginChild("childPresets", {0, hPresets}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
-      {
-        ImGuiListClipper clipper;
-        clipper.Begin(max);
-        while (clipper.Step())
-        {
-          for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-            std::string label = fmt::format(ICON_FA_MUSIC " [{}:{}] {}",
-              g_TinySoundFont->presets[i].bank,
-              g_TinySoundFont->presets[i].preset+1,
-              g_TinySoundFont->presets[i].presetName);
-            if (ImGui::Selectable(label.c_str(), selectedId == i && selectedType == 1)) {
-              selectedId = i;
-              selectedType = 1;
-              regionSelected = -1;
-            }
-          }
-        }
-      }
-      ImGui::EndChild();
-      ImGui::TreePop();
-    }
-  }
-  ImGui::EndChild();
+	if (ImGui::BeginChild("Content", {}, ImGuiChildFlags_None, 0))
+	{
+		bool noselected = true;
+		do {
+			if (m_selectedType == 1) {
+				if (m_selectedId < 0 || m_selectedId >= g_TinySoundFont->presetNum) break;
 
-  ImGui::SameLine();
+				tsf_preset & curPreset = g_TinySoundFont->presets[m_selectedId];
 
-  if (ImGui::BeginChild("Content", {}, ImGuiChildFlags_None, 0))
-  {
-    bool noselected = true;
-    do {
-      if (selectedType == 1) {
-        if (selectedId < 0 || selectedId >= g_TinySoundFont->presetNum) break;
+				if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY))
+            	{
+					ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+                	ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 2.0f); // Default twice larger
+					ImGui::TableNextRow();
 
-        tsf_preset & curPreset = g_TinySoundFont->presets[selectedId];
-        if (ImGui::InputScalar("Bank", ImGuiDataType_U16, &curPreset.bank, NULL, NULL, "%d")) {
-          if (curPreset.bank < 0) curPreset.bank = 0;
-        }
-        if (ImGui::InputScalar("Program", ImGuiDataType_U16, &curPreset.preset, NULL, NULL, "%d")) {
-          if (curPreset.preset < 0) curPreset.preset = 0;
-        }
-        ImGui::InputText("Name", curPreset.presetName, 20);
-        ImGui::LabelText("Regions #", "%d", curPreset.regionNum);
+					ImGui::TableNextColumn();
 
-        ImGui::BeginChild("regionList", {0, 0}, ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None);
-        ImVec2 wndpos = ImGui::GetWindowPos();
-        ImVec2 wndmax = wndpos + ImGui::GetWindowSize();
+					ImGui::TextUnformatted("Bank");
+					ImGui::TableNextColumn();
 
-        ImVec2 pianopos = wndpos - ImVec2{ImGui::GetScrollX(), 0};
-        ImGui::SetCursorScreenPos(pianopos);
-        PianoButton("piano");
-        ImVec2 pianoSz = ImGui::GetItemRectSize();
+					if (ImGui::InputScalar("##Bank", ImGuiDataType_U16, &curPreset.bank, NULL, NULL, "%d")) {
+						if (curPreset.bank < 0) curPreset.bank = 0;
+					}
 
-        //ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetCursorScreenPos(), wndmax, IM_COL32_WHITE);
-        ImGui::PushClipRect(ImGui::GetCursorScreenPos(), wndmax, true);
-        ImVec2 instpos = ImVec2{0, ImGui::GetCursorPos().y - ImGui::GetScrollY()};
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Program");
 
-        int lastInstrumentID = -1; // HackyWay
-        for (int i = 0; i < curPreset.regionNum; i++) {
-          tsf_region & curRegion = curPreset.regions[i];
+					ImGui::TableNextColumn();
+					if (ImGui::InputScalar("##Program", ImGuiDataType_U16, &curPreset.preset, NULL, NULL, "%d")) {
+						if (curPreset.preset < 0) curPreset.preset = 0;
+					}
 
-          if (lastInstrumentID == -1) lastInstrumentID = curRegion.instrumentID;
-          else if (lastInstrumentID != curRegion.instrumentID) {
-            ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
-            ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
-            lastInstrumentID = curRegion.instrumentID;
-            instpos.y += 20;
-          }
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Name");
 
-          ImGui::SetCursorPos(instpos);
-          ImGui::PushID(i);
-          if (PianoRegion("region", curRegion.lokey, curRegion.hikey, curRegion.pitch_keycenter, regionSelected == i)) {
-            regionSelected = i;
-          }
-          ImGui::PopID();
-        }
+					ImGui::TableNextColumn();
+					ImGui::InputText("#Name", curPreset.presetName, 20);
 
-        ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
-        ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
-
-        ImGui::PopClipRect();
-
-        ImGui::Text("DEBUG: %f", pianoSz.x);
-  #if 0
-        if (ImGui::TreeNode("Regions")) {
-          if (ImGui::BeginChild("childRegions", {0, 200}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
-          {
-            ImGuiListClipper clipper;
-            clipper.Begin(curPreset.regionNum);
-            while (clipper.Step())
-            {
-              for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                tsf_region & curRegion = curPreset.regions[i];
-                std::string label4 = fmt::format("[{}]", i);
-                if (ImGui::Selectable(label4.c_str(), i == regionSelected)) {
-                  regionSelected = i;
-                }
-                if (curRegion.sampleID >= 0) {
-                  tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
-                  ImGui::SameLine(); ImGui::Text("sampleRegion"); ImGui::SameLine();
-                  std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
-                  if (ImGui::Button(label3.c_str())) {
-                    selectedId = curRegion.sampleID;
-                    selectedType = 0;
-                  }
-                }
-              }
-            }
-          }
-          ImGui::EndChild();
-          ImGui::TreePop();
-        }
-  #endif
-        ImGui::EndChild();
-        ImGui::SameLine();
-        if (ImGui::BeginChild("regionContent", {0, 0}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
-        {
-          if (regionSelected >= 0) {
-            if (regionSelected >= curPreset.regionNum) regionSelected = 0;
-            tsf_region & curRegion = curPreset.regions[regionSelected];
-
-            ImGui::LabelText("InsturmentID", "%d", curRegion.instrumentID);
-            ImGui::LabelText("Key", "%d - %d", curRegion.lokey, curRegion.hikey);
-            ImGui::LabelText("Vel", "%d - %d", curRegion.lovel, curRegion.hivel);
-            ImGui::LabelText("OverridingRootKey", "%d", curRegion.pitch_keycenter);
-            ImGui::LabelText("CoarseTune", "%d", curRegion.transpose);
-            ImGui::LabelText("FineTune", "%d", curRegion.tune);
-            ImGui::LabelText("ScaleTuning", "%d", curRegion.pitch_keytrack);
-            ImGui::LabelText("ExclusiveClass", "%d", curRegion.group);
-
-            if (ImGui::TreeNode("Sample")) {
-              ImGui::LabelText("StartAddrsOffset", "%d", curRegion.offset);
-              ImGui::LabelText("EndAddrsOffset", "%d", curRegion.end);
-              ImGui::LabelText("StartloopAddrsOffset", "%d", curRegion.loop_start);
-              ImGui::LabelText("EndloopAddrsOffset", "%d", curRegion.loop_end);
-              ImGui::LabelText("SampleModes", "%d", curRegion.loop_mode);
-
-              if (curRegion.sampleID >= 0) {
-                tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
-
-                std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
-                if (ImGui::Button(label3.c_str())) {
-                  selectedId = curRegion.sampleID;
-                  selectedType = 0;
-                }
-                ImGui::LabelText("SampleRate", "%d", curRegion.sample_rate);
-              }
-              ImGui::TreePop();
-            }
-
-            ImGui::LabelText("Attenuation", "%f", curRegion.attenuation);
-            ImGui::LabelText("Pan", "%f", curRegion.pan);
-            ImGui::LabelText("InitialFilterFc", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.initialFilterFc), curRegion.initialFilterFc);
-            ImGui::LabelText("InitialFilterQ", "%d", curRegion.initialFilterQ);
-            ImGui::LabelText("ChorusSend", "%f", curRegion.chorusSend);
-            ImGui::LabelText("ReverbSend", "%f", curRegion.reverbSend);
-
-            if (ImGui::TreeNode("ModLfo")) {
-              ImGui::LabelText("Delay", "%f", curRegion.delayModLFO);
-              ImGui::LabelText("Freq", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.freqModLFO), curRegion.freqModLFO);
-              ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("VibLfo")) {
-              ImGui::LabelText("Delay", "%f", curRegion.delayVibLFO);
-              ImGui::LabelText("Freq", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.freqVibLFO), curRegion.freqVibLFO);
-              ImGui::TreePop();
-            }
-
-            ImGui::LabelText("ModLfoToFilterFc", "%d cent fs", curRegion.modLfoToFilterFc);
-            ImGui::LabelText("ModEnvToFilterFc", "%d cent fs", curRegion.modEnvToFilterFc);
-            ImGui::LabelText("ModLfoToPitch", "%d cent fs", curRegion.modLfoToPitch);
-            ImGui::LabelText("VibLfoToPitch", "%d cent fs", curRegion.vibLfoToPitch);
-            ImGui::LabelText("ModEnvToPitch", "%d cent fs", curRegion.modEnvToPitch);
-            ImGui::LabelText("ModLfoToVolume", "%d cB fs", curRegion.modLfoToVolume);
-
-            if (ImGui::TreeNode("ModEnv")) {
-              ImGui::LabelText("DelayModEnv", "%f", curRegion.modenv.delay);
-              ImGui::LabelText("AttackModEnv", "%f", curRegion.modenv.attack);
-              ImGui::LabelText("HoldModEnv", "%f", curRegion.modenv.hold);
-              ImGui::LabelText("DecayModEnv", "%f", curRegion.modenv.decay);
-              ImGui::LabelText("SustainModEnv", "%f", curRegion.modenv.sustain);
-              ImGui::LabelText("ReleaseModEnv", "%f", curRegion.modenv.release);
-              ImGui::LabelText("KeynumToModEnvHold", "%f", curRegion.modenv.keynumToHold);
-              ImGui::LabelText("KeynumToModEnvDecay", "%f", curRegion.modenv.keynumToDecay);
-              ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("VolEnv")) {
-              ImGui::LabelText("DelayVolEnv", "%f s", curRegion.ampenv.delay);
-              ImGui::LabelText("AttackVolEnv", "%f s", curRegion.ampenv.attack);
-              ImGui::LabelText("HoldVolEnv", "%f s", curRegion.ampenv.hold);
-              ImGui::LabelText("DecayVolEnv", "%f s", curRegion.ampenv.decay);
-              ImGui::LabelText("SustainVolEnv", "%.2f dB", tsf_gainToDecibels(curRegion.ampenv.sustain));
-              ImGui::LabelText("ReleaseVolEnv", "%f s", curRegion.ampenv.release);
-              ImGui::LabelText("KeynumToVolEnvHold", "%f", curRegion.ampenv.keynumToHold);
-              ImGui::LabelText("KeynumToVolEnvDecay", "%f", curRegion.ampenv.keynumToDecay);
-              ImGui::TreePop();
-            }
-
-            for (int i=0; i <curRegion.modulatorNum; i++) {
-              static const char  * curveTypes[] = {"Linear", "Concave", "Convex", "Switch"};
-              tsf_modulator & curModulator = curRegion.modulators[i];
-              std::string label = fmt::format("Modulator {}", i);
-              if (ImGui::TreeNode(label.c_str())) {
-                if (ImGui::TreeNode("Source1")) {
-                  ImGui::LabelText("Value", "0x%x", curModulator.modSrcOper);
-                  if (curModulator.modSrcOperDetails.cc) {
-                    ImGui::LabelText("CC", "%d", curModulator.modSrcOperDetails.index);
-                  } else {
-                    ImGui::LabelText("GC", "%d", curModulator.modSrcOperDetails.index);
-                  }
-                  ImGui::LabelText("Direction", "%s", curModulator.modSrcOperDetails.d ? "Negative": "Positive");
-                  ImGui::LabelText("Polarity", "%s", curModulator.modSrcOperDetails.p ? "Bipolar": "Unipolar");
-                  ImGui::LabelText("Type", "%s", curveTypes[curModulator.modSrcOperDetails.type % 4]);
-                  ImGui::TreePop();
-                }
-                if (curModulator.modAmtSrcOper) {
-                  if (ImGui::TreeNode("Source2")) {
-                    ImGui::LabelText("Value", "0x%x", curModulator.modAmtSrcOper);
-                    if (curModulator.modAmtSrcOperDetails.cc) {
-                      ImGui::LabelText("CC", "%d", curModulator.modAmtSrcOperDetails.index);
-                    } else {
-                      ImGui::LabelText("GC", "%d", curModulator.modAmtSrcOperDetails.index);
-                    }
-                    ImGui::LabelText("Direction", "%s", curModulator.modAmtSrcOperDetails.d ? "Negative": "Positive");
-                    ImGui::LabelText("Polarity", "%s", curModulator.modAmtSrcOperDetails.p ? "Bipolar": "Unipolar");
-                    ImGui::LabelText("Type", "%s", curveTypes[curModulator.modAmtSrcOperDetails.type % 4]);
-                    ImGui::TreePop();
-                  }
-                }
-
-                ImGui::LabelText("Dest", "%d", curModulator.modDestOper);
-
-                ImGui::LabelText("Amount", "%d", curModulator.modAmount);
-
-                ImGui::LabelText("Trans", "%s", curModulator.modTransOper == 0 ? "Linear" : "Absolute");
-
-                ImGui::TreePop();
-              }
-            }
-          }
-        }
-        ImGui::EndChild();
-
-      } else {
-        if (selectedId < 0 || selectedId >= g_TinySoundFont->sampleNum) break;
+					ImGui::EndTable();
+				}
 
 
+				ImGui::LabelText("Regions #", "%d", curPreset.regionNum);
 
-        tsf_sample & curSample = g_TinySoundFont->samples[selectedId];
-        ImGui::LabelText("Name", "%s", curSample.sampleName);
-        ImGui::LabelText("Start", "%d", curSample.start);
-        ImGui::LabelText("End", "%d", curSample.end);
-        ImGui::LabelText("Start Loop", "%d", curSample.startLoop);
-        ImGui::LabelText("End Loop", "%d", curSample.endLoop);
-        ImGui::LabelText("Original Pitch", "%d", curSample.originalPitch);
-        ImGui::LabelText("Pitch Correction", "%d", curSample.pitchCorrection);
-        ImGui::LabelText("Sample Rate", "%d", curSample.sampleRate);
-        ImGui::LabelText("Sample Type", "%d", curSample.sampleType);
-        if (curSample.sampleType & 0x8000) {
-          ImGui::SameLine(); ImGui::Text("rom");
-        }
-        int sampleLinkIdx = -1;
-        if ((curSample.sampleType & 0xF) == 1) {
-          ImGui::SameLine(); ImGui::Text("mono");
-        }
-        if ((curSample.sampleType & 0xF) == 2) {
-          ImGui::SameLine(); ImGui::Text("right");
-          sampleLinkIdx = curSample.sampleLink;
-        }
-        if ((curSample.sampleType & 0xF) == 4) {
-          ImGui::SameLine(); ImGui::Text("left");
-          sampleLinkIdx = curSample.sampleLink;
-        }
-        if ((curSample.sampleType & 0xF) == 8) {
-          ImGui::SameLine(); ImGui::Text("linked");
-        }
-        if (sampleLinkIdx != -1 && sampleLinkIdx < g_TinySoundFont->sampleNum) {
-          tsf_sample & linkedSample = g_TinySoundFont->samples[sampleLinkIdx];
-          ImGui::Text("sampleLink"); ImGui::SameLine();
-          std::string label3 = fmt::format("{} {}", sampleLinkIdx, linkedSample.sampleName);
-          if (ImGui::Button(label3.c_str())) {
-            selectedId = sampleLinkIdx;
-            selectedType = 0;
-          }
-        }
-      }
-      noselected = false;
-    } while(noselected);
-    if (noselected) {
-      ImGui::Text("Please select something.");
-    }
-  }
-  ImGui::EndChild();
+				ImGui::BeginChild("regionList", {0, 0}, ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None);
+				ImVec2 wndpos = ImGui::GetWindowPos();
+				ImVec2 wndmax = wndpos + ImGui::GetWindowSize();
+
+				ImVec2 pianopos = wndpos - ImVec2{ImGui::GetScrollX(), 0};
+				ImGui::SetCursorScreenPos(pianopos);
+				m_pPianoButton->DrawH("piano");
+				ImVec2 pianoSz = ImGui::GetItemRectSize();
+
+				//ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetCursorScreenPos(), wndmax, IM_COL32_WHITE);
+				ImGui::PushClipRect(ImGui::GetCursorScreenPos(), wndmax, true);
+				ImVec2 instpos = ImVec2{0, ImGui::GetCursorPos().y - ImGui::GetScrollY()};
+
+				int lastInstrumentID = -1; // HackyWay
+				for (int i = 0; i < curPreset.regionNum; i++) {
+					tsf_region & curRegion = curPreset.regions[i];
+
+					if (lastInstrumentID == -1) lastInstrumentID = curRegion.instrumentID;
+					else if (lastInstrumentID != curRegion.instrumentID) {
+						ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
+						ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
+						lastInstrumentID = curRegion.instrumentID;
+						instpos.y += 20;
+					}
+
+					ImGui::SetCursorPos(instpos);
+					ImGui::PushID(i);
+					if (m_pPianoButton->DrawRegion("region", curRegion.lokey, curRegion.hikey, curRegion.pitch_keycenter, m_regionSelected == i)) {
+						m_regionSelected = i;
+					}
+					ImGui::PopID();
+				}
+
+				ImVec2 barpos = wndpos + instpos + ImVec2{0, 18};
+				ImGui::GetWindowDrawList()->AddLine(barpos, barpos + ImVec2{pianoSz.x, 0}, IM_COL32(128, 128,128, 255));
+
+				ImGui::PopClipRect();
+
+				ImGui::Text("DEBUG: %f", pianoSz.x);
+	#if 0
+				if (ImGui::TreeNode("Regions")) {
+					if (ImGui::BeginChild("childRegions", {0, 200}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+					{
+						ImGuiListClipper clipper;
+						clipper.Begin(curPreset.regionNum);
+						while (clipper.Step())
+						{
+							for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+								tsf_region & curRegion = curPreset.regions[i];
+								std::string label4 = fmt::format("[{}]", i);
+								if (ImGui::Selectable(label4.c_str(), i == m_regionSelected)) {
+									m_regionSelected = i;
+								}
+								if (curRegion.sampleID >= 0) {
+									tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
+									ImGui::SameLine(); ImGui::Text("sampleRegion"); ImGui::SameLine();
+									std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
+									if (ImGui::Button(label3.c_str())) {
+										m_selectedId = curRegion.sampleID;
+										m_selectedType = 0;
+									}
+								}
+							}
+						}
+					}
+					ImGui::EndChild();
+					ImGui::TreePop();
+				}
+	#endif
+				ImGui::EndChild();
+				ImGui::SameLine();
+				if (ImGui::BeginChild("regionContent", {0, 0}, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar))
+				{
+					if (m_regionSelected >= 0) {
+						if (m_regionSelected >= curPreset.regionNum) m_regionSelected = 0;
+						tsf_region & curRegion = curPreset.regions[m_regionSelected];
+
+						ImGui::LabelText("InsturmentID", "%d", curRegion.instrumentID);
+						ImGui::LabelText("Key", "%d - %d", curRegion.lokey, curRegion.hikey);
+						ImGui::LabelText("Vel", "%d - %d", curRegion.lovel, curRegion.hivel);
+						ImGui::LabelText("OverridingRootKey", "%d", curRegion.pitch_keycenter);
+						ImGui::LabelText("CoarseTune", "%d", curRegion.transpose);
+						ImGui::LabelText("FineTune", "%d", curRegion.tune);
+						ImGui::LabelText("ScaleTuning", "%d", curRegion.pitch_keytrack);
+						ImGui::LabelText("ExclusiveClass", "%d", curRegion.group);
+
+						if (ImGui::TreeNode("Sample")) {
+							ImGui::LabelText("StartAddrsOffset", "%d", curRegion.offset);
+							ImGui::LabelText("EndAddrsOffset", "%d", curRegion.end);
+							ImGui::LabelText("StartloopAddrsOffset", "%d", curRegion.loop_start);
+							ImGui::LabelText("EndloopAddrsOffset", "%d", curRegion.loop_end);
+							ImGui::LabelText("SampleModes", "%d", curRegion.loop_mode);
+
+							if (curRegion.sampleID >= 0) {
+								tsf_sample & regionSample = g_TinySoundFont->samples[curRegion.sampleID];
+
+								std::string label3 = fmt::format("{} {}", curRegion.sampleID, regionSample.sampleName);
+								if (ImGui::Button(label3.c_str())) {
+									m_selectedId = curRegion.sampleID;
+									m_selectedType = 0;
+								}
+								ImGui::LabelText("SampleRate", "%d", curRegion.sample_rate);
+							}
+							ImGui::TreePop();
+						}
+
+						ImGui::LabelText("Attenuation", "%f", curRegion.attenuation);
+						ImGui::LabelText("Pan", "%f", curRegion.pan);
+						ImGui::LabelText("InitialFilterFc", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.initialFilterFc), curRegion.initialFilterFc);
+						ImGui::LabelText("InitialFilterQ", "%d", curRegion.initialFilterQ);
+						ImGui::LabelText("ChorusSend", "%f", curRegion.chorusSend);
+						ImGui::LabelText("ReverbSend", "%f", curRegion.reverbSend);
+
+						if (ImGui::TreeNode("ModLfo")) {
+							ImGui::LabelText("Delay", "%f", curRegion.delayModLFO);
+							ImGui::LabelText("Freq", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.freqModLFO), curRegion.freqModLFO);
+							ImGui::TreePop();
+						}
+
+						if (ImGui::TreeNode("VibLfo")) {
+							ImGui::LabelText("Delay", "%f", curRegion.delayVibLFO);
+							ImGui::LabelText("Freq", "%.3f Hz (%d)", tsf_cents2Hertz(curRegion.freqVibLFO), curRegion.freqVibLFO);
+							ImGui::TreePop();
+						}
+
+						ImGui::LabelText("ModLfoToFilterFc", "%d cent fs", curRegion.modLfoToFilterFc);
+						ImGui::LabelText("ModEnvToFilterFc", "%d cent fs", curRegion.modEnvToFilterFc);
+						ImGui::LabelText("ModLfoToPitch", "%d cent fs", curRegion.modLfoToPitch);
+						ImGui::LabelText("VibLfoToPitch", "%d cent fs", curRegion.vibLfoToPitch);
+						ImGui::LabelText("ModEnvToPitch", "%d cent fs", curRegion.modEnvToPitch);
+						ImGui::LabelText("ModLfoToVolume", "%d cB fs", curRegion.modLfoToVolume);
+
+						if (ImGui::TreeNode("ModEnv")) {
+							ImGui::LabelText("DelayModEnv", "%f", curRegion.modenv.delay);
+							ImGui::LabelText("AttackModEnv", "%f", curRegion.modenv.attack);
+							ImGui::LabelText("HoldModEnv", "%f", curRegion.modenv.hold);
+							ImGui::LabelText("DecayModEnv", "%f", curRegion.modenv.decay);
+							ImGui::LabelText("SustainModEnv", "%f", curRegion.modenv.sustain);
+							ImGui::LabelText("ReleaseModEnv", "%f", curRegion.modenv.release);
+							ImGui::LabelText("KeynumToModEnvHold", "%f", curRegion.modenv.keynumToHold);
+							ImGui::LabelText("KeynumToModEnvDecay", "%f", curRegion.modenv.keynumToDecay);
+							ImGui::TreePop();
+						}
+
+						if (ImGui::TreeNode("VolEnv")) {
+							ImGui::LabelText("DelayVolEnv", "%f s", curRegion.ampenv.delay);
+							ImGui::LabelText("AttackVolEnv", "%f s", curRegion.ampenv.attack);
+							ImGui::LabelText("HoldVolEnv", "%f s", curRegion.ampenv.hold);
+							ImGui::LabelText("DecayVolEnv", "%f s", curRegion.ampenv.decay);
+							ImGui::LabelText("SustainVolEnv", "%.2f dB", tsf_gainToDecibels(curRegion.ampenv.sustain));
+							ImGui::LabelText("ReleaseVolEnv", "%f s", curRegion.ampenv.release);
+							ImGui::LabelText("KeynumToVolEnvHold", "%f", curRegion.ampenv.keynumToHold);
+							ImGui::LabelText("KeynumToVolEnvDecay", "%f", curRegion.ampenv.keynumToDecay);
+							ImGui::TreePop();
+						}
+
+						for (int i=0; i <curRegion.modulatorNum; i++) {
+
+							tsf_modulator & curModulator = curRegion.modulators[i];
+							std::string label = fmt::format("Modulator {}", i);
+							if (ImGui::TreeNode(label.c_str())) {
+								if (ImGui::TreeNode("Source1")) {
+									ImGui::LabelText("Value", "0x%x", curModulator.modSrcOper);
+									if (curModulator.modSrcOperDetails.cc) {
+										ImGui::LabelText("CC", "%d", curModulator.modSrcOperDetails.index);
+									} else {
+										ImGui::LabelText("GC", "%d", curModulator.modSrcOperDetails.index);
+									}
+									ImGui::LabelText("Direction", "%s", curModulator.modSrcOperDetails.d ? "Negative": "Positive");
+									ImGui::LabelText("Polarity", "%s", curModulator.modSrcOperDetails.p ? "Bipolar": "Unipolar");
+									ImGui::LabelText("Type", "%s", GetCurveTypeNames(curModulator.modSrcOperDetails.type));
+									ImGui::TreePop();
+								}
+								if (curModulator.modAmtSrcOper) {
+									if (ImGui::TreeNode("Source2")) {
+										ImGui::LabelText("Value", "0x%x", curModulator.modAmtSrcOper);
+										if (curModulator.modAmtSrcOperDetails.cc) {
+											ImGui::LabelText("CC", "%d", curModulator.modAmtSrcOperDetails.index);
+										} else {
+											ImGui::LabelText("GC", "%d", curModulator.modAmtSrcOperDetails.index);
+										}
+										ImGui::LabelText("Direction", "%s", curModulator.modAmtSrcOperDetails.d ? "Negative": "Positive");
+										ImGui::LabelText("Polarity", "%s", curModulator.modAmtSrcOperDetails.p ? "Bipolar": "Unipolar");
+										ImGui::LabelText("Type", "%s", GetCurveTypeNames(curModulator.modAmtSrcOperDetails.type));
+										ImGui::TreePop();
+									}
+								}
+
+								ImGui::LabelText("Dest", "%d", curModulator.modDestOper);
+
+								ImGui::LabelText("Amount", "%d", curModulator.modAmount);
+
+								ImGui::LabelText("Trans", "%s", curModulator.modTransOper == 0 ? "Linear" : "Absolute");
+
+								ImGui::TreePop();
+							}
+						}
+					}
+				}
+				ImGui::EndChild();
+
+			} else {
+				if (m_selectedId < 0 || m_selectedId >= g_TinySoundFont->sampleNum) break;
+
+
+
+				tsf_sample & curSample = g_TinySoundFont->samples[m_selectedId];
+				ImGui::LabelText("Name", "%s", curSample.sampleName);
+				ImGui::LabelText("Start", "%d", curSample.start);
+				ImGui::LabelText("End", "%d", curSample.end);
+				ImGui::LabelText("Start Loop", "%d", curSample.startLoop);
+				ImGui::LabelText("End Loop", "%d", curSample.endLoop);
+				ImGui::LabelText("Original Pitch", "%d", curSample.originalPitch);
+				ImGui::LabelText("Pitch Correction", "%d", curSample.pitchCorrection);
+				ImGui::LabelText("Sample Rate", "%d", curSample.sampleRate);
+				ImGui::LabelText("Sample Type", "%d", curSample.sampleType);
+				if (curSample.sampleType & 0x8000) {
+					ImGui::SameLine(); ImGui::Text("rom");
+				}
+				int sampleLinkIdx = -1;
+				if ((curSample.sampleType & 0xF) == 1) {
+					ImGui::SameLine(); ImGui::Text("mono");
+				}
+				if ((curSample.sampleType & 0xF) == 2) {
+					ImGui::SameLine(); ImGui::Text("right");
+					sampleLinkIdx = curSample.sampleLink;
+				}
+				if ((curSample.sampleType & 0xF) == 4) {
+					ImGui::SameLine(); ImGui::Text("left");
+					sampleLinkIdx = curSample.sampleLink;
+				}
+				if ((curSample.sampleType & 0xF) == 8) {
+					ImGui::SameLine(); ImGui::Text("linked");
+				}
+				if (sampleLinkIdx != -1 && sampleLinkIdx < g_TinySoundFont->sampleNum) {
+					tsf_sample & linkedSample = g_TinySoundFont->samples[sampleLinkIdx];
+					ImGui::Text("sampleLink"); ImGui::SameLine();
+					std::string label3 = fmt::format("{} {}", sampleLinkIdx, linkedSample.sampleName);
+					if (ImGui::Button(label3.c_str())) {
+						m_selectedId = sampleLinkIdx;
+						m_selectedType = 0;
+					}
+				}
+			}
+			noselected = false;
+		} while(noselected);
+		if (noselected) {
+			ImGui::Text("Please select something.");
+		}
+	}
+	ImGui::EndChild();
 }
 
-
-//
-DawSoundFont::DawSoundFont() {
+DawSoundFont::DawSoundFont()
+{
 	auto cb = [this](hscpp::SwapInfo& info) {
+		info.Save("selectedId", m_selectedId);
+		info.Save("selectedType", m_selectedType);
+		info.Save("regionSelected", m_regionSelected);
+		info.Save("heightSamples", m_heightSamples);
+		info.SaveMove("pPianoButton", m_pPianoButton);
+	};
 
-  };
+	Hscpp_SetSwapHandler(cb);
 
-  Hscpp_SetSwapHandler(cb);
-
-	if (Hscpp_IsSwapping()) {
+	if (Hscpp_IsSwapping())
+	{
 		return;
 	}
 
 	Creating();
 }
 
-DawSoundFont::~DawSoundFont() {
+DawSoundFont::~DawSoundFont()
+{
 	if (Hscpp_IsSwapping())
-  {
-      return;
-  }
+	{
+			return;
+	}
 
 	Destroying();
 }
 
 void DawSoundFont::Update()
 {
-  vinfony::Globals *globals = vinfony::Globals::Resolve();
-  ImGui::SetCurrentContext( Globals::Resolve()->pImGuiContext );
+	vinfony::Globals *globals = vinfony::Globals::Resolve();
 
-  ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-  if (ImGui::Begin("SoundFont", &globals->showSoundFont)) {
-    Draw( Globals::Resolve()->pTinySoundFont );
-  }
-  ImGui::End();
+	if (globals->showSoundFont)
+	{
+		ImGui::SetCurrentContext( Globals::Resolve()->pImGuiContext );
+
+		ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
+		if (ImGui::Begin("SoundFont", &globals->showSoundFont)) {
+			Draw( Globals::Resolve()->pTinySoundFont );
+		}
+		ImGui::End();
+	}
 }
 
-void DawSoundFont::Creating() {
+void DawSoundFont::Creating()
+{
 	fmt::println( "DawSoundFont::Creating" );
 
+	m_selectedId = -1;
+	m_selectedType = 0;
+	m_regionSelected = -1;
+	m_heightSamples = 200.0f;
 
+	m_pPianoButton = Globals::Resolve()->pMemoryManager->Allocate<vinfony::PianoButton>();
 }
 
-void DawSoundFont::Destroying() {
+void DawSoundFont::Destroying()
+{
 	fmt::println( "DawSoundFont::Destroying" );
 }
 

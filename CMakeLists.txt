@@ -77,7 +77,7 @@ set(SOURCE
   src/DawSysEx.cpp
   src/DawDoc.cpp
   src/UI/DawSoundFont.cpp
-  src/PianoButton.cpp
+  src/UI/PianoButton.cpp
   src/UI/Splitter.cpp
   src/UI/MainWidget.cpp
 ## -- endsources --
@@ -101,7 +101,7 @@ set(HEADERS
   src/DawSysEx.hpp
   src/DawDoc.hpp
   src/UI/DawSoundFont.hpp
-  src/PianoButton.hpp
+  src/UI/PianoButton.hpp
   src/UI/UI.hpp
   src/UI/MainWidget.hpp
 ## -- endheaders --

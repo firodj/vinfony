@@ -86,7 +86,8 @@ class DawTrackNotesUI: public IDawTrackNotes {
 
 	std::unique_ptr<IDawTrackNotes> m_base;
 
-	DawTrackNotesUI(IDawSeq * seq) {
+	DawTrackNotesUI(IDawSeq * seq)
+	{
 		m_base = seq->CreateDawTrackNotes();
 		m_base->SetDerived(this);
 	}
