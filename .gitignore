@@ -4,6 +4,7 @@
 venv/
 .vscode/
 
+build/
 build-*/
 *.dSYM/
 ext/
