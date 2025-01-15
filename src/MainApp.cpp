@@ -213,6 +213,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 
 	auto buildPath = hscpp::util::GetHscppBuildPath();
 	m_impl->swapper->SetVar("buildPath", buildPath.u8string());
+	m_impl->swapper->SetVar("imguiUserConfig", hscpp::fs::path(IMGUI_USER_CONFIG).u8string());
 
 	hscpp::mem::MemoryManager::Config config;
 	config.pAllocationResolver = m_impl->swapper->GetAllocationResolver();

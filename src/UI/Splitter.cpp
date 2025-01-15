@@ -4,6 +4,19 @@
 
 #include "UI.hpp"
 
+hscpp_require_include_dir("${projPath}/ext/imgui-docking")
+hscpp_require_preprocessor_def("IMGUI_USER_CONFIG=\\\"${imguiUserConfig}\\\"", "imgui_IMPORTS")
+hscpp_if (os == "Windows")
+    //hscpp_require_library("${buildPath}/Debug/imgui.lib")
+    hscpp_require_library("${projPath}/bin/imgui.dll")
+hscpp_elif (os == "Posix")
+    //hscpp_require_library("${buildPath}/Debug/libimgui.a")
+    hscpp_require_library("${projPath}/bin/libimgui.dylib")
+hscpp_else()
+    // Diagnostic messages can be printed to the build output with hscpp_message.
+    hscpp_message("Unknown OS ${os}.")
+hscpp_end()
+
 namespace vinfony
 {
 	const int SplitterThickness = 8;
