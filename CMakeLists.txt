@@ -24,7 +24,6 @@ find_package(OpenGL REQUIRED)
 set(SDL_TEST OFF)
 set(SDL2_DISABLE_SDL2MAIN ON)
 add_subdirectory(ext/sdl2)
-add_compile_definitions(IMGUI_USER_CONFIG="../../kosongg/cpp/imconfig.h")
 set(IMGUI_DIR "ext/imgui-docking")
 set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
@@ -56,6 +55,9 @@ set(imgui_SOURCES
 add_library(imgui
   ${imgui_SOURCES}
 )
+if (BUILD_SHARED_LIBS)
+  target_compile_definitions(imgui INTERFACE imgui_IMPORTS)
+endif()
 
 set(SOURCE
   ${VENDOR_DIR}/main.cpp
@@ -135,7 +137,9 @@ set_target_properties(vinfony PROPERTIES
   MACOSX_BUNDLE_INFO_PLIST                       "${CMAKE_SOURCE_DIR}/Info.plist.in"
   MACOSX_BUNDLE                                  "TRUE"
 )
-add_compile_definitions(BUILD_APPLE_BUNDLE)
+list(APPEND _COMPILE_DEFINITIONS
+  BUILD_APPLE_BUNDLE
+)
 else()
 add_executable(vinfony
   ${SOURCE} ${HEADERS}
@@ -180,7 +184,8 @@ endif()
 if (MSVC)
 
   # Silence MSVC CRT security warnings
-  add_compile_definitions(_CRT_SECURE_NO_WARNINGS
+  list(APPEND _COMPILE_DEFINITIONS
+    _CRT_SECURE_NO_WARNINGS
 
   )
 
@@ -206,11 +211,14 @@ else()
   endif()
 endif()
 
-add_compile_definitions(
+list(APPEND _COMPILE_DEFINITIONS
   _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
   SDL_MAIN_HANDLED
+  IMGUI_USER_CONFIG="../../kosongg/cpp/imconfig.h"
   _USE_HSCPP_
 )
+
+add_compile_definitions(${_COMPILE_DEFINITIONS})
 
 target_link_libraries(vinfony
   ${OPENGL_LIBRARIES}
