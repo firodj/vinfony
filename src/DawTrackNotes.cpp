@@ -194,7 +194,7 @@ void DawTrackNotes::ClipOff(long t) {
 }
 
 void DawTrackNotes::DrawNote(int slot) {
-  fmt::println("TODO: DrawNote %d\n", slot);
+  //fmt::println("TODO: DrawNote %d\n", slot);
 }
 
 }

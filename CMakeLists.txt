@@ -173,6 +173,7 @@ if (WIN32)
 endif()
 
 add_library(ifd STATIC ${ifd_SOURCES})
+target_link_libraries(ifd PRIVATE imgui)
 
 if (APPLE)
   # Cocoa
