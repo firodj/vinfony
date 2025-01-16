@@ -194,8 +194,8 @@ void MainApp::Init(std::vector<std::string> &args) {
 
 	auto swapperConfig = std::make_unique<hscpp::Config>();
 	swapperConfig->compiler.projPath = projPath.u8string();
-	swapperConfig->compiler.ninja = true;
-
+	swapperConfig->compiler.ninja = false;
+	
 	m_impl->swapper = std::make_unique<hscpp::Hotswapper>(std::move(swapperConfig));
 	m_impl->swapper->EnableFeature(hscpp::Feature::Preprocessor);
 	m_impl->swapper->EnableFeature(hscpp::Feature::DependentCompilation);

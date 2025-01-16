@@ -29,11 +29,10 @@ hscpp_require_source("Splitter.cpp")
 hscpp_require_preprocessor_def("IMGUI_USER_CONFIG=\\\"${imguiUserConfig}\\\"", "imgui_IMPORTS")
 
 hscpp_if (os == "Windows")
-	//hscpp_require_library("${buildPath}/Debug/imgui.lib")
-	hscpp_require_library("${projPath}/bin/jdksmidi.dll")
-
+	hscpp_require_library("${buildPath}/Debug/imgui.lib")
+	hscpp_require_library("${buildPath}/ext/jdksmidi/Debug/jdksmidi.lib")
+	hscpp_require_library("${buildPath}/ext/fmt/Debug/fmtd.lib")
 hscpp_elif (os == "Posix")
-	//hscpp_require_library("${buildPath}/Debug/libjdksmidi.a")
 	hscpp_require_library("${projPath}/bin/libimgui.dylib")
 	hscpp_require_library("${projPath}/bin/libjdksmidi.dylib")
 	hscpp_require_library("${projPath}/bin/libfmtd.dylib")
@@ -219,7 +218,7 @@ void InitDawMainStorage(DawMainStorage & storage) {
 	});
 	storage.props[id]->w = 20;
 
-	NewProp(storage, "Namely", [](DawPropDrawParam * param, IDawSeq *seq) {
+	NewProp(storage, "Name", [](DawPropDrawParam * param, IDawSeq *seq) {
 		(void)seq;
 
 		ImGui::Text("%s", param->track->GetName() );
