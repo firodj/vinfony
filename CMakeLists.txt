@@ -157,6 +157,7 @@ list(APPEND ifd_SOURCES
   ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.hpp
   ${VENDOR_DIR}/ifd/DirectoryIterator.hpp
   ${VENDOR_DIR}/ifd/DirectoryIterator.cpp
+  ${VENDOR_DIR}/UtfConv.c
 )
 
 if (APPLE)
