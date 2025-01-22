@@ -24,7 +24,8 @@ find_package(OpenGL REQUIRED)
 set(SDL_TEST OFF)
 set(SDL2_DISABLE_SDL2MAIN ON)
 add_subdirectory(ext/sdl2)
-set(IMGUI_DIR "ext/imgui-docking")
+#set(IMGUI_DIR "ext/imgui-docking")
+add_subdirectory(kosongg/cmake/imgui)
 set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
@@ -35,29 +36,14 @@ add_subdirectory(ext/tsf)
 set(HSCPP_BUILD_EXAMPLES OFF)
 set(HSCPP_BUILD_TESTS OFF)
 add_subdirectory(ext/hscpp)
+set(ifd_BUILD_EXAMPLES OFF)
+add_subdirectory(ext/ifd)
 
 include_directories(SYSTEM
   ${OPENGL_INCLUDE_DIR}
   ${SDL2_SOURCE_DIR}/include
-  ${IMGUI_DIR}
-  ${IMGUI_DIR}/backends
   ${fmt_SOURCE_DIR}/include
 )
-set(imgui_SOURCES
-  ${IMGUI_DIR}/imgui.cpp
-  ${IMGUI_DIR}/imgui_demo.cpp
-  ${IMGUI_DIR}/imgui_draw.cpp
-  ${IMGUI_DIR}/imgui_tables.cpp
-  ${IMGUI_DIR}/imgui_widgets.cpp
-  ${VENDOR_DIR}/Component.cpp
-)
-
-add_library(imgui
-  ${imgui_SOURCES}
-)
-if (BUILD_SHARED_LIBS)
-  target_compile_definitions(imgui INTERFACE imgui_IMPORTS)
-endif()
 
 set(SOURCE
   ${VENDOR_DIR}/main.cpp
@@ -149,39 +135,12 @@ endif()
 source_group("Source Files" FILES ${SOURCE})
 source_group("Header Files" FILES ${HEADERS})
 
-# ImFileDialog (ifd)
-list(APPEND ifd_SOURCES
-  ${VENDOR_DIR}/ifd/ImFileDialog.cpp
-  ${VENDOR_DIR}/ifd/ImFileDialog.hpp
-  ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.cpp
-  ${VENDOR_DIR}/ifd/ImFileDialogIconInfo.hpp
-  ${VENDOR_DIR}/ifd/DirectoryIterator.hpp
-  ${VENDOR_DIR}/ifd/DirectoryIterator.cpp
-  ${VENDOR_DIR}/UtfConv.c
-)
-
-if (APPLE)
-  list(APPEND ifd_SOURCES
-    ${VENDOR_DIR}/ifd/ImFileDialog_osx.mm
-    ${VENDOR_DIR}/ifd/ImFileDialog_osx.hpp
-  )
-endif()
-if (WIN32)
-  list(APPEND ifd_SOURCES
-    ${VENDOR_DIR}/ifd/ImFileDialog_win32.cpp
-    ${VENDOR_DIR}/ifd/ImFileDialog_win32.hpp
-  )
-endif()
-
-add_library(ifd STATIC ${ifd_SOURCES})
-target_link_libraries(ifd PRIVATE imgui)
-
-if (APPLE)
-  # Cocoa
-  find_library(COCOA_LIBRARY Cocoa)
-  find_library(APPKIT_LIB AppKit)
-  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB})
-endif()
+#if (APPLE)
+#  # Cocoa
+#  find_library(COCOA_LIBRARY Cocoa)
+#  find_library(APPKIT_LIB AppKit)
+#  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB})
+#endif()
 
 if (MSVC)
 
