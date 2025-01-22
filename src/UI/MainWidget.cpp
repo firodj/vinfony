@@ -5,7 +5,7 @@
 #include "imgui_internal.h"
 #include "../Globals.hpp"
 
-#include <ifd/ImFileDialog.hpp>
+#include <ImFileDialog.hpp>
 
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"

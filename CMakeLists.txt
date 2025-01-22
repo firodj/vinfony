@@ -24,11 +24,10 @@ find_package(OpenGL REQUIRED)
 set(SDL_TEST OFF)
 set(SDL2_DISABLE_SDL2MAIN ON)
 add_subdirectory(ext/sdl2)
-#set(IMGUI_DIR "ext/imgui-docking")
-add_subdirectory(kosongg/cmake/imgui)
 set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/ext/glad2")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
+add_subdirectory(kosongg/cmake/imgui)
 add_subdirectory(ext/fmt)
 add_subdirectory(ext/libassert)
 add_subdirectory(ext/jdksmidi)
@@ -50,6 +49,7 @@ set(SOURCE
   ${VENDOR_DIR}/Engine.cpp
   ${VENDOR_DIR}/GLUtil.cpp
   ${VENDOR_DIR}/UtfConv.c
+  ${VENDOR_DIR}/Component.cpp
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
 ## -- sources --
@@ -76,6 +76,7 @@ set(HEADERS
   ${VENDOR_DIR}/kosongg/Engine.h
   ${VENDOR_DIR}/kosongg/GLUtil.h
   ${VENDOR_DIR}/kosongg/UtfConv.h
+  ${VENDOR_DIR}/kosongg/Component.h
 ## -- headers --
   src/MainApp.hpp
   src/Globals.hpp
@@ -135,13 +136,6 @@ endif()
 source_group("Source Files" FILES ${SOURCE})
 source_group("Header Files" FILES ${HEADERS})
 
-#if (APPLE)
-#  # Cocoa
-#  find_library(COCOA_LIBRARY Cocoa)
-#  find_library(APPKIT_LIB AppKit)
-#  target_link_libraries(ifd PUBLIC ${COCOA_LIBRARY} ${APPKIT_LIB})
-#endif()
-
 if (MSVC)
 
   # Silence MSVC CRT security warnings
@@ -184,8 +178,8 @@ add_compile_definitions(${_COMPILE_DEFINITIONS})
 target_link_libraries(vinfony
   ${OPENGL_LIBRARIES}
   SDL2
-  imgui
   glad_gl_core_33
+  imgui
   fmt
   libassert::assert
   jdksmidi
@@ -193,6 +187,13 @@ target_link_libraries(vinfony
   hscpp-mem
   ifd
 )
+
+if (APPLE)
+  # Cocoa
+  find_library(COCOA_LIBRARY Cocoa)
+  find_library(APPKIT_LIB AppKit)
+  target_link_libraries(vinfony ${COCOA_LIBRARY} ${APPKIT_LIB})
+endif()
 
 if (BUILD_APPLE_BUNDLE)
 

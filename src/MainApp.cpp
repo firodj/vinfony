@@ -15,8 +15,8 @@
 //#include "DawSoundFont.hpp"
 
 #include <kosongg/INIReader.h>
-#include <ifd/ImFileDialog.hpp>
-#include <ifd/ImFileDialog_opengl.hpp>
+#include <ImFileDialog.hpp>
+#include <ImFileDialog_opengl.hpp>
 #include <kosongg/IconsFontAwesome6.h>
 #include "kosongg/Component.h"
 #include "kosongg/GLUtil.h"
@@ -196,7 +196,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 	swapperConfig->compiler.projPath = projPath.u8string();
 	swapperConfig->compiler.ninja = true;
 	std::cerr << "ninja path = " << swapperConfig->compiler.ninjaExecutable << std::endl;
-	
+
 	m_impl->swapper = std::make_unique<hscpp::Hotswapper>(std::move(swapperConfig));
 	m_impl->swapper->EnableFeature(hscpp::Feature::Preprocessor);
 	m_impl->swapper->EnableFeature(hscpp::Feature::DependentCompilation);
