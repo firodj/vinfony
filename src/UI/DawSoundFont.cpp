@@ -28,13 +28,13 @@ hscpp_require_source("Splitter.cpp")
 hscpp_require_preprocessor_def("IMGUI_USER_CONFIG=\\\"${imguiUserConfig}\\\"", "imgui_IMPORTS")
 
 hscpp_if (os == "Windows")
-	hscpp_require_library("${buildPath}/Debug/imgui.lib")
+	hscpp_require_library("${buildPath}/kosongg/cmake/imgui/Debug/imgui.lib")
 	hscpp_require_library("${buildPath}/ext/tsf/Debug/tsf.lib")
 	hscpp_require_library("${buildPath}/ext/fmt/Debug/fmtd.lib")
 	hscpp_require_library("${buildPath}/ext/hscpp/extensions/mem/Debug/hscpp-mem.lib")
 hscpp_elif (os == "Posix")
-	hscpp_require_library("${buildPath}/ext/tsf/Debug/libtsf.a")
 	hscpp_require_library("${projPath}/bin/libimgui.dylib")
+	hscpp_require_library("${buildPath}/ext/tsf/Debug/libtsf.a")
 	hscpp_require_library("${projPath}/bin/libfmtd.dylib")
 	hscpp_require_library("${projPath}/bin/libhscpp-mem.dylib")
 hscpp_else()
@@ -164,7 +164,7 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 					ImGui::EndTable();
 				}
 
-				if (ImGui::BeginChild("regionList", {0, 0}, ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None))
+				if (ImGui::BeginChild("regionList", {120, 0}, ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None))
 				{
 					ImVec2 wndpos = ImGui::GetWindowPos();
 					ImVec2 wndmax = wndpos + ImGui::GetWindowSize();
