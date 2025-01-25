@@ -18,6 +18,7 @@ namespace vinfony
         double * msgTimeShiftMs
     )
     {
+        (void)msgTimeShiftMs;
 		DumpMIDITimedBigMessage( &msg );
 		return true;
 	}

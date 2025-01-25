@@ -5,7 +5,7 @@
 #include "UI.hpp"
 
 hscpp_require_include_dir("${projPath}/ext/imgui-docking")
-hscpp_require_preprocessor_def("IMGUI_USER_CONFIG=\\\"${imguiUserConfig}\\\"", "imgui_IMPORTS")
+
 hscpp_if (os == "Windows")
     hscpp_require_library("${buildPath}/kosongg/cmake/imgui/Debug/imgui.lib")
 hscpp_elif (os == "Posix")

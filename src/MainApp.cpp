@@ -214,7 +214,12 @@ void MainApp::Init(std::vector<std::string> &args) {
 
 	auto buildPath = hscpp::util::GetHscppBuildPath();
 	m_impl->swapper->SetVar("buildPath", buildPath.u8string());
-	m_impl->swapper->SetVar("imguiUserConfig", hscpp::fs::path(IMGUI_USER_CONFIG).u8string());
+#ifdef IMGUI_USER_CONFIG
+	m_impl->swapper->AddPreprocessorDefinition(fmt::format("IMGUI_USER_CONFIG=\\\"{}\\\"", hscpp::fs::path(IMGUI_USER_CONFIG).u8string()));
+#endif
+#ifdef imgui_IMPORTS
+	m_impl->swapper->AddPreprocessorDefinition("imgui_IMPORTS"); // if BUILD_SHARED
+#endif
 
 	hscpp::mem::MemoryManager::Config config;
 	config.pAllocationResolver = m_impl->swapper->GetAllocationResolver();

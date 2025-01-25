@@ -82,6 +82,8 @@ namespace vinfony
         double * msgTimeShiftMs
     )
     {
+        (void)msgTimeShiftMs;
+
         if ( msg.IsChannelEvent() )
         {
             m_impl->message[0] = msg.GetStatus();

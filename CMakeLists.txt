@@ -169,7 +169,6 @@ endif()
 list(APPEND _COMPILE_DEFINITIONS
   _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
   SDL_MAIN_HANDLED
-  IMGUI_USER_CONFIG="../../kosongg/cpp/imconfig.h"
   _USE_HSCPP_
 )
 
