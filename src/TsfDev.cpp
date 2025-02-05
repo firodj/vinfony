@@ -317,4 +317,5 @@ bool TinySoundFontDevice::RealHardwareMsgOut ( const jdksmidi::MIDITimedBigMessa
 tsf * TinySoundFontDevice::GetTSF() { return m_impl->g_TinySoundFont; }
 
 const char * TinySoundFontDevice::GetName() { return "TinySoundFont"; }
+
 }

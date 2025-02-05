@@ -32,10 +32,17 @@ struct DawProp {
 	DawPropDrawFunc DrawProp{};
 };
 
+
 // DawMainProject
 class DawMainProject {
 
 	HSCPP_TRACK(DawMainProject, "DawMainProject");
+
+	struct DrawingState {
+		float h0; // colum headaer height
+		float tot_h; // total heigth of all rows
+		IDawSeq *seq;
+	};
 
 public:
 	hscpp_virtual ~DawMainProject();
@@ -50,6 +57,11 @@ public:
 	std::unique_ptr<DawMainStorage> m_storage;
 	bool m_showDebug;
 	bool m_needRedraw;
+
+	DrawingState m_drawingState;
+
+	void DrawChild1();
+	void DrawChild2();
 };
 
 };

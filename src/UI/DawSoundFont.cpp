@@ -4,7 +4,6 @@
 
 #include "TsfDev.hpp"
 #include <tsf.h>
-#include <tsf_internal.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -51,6 +50,7 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 		return;
 	}
 
+	ImGui::PushStyleVarX(ImGuiStyleVar_WindowMinSize, 100);
 	if (ImGui::BeginChild("List", {200, 0}, ImGuiChildFlags_ResizeX | ImGuiChildFlags_Border))
 	{
 		ImGuiContext& g = *GImGui;
@@ -116,6 +116,7 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 		}
 	}
 	ImGui::EndChild();
+	ImGui::PopStyleVar();
 
 	ImGui::SameLine();
 

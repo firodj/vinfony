@@ -4,6 +4,16 @@
 #define TML_IMPLEMENTATION
 #include <tml.h>
 #include <string>
+#include <signal.h>
+
+static bool g_Abort = false;
+// Define the function to be called when ctrl-c (SIGINT) is sent to process
+void signal_callback_handler(int signum) {
+	fprintf(stdout, "Caught signal %d\n", signum);
+	// Terminate program
+	//exit(signum);
+	g_Abort = true;
+}
 
 // Holds the global instance pointer
 static tsf* g_TinySoundFont;
@@ -19,6 +29,7 @@ static void AudioCallback(void* data, Uint8 *stream, int len)
 	int SampleBlock, SampleCount = (len / (2 * sizeof(float))); //2 output channels
 	for (SampleBlock = TSF_RENDER_EFFECTSAMPLEBLOCK; SampleCount; SampleCount -= SampleBlock, stream += (SampleBlock * (2 * sizeof(float))))
 	{
+		if (g_Abort) g_MidiMessage = nullptr;
 		//We progress the MIDI playback and then process TSF_RENDER_EFFECTSAMPLEBLOCK samples at once
 		if (SampleBlock > SampleCount) SampleBlock = SampleCount;
 
@@ -100,7 +111,7 @@ int main(int argc, char *argv[])
 
 	// Load the SoundFont from a file
 	const char * def_sfpath = argc >= 3 ? argv[2] : _PROJECT_SRC_PATH_ "/ext/tsf/examples/florestan-subset.sf2";
-#if 0
+#if 1
 	const char * homepath;
 
 #ifdef _WIN32
@@ -133,12 +144,19 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	// Register signal and signal handler
+   	signal(SIGINT, signal_callback_handler);
+
 	// Start the actual audio playback here
 	// The audio thread will begin to call our AudioCallback function
 	SDL_PauseAudio(0);
 
 	//Wait until the entire MIDI file has been played back (until the end of the linked message list is reached)
 	while (g_MidiMessage != NULL) SDL_Delay(100);
+	tsf_note_off_all(g_TinySoundFont);
+
+	// Additional wait to hear released voices.
+	SDL_Delay(1000);
 
 	// We could call tsf_close(g_TinySoundFont) and tml_free(TinyMidiLoader)
 	// here to free the memory and resources but we just let the OS clean up
