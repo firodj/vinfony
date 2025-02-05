@@ -472,83 +472,9 @@ void DawMainProject::DrawChild2()
 		DrawTimeline(wndpos, scrnpos, scrnmax);
 		DrawCursor(wndpos);
 
-		// Contents and Borders R-R
-		auto v_p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
-		auto v_p2 = v_p1 + wndsz.x;
+		DrawNotes(wndpos, wndsz, scrnmax);
 
-		long visible_clk_p1 = v_p1 * (float) m_drawingState.seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
-		long visible_clk_p2 = v_p2 * (float) m_drawingState.seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
-
-		int dbg_start_show_event_num = -1;
-		int dbg_notes_to_draw = 0, dbg_notes_to_hide = 0, dbg_notes_processed = 0;
-
-#if 1 // DRAW_NOTES
-		ImGui::PushClipRect({ wndpos.x, wndpos.y + m_drawingState.h0 }, { scrnmax.x, scrnmax.y }, false);
-		if (m_drawingState.seq->IsFileLoaded()) {
-			float pos_x = 0;
-			float pos_y = 0 + m_drawingState.h0;
-
-			for (int r=0; r<m_drawingState.seq->GetNumTracks(); r++) {
-				IDawTrack * track = m_drawingState.seq->GetTrack(r);
-
-				DawTrackNotesUI trackNotes(m_drawingState.seq);
-				trackNotes.visible_start_clk = visible_clk_p1;
-				trackNotes.displayState = m_drawingState.seq->GetDisplayState();
-				trackNotes.uiStyle = &storage.uiStyle;
-				trackNotes.scrnpos_x = wndpos.x + pos_x;
-				trackNotes.scrnpos_y = wndpos.y - storage.scroll_y + pos_y;
-				trackNotes.track_h = track->GetH();
-				trackNotes.start_show_event_num = -1;
-				trackNotes.start_show_event_clk = -1;
-				int event_num = 0;
-
-				if (track->GetViewcacheStartVisibleClk() >= 0 && track->GetViewcacheStartVisibleClk() <= visible_clk_p1) {
-					event_num = track->GetViewcacheStartEventNum();
-				}
-
-				ImGui::PushID(r);
-
-				for (; event_num < track->GetMidiTrack()->GetNumEvents(); ++event_num) {
-					trackNotes.cur_event_num = event_num;
-					const jdksmidi::MIDITimedBigMessage * msg = track->GetMidiTrack()->GetEvent(event_num);
-					if ((signed long)msg->GetTime() >= visible_clk_p2) break; // event is ordered by time
-
-					if (msg->IsNoteOn()) {
-						trackNotes.NoteOn( msg->GetTime(), msg->GetNote(), msg->GetVelocity() );
-					} if (msg->IsNoteOff()) {
-						trackNotes.NoteOff( msg->GetTime(), msg->GetNote() );
-					}
-				}
-
-				trackNotes.ClipOff(visible_clk_p2);
-
-				pos_y += track->GetH();
-				HSplitter({pos_x, pos_y}, storage.uiStyle.leftPadding + (m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding,
-					[&]() { track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f); }
-				);
-				ImGui::PopID();
-				pos_y += 8;
-
-				if (visible_clk_p1 >= track->GetViewcacheStartVisibleClk()) {
-					track->GetViewcacheStartVisibleClk() = visible_clk_p1;
-					if (trackNotes.start_show_event_num != -1)
-						track->GetViewcacheStartEventNum() = trackNotes.start_show_event_num;
-				} else {
-					track->GetViewcacheStartVisibleClk() = -1;
-					track->GetViewcacheStartEventNum() = 0;
-				}
-
-				if (track->GetId() == 5) { // only  check one track
-					dbg_start_show_event_num = track->GetViewcacheStartEventNum();
-				}
-				dbg_notes_to_draw   += trackNotes.notes_to_draw;
-				dbg_notes_to_hide   += trackNotes.notes_to_hide;
-				dbg_notes_processed += trackNotes.GetNoteProcessed();
-			}
-		}
-		ImGui::PopClipRect();
-#endif // DRAW_NOTES
-
+#if 0
 		// Debug
 		if (m_showDebug) {
 			auto sticky_p = wndpos + ImVec2{0, wndsz.y - ImGui::GetFrameHeightWithSpacing() * 2}; // OR timeline_pos + ImGui::GetScroll();
@@ -563,6 +489,7 @@ void DawMainProject::DrawChild2()
 				visible_clk_p1, visible_clk_p2, dbg_notes_to_draw, dbg_notes_to_hide, dbg_notes_processed,
 					dbg_start_show_event_num);
 		}
+#endif
 
 		// Auto Scroll
 		if (m_drawingState.seq->IsPlaying() || m_drawingState.seq->IsRewinding()) {
@@ -729,6 +656,85 @@ void DawMainProject::EnlargeWindow(ImVec2 & far)
 	ImGui::SetCursorPos(xy0);
 }
 
+void DawMainProject::DrawNotes(ImVec2 & wndpos, ImVec2 & wndsz, ImVec2 & scrnmax)
+{
+	DawMainStorage &storage = *m_storage;
+
+	// Contents and Borders R-R
+	auto v_p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
+	auto v_p2 = v_p1 + wndsz.x;
+
+	m_drawingState.visible_clk_p1 = v_p1 * (float) m_drawingState.seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
+	m_drawingState.visible_clk_p2 = v_p2 * (float) m_drawingState.seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
+
+	int dbg_start_show_event_num = -1;
+	int dbg_notes_to_draw = 0, dbg_notes_to_hide = 0, dbg_notes_processed = 0;
+
+	ImGui::PushClipRect({ wndpos.x, wndpos.y + m_drawingState.h0 }, { scrnmax.x, scrnmax.y }, false);
+	if (m_drawingState.seq->IsFileLoaded()) {
+		float pos_x = 0;
+		float pos_y = 0 + m_drawingState.h0;
+
+		for (int r=0; r<m_drawingState.seq->GetNumTracks(); r++) {
+			IDawTrack * track = m_drawingState.seq->GetTrack(r);
+
+			DawTrackNotesUI trackNotes(m_drawingState.seq);
+			trackNotes.visible_start_clk = m_drawingState.visible_clk_p1;
+			trackNotes.displayState = m_drawingState.seq->GetDisplayState();
+			trackNotes.uiStyle = &storage.uiStyle;
+			trackNotes.scrnpos_x = wndpos.x + pos_x;
+			trackNotes.scrnpos_y = wndpos.y - storage.scroll_y + pos_y;
+			trackNotes.track_h = track->GetH();
+			trackNotes.start_show_event_num = -1;
+			trackNotes.start_show_event_clk = -1;
+			int event_num = 0;
+
+			if (track->GetViewcacheStartVisibleClk() >= 0 && track->GetViewcacheStartVisibleClk() <= m_drawingState.visible_clk_p1) {
+				event_num = track->GetViewcacheStartEventNum();
+			}
+
+			ImGui::PushID(r);
+
+			for (; event_num < track->GetMidiTrack()->GetNumEvents(); ++event_num) {
+				trackNotes.cur_event_num = event_num;
+				const jdksmidi::MIDITimedBigMessage * msg = track->GetMidiTrack()->GetEvent(event_num);
+				if ((signed long)msg->GetTime() >= m_drawingState.visible_clk_p2) break; // event is ordered by time
+
+				if (msg->IsNoteOn()) {
+					trackNotes.NoteOn( msg->GetTime(), msg->GetNote(), msg->GetVelocity() );
+				} if (msg->IsNoteOff()) {
+					trackNotes.NoteOff( msg->GetTime(), msg->GetNote() );
+				}
+			}
+
+			trackNotes.ClipOff(m_drawingState.visible_clk_p2);
+
+			pos_y += track->GetH();
+			HSplitter({pos_x, pos_y}, storage.uiStyle.leftPadding + (m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding,
+				[&]() { track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f); }
+			);
+			ImGui::PopID();
+			pos_y += 8;
+
+			if (m_drawingState.visible_clk_p1 >= track->GetViewcacheStartVisibleClk()) {
+				track->GetViewcacheStartVisibleClk() = m_drawingState.visible_clk_p1;
+				if (trackNotes.start_show_event_num != -1)
+					track->GetViewcacheStartEventNum() = trackNotes.start_show_event_num;
+			} else {
+				track->GetViewcacheStartVisibleClk() = -1;
+				track->GetViewcacheStartEventNum() = 0;
+			}
+
+			if (track->GetId() == 5) { // only  check one track
+				dbg_start_show_event_num = track->GetViewcacheStartEventNum();
+			}
+			dbg_notes_to_draw   += trackNotes.notes_to_draw;
+			dbg_notes_to_hide   += trackNotes.notes_to_hide;
+			dbg_notes_processed += trackNotes.GetNoteProcessed();
+		}
+	}
+	ImGui::PopClipRect();
+}
 //
 DawMainProject::DawMainProject() {
 	auto cb = [this](hscpp::SwapInfo& info) {

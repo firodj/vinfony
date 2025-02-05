@@ -46,6 +46,8 @@ class DawMainProject {
 		float tot_h; // total heigth of all rows
 		IDawSeq *seq;
 		float cursor_x;
+		long visible_clk_p1;
+		long visible_clk_p2;
 	};
 
 public:
@@ -69,6 +71,7 @@ public:
 	void DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnpos, ImVec2 & scrnmax);
 	void DrawCursor(ImVec2 & wndpos);
 	void EnlargeWindow(ImVec2 & far);
+	void DrawNotes(ImVec2 & wndpos, ImVec2 & wndsz, ImVec2 & scrnmax);
 };
 
 };
