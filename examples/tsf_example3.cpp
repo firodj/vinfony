@@ -1,5 +1,7 @@
 #include <SDL.h>
+#define TSF_IMPLEMENTATION
 #include <tsf.h>
+#define TML_IMPLEMENTATION
 #include <tml.h>
 #include <string>
 
@@ -83,7 +85,7 @@ int main(int argc, char *argv[])
 	//Venture (Original WIP) by Ximon
 	//https://musescore.com/user/2391686/scores/841451
 	//License: Creative Commons copyright waiver (CC0)
-	const char * def_midpath = argc >= 2 ? argv[1] : "ext/tsf/examples/venture.mid";
+	const char * def_midpath = argc >= 2 ? argv[1] : _PROJECT_SRC_PATH_ "/ext/tsf/examples/venture.mid";
 	TinyMidiLoader = tml_load_filename(def_midpath);
 	if (!TinyMidiLoader)
 	{
@@ -97,15 +99,18 @@ int main(int argc, char *argv[])
 	tsf_init_lut();
 
 	// Load the SoundFont from a file
-	const char * def_sfpath = argc >= 3 ? argv[2] : "ext/tsf/examples/florestan-subset.sf2";
-  const char * homepath;
+	const char * def_sfpath = argc >= 3 ? argv[2] : _PROJECT_SRC_PATH_ "/ext/tsf/examples/florestan-subset.sf2";
+#if 0
+	const char * homepath;
+
 #ifdef _WIN32
-  homepath = std::getenv("USERPROFILE");
-  def_sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
+	homepath = std::getenv("USERPROFILE");
+	def_sfpath = "E:\\Games\\SoundFont2\\Arachno SoundFont - Version 1.0.sf2";
 #else
-  homepath = std::getenv("HOME");
-  std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
-  def_sfpath = sfpathstr.c_str();
+	homepath = std::getenv("HOME");
+	std::string sfpathstr = std::string(homepath) + std::string("/Documents/Arachno SoundFont - Version 1.0.sf2");
+	def_sfpath = sfpathstr.c_str();
+#endif
 #endif
 	g_TinySoundFont = tsf_load_filename(def_sfpath);
 	if (!g_TinySoundFont)

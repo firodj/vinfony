@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Load the SoundFont from a file
-	const char * def_sfpath = "ext/tsf/examples/florestan-subset.sf2";
+	const char * def_sfpath = _PROJECT_SRC_PATH_ "/ext/tsf/examples/florestan-subset.sf2";
 	g_TinySoundFont = tsf_load_filename(def_sfpath);
 	if (!g_TinySoundFont)
 	{

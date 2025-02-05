@@ -245,9 +245,11 @@ target_compile_definitions(test_sequencer PUBLIC
 )
 
 add_executable(test_tsf1 "${PROJECT_SOURCE_DIR}/examples/tsf_example1.cpp")
+target_compile_definitions(test_tsf1 PRIVATE ${_COMPILE_DEFINITIONS})
 target_link_libraries(test_tsf1 SDL2 tsf)
 
 add_executable(test_tsf2 "${PROJECT_SOURCE_DIR}/examples/tsf_example2.cpp")
+target_compile_definitions(test_tsf2 PRIVATE ${_COMPILE_DEFINITIONS})
 target_link_libraries(test_tsf2 SDL2 tsf)
 
 add_executable(test_tsf3 "${PROJECT_SOURCE_DIR}/examples/tsf_example3.cpp")
