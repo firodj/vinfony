@@ -11,11 +11,14 @@
 #include "../IDawSeq.hpp"
 #include "../IDawTrack.hpp"
 
+struct ImVec2;
+
 namespace vinfony {
 
 struct DawProp;
 class DawTrack;
 struct DawMainStorage;
+
 
 struct DawPropDrawParam {
 	DawProp * self;
@@ -42,6 +45,7 @@ class DawMainProject {
 		float h0; // colum headaer height
 		float tot_h; // total heigth of all rows
 		IDawSeq *seq;
+		float cursor_x;
 	};
 
 public:
@@ -62,6 +66,9 @@ public:
 
 	void DrawChild1();
 	void DrawChild2();
+	void DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnpos, ImVec2 & scrnmax);
+	void DrawCursor(ImVec2 & wndpos);
+	void EnlargeWindow(ImVec2 & far);
 };
 
 };

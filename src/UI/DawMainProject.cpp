@@ -312,7 +312,7 @@ void DawMainProject::Draw(IDawSeq *seq)
 		m_storage = std::make_unique<DawMainStorage>();
 		InitDawMainStorage(*m_storage);
 	}
-	DawMainStorage &storage = *m_storage;
+	//DawMainStorage &storage = *m_storage;
 
 	//static float w = 100.0f;
 	m_drawingState.h0 = (float)(((int)ImGui::GetFrameHeightWithSpacing()*3/2) & ~1);
@@ -463,141 +463,14 @@ void DawMainProject::DrawChild2()
 		auto sbarsz = ImGui::GetCurrentWindow()->ScrollbarSizes;
 		ImVec2 scrnmax = wndpos + wndsz - sbarsz;
 
-		//auto draw_list = ImGui::GetWindowDrawList();
-		//auto timeline_pos = ImGui::GetCursorScreenPos();
+		ImVec2 far = {
+			storage.uiStyle.leftPadding + (m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding,
+			0};
+		EnlargeWindow(far);
 
-		//auto avail = ImGui::GetContentRegionAvail();
-
-		float far_x = storage.uiStyle.leftPadding + (m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding;
-		{
-			auto xy0 = ImGui::GetCursorPos();
-			ImGui::SetCursorPos({far_x, 0});
-			ImGui::Dummy(ImVec2{1,1});
-			ImGui::SetCursorPos(xy0);
-		}
-
-		// ImGui::GetCursorScreenPos -> respect  scrolled  because translated from GetCursorPos.
-		// ImGui::GetContentRegionAvail -> a viewable portion only, dontcare scrolled.
-		// ImGui::GetWindowContentRegionMin -> (local) ImGui::GetCursorPos initially.
-		// ImGui::GetWindowContentRegionMax = ImGui::GetContentRegionMax ? -> respect scrolled
-		//
-
-		// Timeline
 		ImVec2 scrnpos = wndpos;
-		scrnpos.x += storage.uiStyle.leftPadding - storage.scroll_x1;
-
-		{
-			auto drawList = ImGui::GetWindowDrawList();
-			int b = 0;
-			int m = 0;
-			drawList->AddRectFilled({ wndpos.x, scrnpos.y}, ImVec2{scrnmax.x, scrnpos.y+m_drawingState.h0}, ImGui::GetColorU32(ImGuiCol_Header));
-			drawList->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+m_drawingState.h0}, ImVec2{scrnmax.x, scrnpos.y+m_drawingState.h0}, ImGui::GetColorU32(ImGuiCol_Border));
-			int event_num = 0;
-			IDawTrack * track0 = m_drawingState.seq->IsFileLoaded() ? m_drawingState.seq->GetTrack(0) :  nullptr;
-			jdksmidi::MIDIClockTime cur_clk = 0, next_timesig_clk = 0;
-			int timesig_numerator = 4;  // beats per measure
-			int timesig_denominator = 4;  // width of beat
-			float beat_clk = m_drawingState.seq->GetDisplayState()->ppqn * 4.0f/timesig_denominator;
-			bool show_timesig = true;
-			//float max_clk = scrnmax.x - scrnpos.x / storage.uiStyle.beatWd;
-
-			while (scrnpos.x < scrnmax.x) {
-				const jdksmidi::MIDITimedBigMessage * msg{};
-
-				if (track0) {
-
-					while ( event_num < track0->GetMidiTrack()->GetNumEvents() ) {
-						msg = track0->GetMidiTrack()->GetEvent(event_num);
-						if (msg->IsTimeSig()) {
-							if (msg->GetTime() == cur_clk) {
-								timesig_numerator = msg->GetTimeSigNumerator();
-								timesig_denominator = msg->GetTimeSigDenominator();
-								beat_clk = m_drawingState.seq->GetDisplayState()->ppqn * 4.0f/timesig_denominator;
-								b = 0;
-								show_timesig = true;
-							} else {
-								next_timesig_clk = msg->GetTime();
-								break;
-							}
-						}
-						event_num++;
-					}
-				}
-
-				if (b % timesig_numerator == 0) {
-					drawList->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
-					std::string labeltime = fmt::format("{}", 1 + m);
-					drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, labeltime.c_str());
-					if (show_timesig) {
-						labeltime = fmt::format("{}/{}", timesig_numerator, timesig_denominator);
-						show_timesig = false;
-						drawList->AddText(scrnpos + ImVec2{4,m_drawingState.h0/2}, IM_COL32_BLACK, labeltime.c_str());
-					}
-					m++;
-				} else {
-					drawList->AddLine(scrnpos + ImVec2{0, m_drawingState.h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
-				}
-				float delta_clk = beat_clk;
-				if (next_timesig_clk != 0 && cur_clk + beat_clk >= next_timesig_clk) {
-					delta_clk = next_timesig_clk - cur_clk;
-					next_timesig_clk = 0;
-				}
-
-				scrnpos.x += storage.uiStyle.beatWd * delta_clk / m_drawingState.seq->GetDisplayState()->ppqn;
-				cur_clk += delta_clk;
-
-				b++;
-			}
-		}
-
-		scrnpos.y += m_drawingState.h0;
-		scrnpos.x = wndpos.x;
-
-		// Cursor
-		float cursor_x = storage.is_cursor_dragging ?
-			storage.dragging_cursor_x :
-			storage.uiStyle.beatWd * m_drawingState.seq->GetDisplayState()->play_cursor;
-
-		{
-			auto drawList = ImGui::GetWindowDrawList();
-
-			//ImGui::SetCursorPos({ storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
-			ImGui::SetCursorScreenPos({ wndpos.x - storage.scroll_x1 + storage.uiStyle.leftPadding + cursor_x - (storage.uiStyle.cursorWd/2) , wndpos.y + m_drawingState.h0/2 });
-			ImGui::InvisibleButton("cursor", ImVec2{(float)storage.uiStyle.cursorWd, m_drawingState.h0/2});
-			auto rcmin = ImGui::GetItemRectMin();
-			auto rcmax = ImGui::GetItemRectMax();
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-			}
-			if(ImGui::IsItemActive()) {
-				if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-					if (!storage.is_cursor_dragging)
-						storage.dragging_cursor_x = cursor_x;
-					storage.dragging_cursor_x =
-						ImClamp(storage.dragging_cursor_x + ImGui::GetIO().MouseDelta.x,
-							0.0f,
-							m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd);
-					storage.is_cursor_dragging = true;
-				}
-			}
-			if (ImGui::IsItemDeactivated()) {
-				if (storage.is_cursor_dragging) {
-					storage.is_cursor_dragging = false;
-					m_drawingState.seq->SetMIDITimeBeat(storage.dragging_cursor_x / storage.uiStyle.beatWd);
-				}
-			}
-
-			ImVec2 points[] = {
-				{ rcmin.x, rcmin.y},
-				{ rcmin.x, rcmax.y - (storage.uiStyle.cursorWd/2)},
-				{ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y},
-				{ rcmax.x, rcmax.y - (storage.uiStyle.cursorWd/2)},
-				{ rcmax.x, rcmin.y},
-			};
-
-			drawList->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
-			drawList->AddLine({ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y}, { rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y + m_drawingState.tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
-		}
+		DrawTimeline(wndpos, scrnpos, scrnmax);
+		DrawCursor(wndpos);
 
 		// Contents and Borders R-R
 		auto v_p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
@@ -695,13 +568,13 @@ void DawMainProject::DrawChild2()
 		if (m_drawingState.seq->IsPlaying() || m_drawingState.seq->IsRewinding()) {
 static float endPercentage = 5.0f/6.0f;
 static float beginPercentage = 1.0f/6.0f;
-			if ((cursor_x - storage.scroll_x1) < wndsz.x * beginPercentage) {
+			if ((m_drawingState.cursor_x - storage.scroll_x1) < wndsz.x * beginPercentage) {
 				storage.scroll_animate = 10;
-				storage.scroll_target = (cursor_x - (wndsz.x * beginPercentage));
+				storage.scroll_target = (m_drawingState.cursor_x - (wndsz.x * beginPercentage));
 				if (storage.scroll_target < 0) storage.scroll_target = 0;
-			} else if ((cursor_x - storage.scroll_x1) > wndsz.x * endPercentage) {
+			} else if ((m_drawingState.cursor_x - storage.scroll_x1) > wndsz.x * endPercentage) {
 				storage.scroll_animate = 10;
-				storage.scroll_target = (cursor_x - (wndsz.x * beginPercentage));
+				storage.scroll_target = (m_drawingState.cursor_x - (wndsz.x * beginPercentage));
 				if (storage.scroll_target > scroll_max_x1) storage.scroll_target = scroll_max_x1;
 			}
 		}
@@ -721,6 +594,141 @@ static float beginPercentage = 1.0f/6.0f;
 	// ImGui::PopStyleColor(); // ImGuiCol_ChildBg
 	ImGui::PopStyleVar(2);
 }
+
+void DawMainProject::DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnpos, ImVec2 & scrnmax)
+{
+	DawMainStorage &storage = *m_storage;
+
+	// Timeline
+	scrnpos.x += storage.uiStyle.leftPadding - storage.scroll_x1;
+
+	{
+		auto drawList = ImGui::GetWindowDrawList();
+		int b = 0;
+		int m = 0;
+		drawList->AddRectFilled({ wndpos.x, scrnpos.y}, ImVec2{scrnmax.x, scrnpos.y+m_drawingState.h0}, ImGui::GetColorU32(ImGuiCol_Header));
+		drawList->AddLine({ scrnpos.x - storage.uiStyle.leftPadding, scrnpos.y+m_drawingState.h0}, ImVec2{scrnmax.x, scrnpos.y+m_drawingState.h0}, ImGui::GetColorU32(ImGuiCol_Border));
+		int event_num = 0;
+		IDawTrack * track0 = m_drawingState.seq->IsFileLoaded() ? m_drawingState.seq->GetTrack(0) :  nullptr;
+		jdksmidi::MIDIClockTime cur_clk = 0, next_timesig_clk = 0;
+		int timesig_numerator = 4;  // beats per measure
+		int timesig_denominator = 4;  // width of beat
+		float beat_clk = m_drawingState.seq->GetDisplayState()->ppqn * 4.0f/timesig_denominator;
+		bool show_timesig = true;
+		//float max_clk = scrnmax.x - scrnpos.x / storage.uiStyle.beatWd;
+
+		while (scrnpos.x < scrnmax.x) {
+			const jdksmidi::MIDITimedBigMessage * msg{};
+
+			if (track0) {
+
+				while ( event_num < track0->GetMidiTrack()->GetNumEvents() ) {
+					msg = track0->GetMidiTrack()->GetEvent(event_num);
+					if (msg->IsTimeSig()) {
+						if (msg->GetTime() == cur_clk) {
+							timesig_numerator = msg->GetTimeSigNumerator();
+							timesig_denominator = msg->GetTimeSigDenominator();
+							beat_clk = m_drawingState.seq->GetDisplayState()->ppqn * 4.0f/timesig_denominator;
+							b = 0;
+							show_timesig = true;
+						} else {
+							next_timesig_clk = msg->GetTime();
+							break;
+						}
+					}
+					event_num++;
+				}
+			}
+
+			if (b % timesig_numerator == 0) {
+				drawList->AddLine(scrnpos, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Separator), 2.0);
+				std::string labeltime = fmt::format("{}", 1 + m);
+				drawList->AddText(scrnpos + ImVec2{4,4}, IM_COL32_BLACK, labeltime.c_str());
+				if (show_timesig) {
+					labeltime = fmt::format("{}/{}", timesig_numerator, timesig_denominator);
+					show_timesig = false;
+					drawList->AddText(scrnpos + ImVec2{4,m_drawingState.h0/2}, IM_COL32_BLACK, labeltime.c_str());
+				}
+				m++;
+			} else {
+				drawList->AddLine(scrnpos + ImVec2{0, m_drawingState.h0/2}, ImVec2{scrnpos.x, scrnmax.y}, ImGui::GetColorU32(ImGuiCol_Border));
+			}
+			float delta_clk = beat_clk;
+			if (next_timesig_clk != 0 && cur_clk + beat_clk >= next_timesig_clk) {
+				delta_clk = next_timesig_clk - cur_clk;
+				next_timesig_clk = 0;
+			}
+
+			scrnpos.x += storage.uiStyle.beatWd * delta_clk / m_drawingState.seq->GetDisplayState()->ppqn;
+			cur_clk += delta_clk;
+
+			b++;
+		}
+	}
+
+	scrnpos.y += m_drawingState.h0;
+	scrnpos.x = wndpos.x;
+}
+
+void DawMainProject::DrawCursor(ImVec2 & wndpos)
+{
+	DawMainStorage &storage = *m_storage;
+
+	// Cursor
+	m_drawingState.cursor_x = storage.is_cursor_dragging ?
+		storage.dragging_cursor_x :
+		storage.uiStyle.beatWd * m_drawingState.seq->GetDisplayState()->play_cursor;
+
+	{
+		auto drawList = ImGui::GetWindowDrawList();
+
+		//ImGui::SetCursorPos({ storage.uiStyle.leftPadding + m_drawingState.cursor_x - (storage.uiStyle.cursorWd/2), h0/2});
+		ImGui::SetCursorScreenPos({ wndpos.x - storage.scroll_x1 + storage.uiStyle.leftPadding + m_drawingState.cursor_x - (storage.uiStyle.cursorWd/2) , wndpos.y + m_drawingState.h0/2 });
+		ImGui::InvisibleButton("cursor", ImVec2{(float)storage.uiStyle.cursorWd, m_drawingState.h0/2});
+		auto rcmin = ImGui::GetItemRectMin();
+		auto rcmax = ImGui::GetItemRectMax();
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+		}
+		if(ImGui::IsItemActive()) {
+			if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+				if (!storage.is_cursor_dragging)
+					storage.dragging_cursor_x = m_drawingState.cursor_x;
+				storage.dragging_cursor_x =
+					ImClamp(storage.dragging_cursor_x + ImGui::GetIO().MouseDelta.x,
+						0.0f,
+						m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd);
+				storage.is_cursor_dragging = true;
+			}
+		}
+		if (ImGui::IsItemDeactivated()) {
+			if (storage.is_cursor_dragging) {
+				storage.is_cursor_dragging = false;
+				m_drawingState.seq->SetMIDITimeBeat(storage.dragging_cursor_x / storage.uiStyle.beatWd);
+			}
+		}
+
+		ImVec2 points[] = {
+			{ rcmin.x, rcmin.y},
+			{ rcmin.x, rcmax.y - (storage.uiStyle.cursorWd/2)},
+			{ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y},
+			{ rcmax.x, rcmax.y - (storage.uiStyle.cursorWd/2)},
+			{ rcmax.x, rcmin.y},
+		};
+
+		drawList->AddConvexPolyFilled(points, IM_ARRAYSIZE(points), ImGui::GetColorU32(ImGuiCol_SliderGrab));
+		drawList->AddLine({ rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y}, { rcmin.x + (storage.uiStyle.cursorWd/2), rcmax.y + m_drawingState.tot_h}, ImGui::GetColorU32(ImGuiCol_Border));
+	}
+}
+
+void DawMainProject::EnlargeWindow(ImVec2 & far)
+{
+	auto xy0 = ImGui::GetCursorPos();
+	ImGui::SetCursorPos(far);
+	ImGui::Dummy(ImVec2{1,1});
+	ImGui::SetCursorPos(xy0);
+}
+
 //
 DawMainProject::DawMainProject() {
 	auto cb = [this](hscpp::SwapInfo& info) {
