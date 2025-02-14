@@ -68,10 +68,10 @@ public:
 
 	void DrawChild1();
 	void DrawChild2();
-	void DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnpos, ImVec2 & scrnmax);
+	void DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnmax);
 	void DrawCursor(ImVec2 & wndpos);
 	void EnlargeWindow(ImVec2 & far);
-	void DrawNotes(ImVec2 & wndpos, ImVec2 & wndsz, ImVec2 & scrnmax);
+	void DrawNotes(ImVec2 & wndpos, ImVec2 & scrnmax);
 };
 
 };

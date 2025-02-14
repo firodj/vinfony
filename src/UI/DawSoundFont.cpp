@@ -82,7 +82,9 @@ void DawSoundFont::Draw(tsf *g_TinySoundFont)
 
 		{
 			auto cursor = ImGui::GetCursorPos();
-			HSplitter(cursor, wndsz.x - g.Style.WindowPadding.x*2, [&]() { m_heightSamples = ImMax(m_heightSamples + ImGui::GetIO().MouseDelta.y, 200.0f); });
+			if (HSplitter(cursor, wndsz.x - g.Style.WindowPadding.x*2)) {
+				m_heightSamples = ImMax(m_heightSamples + ImGui::GetIO().MouseDelta.y, 200.0f);
+			}
 		}
 
 		std::string label2 = fmt::format("Presets ({})", g_TinySoundFont->presetNum);

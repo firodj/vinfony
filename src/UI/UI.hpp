@@ -7,6 +7,6 @@
 namespace vinfony {
 	extern const int SplitterThickness;
 	using SplitterOnDraggingFunc = std::function<void()>;
-	void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func);
-	void HSplitter(ImVec2 pos, float avail_w, SplitterOnDraggingFunc func);
+	bool VSplitter(ImVec2 pos, float avail_h);//, SplitterOnDraggingFunc func);
+	bool HSplitter(ImVec2 pos, float avail_w);//, SplitterOnDraggingFunc func);
 };

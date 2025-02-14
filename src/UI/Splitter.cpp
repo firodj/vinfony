@@ -20,7 +20,7 @@ namespace vinfony
 {
 	const int SplitterThickness = 8;
 
-	void VSplitter(ImVec2 pos, float avail_h, SplitterOnDraggingFunc func)
+	bool VSplitter(ImVec2 pos, float avail_h) // , SplitterOnDraggingFunc func)
 	{
 		ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
 		ImU32 color_hover  = ImGui::GetColorU32(ImGuiCol_SeparatorHovered, 1.0);
@@ -35,18 +35,20 @@ namespace vinfony
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 			color_border = color_hover;
 		}
+		bool pressed = false;
 		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
-			if (func) func();
+			pressed = true; //if (func) func();
 			color_border = color_active;
 		}
 
 		rcmin.x += SplitterThickness/2;
 		rcmax.x = rcmin.x;
 		ImGui::GetWindowDrawList()->AddLine(rcmin, rcmax, color_border);
+		return pressed;
 	}
 
-	void HSplitter(ImVec2 pos, float avail_w, SplitterOnDraggingFunc func)
+	bool HSplitter(ImVec2 pos, float avail_w) //, SplitterOnDraggingFunc func)
 	{
 		ImU32 color_border = ImGui::GetColorU32(ImGuiCol_Separator, 1.0);
 		ImU32 color_hover  = ImGui::GetColorU32(ImGuiCol_SeparatorHovered, 1.0);
@@ -61,13 +63,15 @@ namespace vinfony
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 			color_border = color_hover;
 		}
+		bool pressed = false;
 		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
-			if (func) func();
+			pressed = true; //if (func) func();
 			color_border = color_active;
 		}
 		rcmin.y += SplitterThickness/2;
 		rcmax.y = rcmin.y;
 		ImGui::GetWindowDrawList()->AddLine(rcmin, rcmax, color_border);
+		return pressed;
 	}
 }

@@ -341,6 +341,7 @@ void DawMainProject::DrawChild1()
 		auto wndpos = ImGui::GetWindowPos();
 		auto wndsz = ImGui::GetWindowSize();
 		auto sbarsz = ImGui::GetCurrentWindow()->ScrollbarSizes;
+		if (sbarsz.x == 0) sbarsz.x = 2; // width of splitter resizable line
 		auto scrnmax = wndpos + wndsz - sbarsz;
 		//auto cursor = ImGui::GetCursorScreenPos();
 
@@ -403,7 +404,9 @@ void DawMainProject::DrawChild1()
 				pos_x = xy0.x;
 				pos_y += track->GetH();
 				ImGui::PushID(r);
-				HSplitter({pos_x, pos_y}, tot_w, [&]() { track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f); });
+				if (HSplitter({pos_x, pos_y}, tot_w)) {
+					track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f);
+				}
 				ImGui::PopID();
 
 				// Move to Next Row
@@ -423,7 +426,9 @@ void DawMainProject::DrawChild1()
 				DawProp * prop = storage.props[prop_id].get();
 				pos_x += prop->w;
 				ImGui::PushID(c);
-				VSplitter({pos_x, pos_y}, m_drawingState.tot_h, [&]() { prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f); });
+				if (VSplitter({pos_x, pos_y}, m_drawingState.tot_h)) {
+					prop->w = ImMax(prop->w + ImGui::GetIO().MouseDelta.x, 20.0f);
+				}
 				ImGui::PopID();
 				pos_x += SplitterThickness;
 			}
@@ -468,11 +473,10 @@ void DawMainProject::DrawChild2()
 			0};
 		EnlargeWindow(far);
 
-		ImVec2 scrnpos = wndpos;
-		DrawTimeline(wndpos, scrnpos, scrnmax);
+		DrawTimeline(wndpos, scrnmax);
 		DrawCursor(wndpos);
 
-		DrawNotes(wndpos, wndsz, scrnmax);
+		DrawNotes(wndpos, scrnmax);
 
 #if 0
 		// Debug
@@ -522,11 +526,12 @@ static float beginPercentage = 1.0f/6.0f;
 	ImGui::PopStyleVar(2);
 }
 
-void DawMainProject::DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnpos, ImVec2 & scrnmax)
+void DawMainProject::DrawTimeline(ImVec2 & wndpos, ImVec2 & scrnmax)
 {
 	DawMainStorage &storage = *m_storage;
 
 	// Timeline
+	ImVec2 scrnpos = wndpos;
 	scrnpos.x += storage.uiStyle.leftPadding - storage.scroll_x1;
 
 	{
@@ -656,13 +661,13 @@ void DawMainProject::EnlargeWindow(ImVec2 & far)
 	ImGui::SetCursorPos(xy0);
 }
 
-void DawMainProject::DrawNotes(ImVec2 & wndpos, ImVec2 & wndsz, ImVec2 & scrnmax)
+void DawMainProject::DrawNotes(ImVec2 & wndpos, ImVec2 & scrnmax)
 {
 	DawMainStorage &storage = *m_storage;
 
 	// Contents and Borders R-R
 	auto v_p1 = (storage.scroll_x1 - storage.uiStyle.leftPadding);
-	auto v_p2 = v_p1 + wndsz.x;
+	auto v_p2 = v_p1 + scrnmax.x;
 
 	m_drawingState.visible_clk_p1 = v_p1 * (float) m_drawingState.seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
 	m_drawingState.visible_clk_p2 = v_p2 * (float) m_drawingState.seq->GetDisplayState()->ppqn  / (storage.uiStyle.beatWd);
@@ -710,9 +715,11 @@ void DawMainProject::DrawNotes(ImVec2 & wndpos, ImVec2 & wndsz, ImVec2 & scrnmax
 			trackNotes.ClipOff(m_drawingState.visible_clk_p2);
 
 			pos_y += track->GetH();
-			HSplitter({pos_x, pos_y}, storage.uiStyle.leftPadding + (m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding,
-				[&]() { track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f); }
-			);
+			if (HSplitter({pos_x, pos_y}, storage.uiStyle.leftPadding + (m_drawingState.seq->GetDisplayState()->play_duration * storage.uiStyle.beatWd) + storage.uiStyle.rightPadding))
+			{
+				track->GetH() = ImMax(track->GetH() + ImGui::GetIO().MouseDelta.y, 20.0f);
+			}
+
 			ImGui::PopID();
 			pos_y += 8;
 
