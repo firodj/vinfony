@@ -42,7 +42,7 @@ class DawMainProject {
 	HSCPP_TRACK(DawMainProject, "DawMainProject");
 
 	struct DrawingState {
-		float h0; // colum headaer height
+		float header_h; // colum headaer height
 		float tot_h; // total heigth of all rows
 		IDawSeq *seq;
 		float cursor_x;

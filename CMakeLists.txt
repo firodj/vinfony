@@ -69,6 +69,7 @@ set(SOURCE
   src/UI/PianoButton.cpp
   src/UI/Splitter.cpp
   src/UI/MainWidget.cpp
+  src/UI/DawPianoRoll.cpp
 ## -- endsources --
 )
 
@@ -94,6 +95,7 @@ set(HEADERS
   src/UI/PianoButton.hpp
   src/UI/UI.hpp
   src/UI/MainWidget.hpp
+  src/UI/DawPianoRoll.hpp
 ## -- endheaders --
 )
 

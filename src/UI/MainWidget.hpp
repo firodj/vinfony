@@ -7,6 +7,7 @@ namespace vinfony {
 
 class DawMainProject;
 class DawSoundFont;
+class DawPianoRoll;
 
 class MainWidget {
 
@@ -21,6 +22,7 @@ public:
 
     hscpp::mem::UniqueRef<DawMainProject> m_pDawMainProject;
     hscpp::mem::UniqueRef<DawSoundFont>   m_pDawSoundFont;
+    hscpp::mem::UniqueRef<DawPianoRoll>   m_pDawPianoRoll;
 protected:
     void DockSpaceUI();
     void ToolbarUI();

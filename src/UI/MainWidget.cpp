@@ -17,6 +17,7 @@
 
 #include "DawMainProject.hpp"
 #include "DawSoundFont.hpp"
+#include "DawPianoRoll.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
@@ -55,6 +56,7 @@ MainWidget::MainWidget()
 		info.Save("showToolAbout",    m_showToolAbout);
 		info.SaveMove("pDawMainProject", m_pDawMainProject);
 		info.SaveMove("pDawSounFont",    m_pDawSoundFont);
+		info.SaveMove("pDawPianoRoll",   m_pDawPianoRoll);
     };
 
     Hscpp_SetSwapHandler(cb);
@@ -84,6 +86,7 @@ void MainWidget::Creating() {
 
 	m_pDawMainProject = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawMainProject>();
 	m_pDawSoundFont   = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawSoundFont>();
+	m_pDawPianoRoll   = Globals::Resolve()->pMemoryManager->Allocate<vinfony::DawPianoRoll>();
 }
 
 void MainWidget::Destroying() {
@@ -206,6 +209,7 @@ void MainWidget::Update() {
 
 	m_pDawMainProject->Update();
 	m_pDawSoundFont->Update();
+	m_pDawPianoRoll->Update();
 }
 
 void MainWidget::DemoUI() {
@@ -240,6 +244,7 @@ void MainWidget::MainMenuUI() {
 		if (ImGui::BeginMenu("Window"))
 		{
 			ImGui::MenuItem("SoundFont",    nullptr, &globals->showSoundFont);
+			ImGui::MenuItem("PianoRoll",    nullptr, &globals->showPianoRoll);
 			ImGui::MenuItem("Demo Window",    nullptr, &m_showDemoWindow);
 			ImGui::MenuItem("Hotswap Status", nullptr, &globals->showHotswapStatus);
 			ImGui::EndMenu();

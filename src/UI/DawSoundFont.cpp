@@ -462,7 +462,7 @@ DawSoundFont::~DawSoundFont()
 {
 	if (Hscpp_IsSwapping())
 	{
-			return;
+		return;
 	}
 
 	Destroying();

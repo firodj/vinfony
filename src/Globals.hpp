@@ -33,6 +33,7 @@ public:
 	float menuBarHeight{0};
     bool showHotswapStatus{true};
     bool showSoundFont{false};
+    bool showPianoRoll{false};
 };
 
 };
