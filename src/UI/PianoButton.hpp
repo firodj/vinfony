@@ -51,6 +51,8 @@ public:
   hscpp_virtual void DrawV();
   hscpp_virtual bool DrawRegion(const char *label, int start, int stop, int center, bool selected);
 
+  int m_dbgMouseX, m_dbgMouseY;
+
 private:
 
   PianoButtonState m_szPiano;

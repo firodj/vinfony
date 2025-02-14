@@ -94,7 +94,7 @@ PianoButtonState::PianoButtonState(PianoButtonStyle * style) {
 }
 
 int PianoCheckPoint(PianoButtonState & m_szPiano, ImVec2 point) {
-// outer piano area
+	// outer piano area
 	if (point.y >= m_szPiano.style.whiteHeight ||
 		point.x >= m_szPiano.width_all)
 		return -1;
@@ -201,7 +201,8 @@ void PianoButton::DrawH()
 }
 
 int PianoCheckPointV(PianoButtonState & m_szPiano, ImVec2 point) {
-// outer piano area
+	point.y = m_szPiano.width_all - point.y;
+	// outer piano area
 	if (point.x >= m_szPiano.style.whiteHeight ||
 		point.y >= m_szPiano.width_all)
 		return -1;
@@ -242,33 +243,39 @@ void PianoButton::DrawV()
 	ImVec2 pmax = pmin + ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all};
 	ImGui::InvisibleButton("##button", ImVec2{m_szPiano.style.whiteHeight, m_szPiano.width_all});
 	ImVec2 mousePos;
+	ImVec2 pstart = ImVec2{pmin.x, pmax.y};
 	int noteOn = -1;
 	if (ImGui::IsItemHovered()) {
+
 		mousePos = ImGui::GetMousePos() - pmin;
+
+		m_dbgMouseX = mousePos.x;
+		m_dbgMouseY = mousePos.y;
+
 		noteOn = PianoCheckPointV(m_szPiano, mousePos);
 	}
-	auto drawList = ImGui::GetWindowDrawList();
-	drawList->AddRectFilled(pmin, pmax, IM_COL32_WHITE);
 
-	ImVec2 ptuts = pmin;
+	ImGui::GetWindowDrawList()->AddRectFilled(pmin, pmax, IM_COL32_WHITE);
+
+	ImVec2 ptuts = pstart;
 	if (noteOn != -1 && m_szPiano.tuts_type[noteOn % 12] != 3) {
-		ptuts = pmin + ImVec2{ 0, m_szPiano.width_octave * (noteOn/12) } + ImVec2{ 0.0, m_szPiano.tuts_start[noteOn%12]};
-		drawList->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.style.whiteHeight, m_szPiano.style.whiteWidth}, IM_COL32(255, 0,0, 255));
+		ptuts = pstart - ImVec2{ 0, m_szPiano.width_octave * (noteOn/12) } - ImVec2{ 0.0, m_szPiano.tuts_start[noteOn%12]};
+		ImGui::GetWindowDrawList()->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.style.whiteHeight, -m_szPiano.style.whiteWidth}, IM_COL32(255, 0,0, 255));
 	}
 
-	ptuts = pmin;
+	ptuts = pstart;
 	for (int i=0; i<128; i++) {
-		if (i && ((i%12) == 0)) pmin += ImVec2{ 0, m_szPiano.width_octave };
-		ptuts = pmin + ImVec2{0.0, m_szPiano.tuts_start[i%12]};
+		if (i && ((i%12) == 0)) pstart -= ImVec2{ 0, m_szPiano.width_octave };
+		ptuts = pstart - ImVec2{0.0, m_szPiano.tuts_start[i%12]};
 		switch (m_szPiano.tuts_type[i % 12]) {
 		case 3:
-			drawList->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.style.blackHeight, m_szPiano.style.blackWidth}, i == noteOn ? IM_COL32(255, 0,0, 255) : IM_COL32_BLACK);
+			ImGui::GetWindowDrawList()->AddRectFilled(ptuts, ptuts + ImVec2{m_szPiano.style.blackHeight, -m_szPiano.style.blackWidth}, i == noteOn ? IM_COL32(255, 0,0, 255) : IM_COL32_BLACK);
 			if (m_szPiano.style.equalize)
-				drawList->AddLine(ptuts + ImVec2{ m_szPiano.style.blackHeight, m_szPiano.style.blackWidth/2 }, ptuts + ImVec2{ m_szPiano.style.whiteHeight, m_szPiano.style.blackWidth/2 }, IM_COL32_BLACK);
+				ImGui::GetWindowDrawList()->AddLine(ptuts + ImVec2{ m_szPiano.style.blackHeight, -m_szPiano.style.blackWidth/2 }, ptuts + ImVec2{ m_szPiano.style.whiteHeight, -m_szPiano.style.blackWidth/2 }, IM_COL32_BLACK);
 			break;
 		default:
 			if (!m_szPiano.style.equalize || m_szPiano.tuts_type[(i+1) % 12] != 3)
-				drawList->AddLine(ptuts + ImVec2{ 0.0, m_szPiano.style.whiteWidth }, ptuts + ImVec2{ m_szPiano.style.whiteHeight, m_szPiano.style.whiteWidth }, IM_COL32_BLACK);
+				ImGui::GetWindowDrawList()->AddLine(ptuts - ImVec2{ 0.0, m_szPiano.style.whiteWidth }, ptuts + ImVec2{ m_szPiano.style.whiteHeight, -m_szPiano.style.whiteWidth }, IM_COL32_BLACK);
 		}
 	}
 }

@@ -69,9 +69,16 @@ void DawPianoRoll::Update() {
 
 		ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
 		if (ImGui::Begin("PianoRoll", &globals->showPianoRoll)) {
-			ImGui::Text("Piano Roll");
 
-			m_pPianoButton->DrawV();
+			ImGui::Text("Piano Roll");
+			if (ImGui::BeginChild("piano", {200, 200}, ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX, ImGuiWindowFlags_None)) {
+				ImVec2 wndpos = ImGui::GetWindowPos();
+				ImVec2 pianopos = wndpos - ImVec2{0, ImGui::GetScrollY()};
+				ImGui::SetCursorScreenPos(pianopos);
+				m_pPianoButton->DrawV();
+			}
+			ImGui::EndChild();
+			ImGui::Text("mouse (%d, %d)", m_pPianoButton->m_dbgMouseX, m_pPianoButton->m_dbgMouseY);
 		}
 		ImGui::End();
 
