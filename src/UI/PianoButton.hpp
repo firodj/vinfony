@@ -3,59 +3,38 @@
 #include "hscpp/module/Tracker.h"
 #include "hscpp/mem/Ref.h"
 
+struct ImVec2;
+
 namespace vinfony {
 
-struct PianoButtonStyle {
-  float whiteWidth;
-  float whiteHeight;
-  float blackWidth;
-  float blackHeight;
-  bool equalize;
-};
-
-struct DrawPianoRollParam {
-    unsigned int texPiano;
-    int pianoWidth;
-    int pianoHeight;
-};
-
-class PianoButtonState {
-
-public:
-
-  PianoButtonState(PianoButtonStyle * style = nullptr);
-
-  PianoButtonStyle style;
-
-	float width_all;
-	float width_octave;
-
-	float tuts_start[12];
-	float tuts_end[12];
-	int	tuts_type[12];
-  int tuts_color[14];
-};
+struct PianoButtonTempState;
 
 class PianoButton {
 
-  HSCPP_TRACK(PianoButton, "PianoButton");
+	HSCPP_TRACK(PianoButton, "PianoButton");
 
 public:
-  hscpp_virtual ~PianoButton();
-  PianoButton();
+	hscpp_virtual ~PianoButton();
+	PianoButton();
 
-  void Creating();
-  void Destroying();
+	void Creating();
+	void Destroying();
 
-  hscpp_virtual void DrawH();
-  hscpp_virtual void DrawV();
-  hscpp_virtual bool DrawRegion(const char *label, int start, int stop, int center, bool selected);
+	hscpp_virtual void DrawH();
+	hscpp_virtual void DrawV();
+	hscpp_virtual bool DrawRegion(const char *label, int start, int stop, int center, bool selected);
 
-  int m_dbgMouseX, m_dbgMouseY;
+	int m_dbgMouseX, m_dbgMouseY;
+
+protected:
+
+	int PianoCheckPointH(ImVec2 & point);
+	int PianoCheckPointV(ImVec2 & point);
+	void PrepareDraw();
 
 private:
 
-  PianoButtonState m_szPiano;
+	std::unique_ptr<PianoButtonTempState> m_tempState;
 };
 
 };

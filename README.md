@@ -15,7 +15,7 @@ const char * label = "piano";
 ImGuiID pianoID = ImGui::GetID(label);
 int *pianoStorageID = ImGui::GetStateStorage()->GetIntRef(pianoID, EMPTY_REF);
 
-if (*pianoStorageID == -1) {
+if (*pianoStorageID == EMPTY_REF) {
     // SetState
     *pianoStorageID = 1;
 }
