@@ -8,7 +8,7 @@
 #include <ImFileDialog.hpp>
 
 #include <kosongg/IconsFontAwesome6.h>
-#include "kosongg/Component.h"
+#include "imkosongg/ImKosongg.hpp"
 
 #include "../IDawSeq.hpp"
 
@@ -162,21 +162,21 @@ void MainWidget::ToolbarUI()
 		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
 	}
 
-	if (ImGui::ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
+	if (globals->pImKosongg->ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
 		globals->sequencer->SetMIDITimeBeat(0);
 	}
 	ImGui::SameLine();
-	if (ImGui::ColoredButtonV1(ICON_FA_PLAY " Play")) {
+	if (globals->pImKosongg->ColoredButtonV1(ICON_FA_PLAY " Play")) {
 		globals->sequencer->AsyncPlayMIDI();
 	}
 	ImGui::SameLine();
-	if (ImGui::ColoredButtonV1(ICON_FA_STOP " Stop")) {
+	if (globals->pImKosongg->ColoredButtonV1(ICON_FA_STOP " Stop")) {
 		globals->sequencer->StopMIDI();
 	}
 	ImGui::SameLine();
 
 	std::string label = fmt::format(ICON_FA_GAUGE " {:.2f}", globals->sequencer->GetTempoBPM());
-	ImGui::ColoredButtonV1(label.c_str());
+	globals->pImKosongg->ColoredButtonV1(label.c_str());
 	ImGui::SameLine();
 
 	int curM, curB, curT;
@@ -185,9 +185,9 @@ void MainWidget::ToolbarUI()
 
     static ImVec2 labelMBTsize{};
 	if (labelMBTsize.x == 0) {
-		labelMBTsize = ImGui::CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
+		labelMBTsize = globals->pImKosongg->CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
 	}
-	ImGui::ColoredButtonV1(label.c_str(), labelMBTsize);
+	globals->pImKosongg->ColoredButtonV1(label.c_str(), labelMBTsize);
 
 	ImGui::PopItemFlag();
 	ImGui::PopStyleColor(2);

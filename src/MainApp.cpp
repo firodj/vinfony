@@ -14,11 +14,12 @@
 #include "DawSeq.hpp"
 //#include "DawSoundFont.hpp"
 
-#include <kosongg/INIReader.h>
+#define MINI_CASE_SENSITIVE
+#include <kosongg/mINI.h>
 #include <ImFileDialog.hpp>
 #include <ImFileDialog_opengl.hpp>
 #include <kosongg/IconsFontAwesome6.h>
-#include "kosongg/Component.h"
+#include "imkosongg/ImKosongg.hpp"
 #include "kosongg/GLUtil.h"
 #include <kosongg/GetExeDirectory.h>
 #include <fmt/core.h>
@@ -76,7 +77,7 @@ MainApp *MainApp::GetInstance(/* dependency */) {
 MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 	m_impl = std::make_unique<Impl>();
 	m_windowTitle = "Vinfony";
-	m_showDemoWindow = false;
+	//m_impl->m_showDemoWindow = false;
 	m_impl->showSoundFont = false;
 
 	std::string path = GetExeDirectory().u8string();
@@ -183,15 +184,14 @@ void MainApp::RunImGui() {
 }
 
 void MainApp::Init(std::vector<std::string> &args) {
-	ReadIniConfig();
+	m_impl->globals = std::make_unique<vinfony::Globals>();
+	m_impl->globals->getResourcePath = std::bind(&MainApp::GetResourcePath, this, std::placeholders::_1, std::placeholders::_2);
 
+	ReadIniConfig();
 	// InitSDL & InitImGui
 	EngineBase::Init(args);
 
 	auto projPath = hscpp::fs::canonical( hscpp::fs::path(_PROJECT_SRC_PATH_) );
-
-	m_impl->globals = std::make_unique<vinfony::Globals>();
-
 	auto swapperConfig = std::make_unique<hscpp::Config>();
 	swapperConfig->compiler.projPath = projPath.u8string();
 	swapperConfig->compiler.ninja = true;
@@ -210,6 +210,7 @@ void MainApp::Init(std::vector<std::string> &args) {
 	m_impl->swapper->SetVar("projPath", projPath.u8string());
 
 	m_impl->swapper->AddSourceDirectory(projPath / "src" / "UI");
+	m_impl->swapper->AddSourceDirectory(projPath / "kosongg/cpp/imkosongg");
 	//m_impl->swapper->AddIncludeDirectory(projPath / "src" );
 
 	auto buildPath = hscpp::util::GetHscppBuildPath();
@@ -231,9 +232,8 @@ void MainApp::Init(std::vector<std::string> &args) {
 	m_impl->globals->pMemoryManager = &m_impl->memoryManager;
 	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
 	m_impl->globals->pMainWidget = m_impl->memoryManager->Allocate<vinfony::MainWidget>();
-
+	m_impl->globals->pImKosongg = m_impl->memoryManager->Allocate<ImKosongg>();
 	m_impl->globals->sequencer = &m_impl->sequencer;
-
 
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
@@ -279,18 +279,22 @@ void MainApp::ReadIniConfig() {
 
 	std::string iniPath = GetResourcePath("configs", "vinfony.ini");
 	const char * inifilename = iniPath.c_str();
-	INIReader reader(inifilename);
 
-	if (reader.ParseError() < 0) {
-		std::cout << "Can't load:" << inifilename << std::endl;
+	mINI::INIFile inifile(inifilename);
+	mINI::INIStructure ini;
+	if (!inifile.read(ini)) {
+		std::cerr << "Can't load:" << inifilename << std::endl;
 		return;
 	}
-
-	std::set<std::string> sections = reader.Sections();
-	for (std::set<std::string>::iterator it = sections.begin(); it != sections.end(); ++it)
-		std::cout << "Section:" << *it << std::endl;
-
-	m_impl->soundfontPath = std::regex_replace(reader.Get("", "SOUNDFONT", m_impl->soundfontPath), std::regex("^~"), homepath);
+	for (auto const & [sectionName, section]: ini) {
+		std::cout << "[" << sectionName << "]" << std::endl;
+		for (auto const & value: section) {
+			std::cout << "\t" << value.first << " = " << value.second << std::endl;
+		}
+	}
+	auto soundfontPath = ini["SoundFont"]["Path"];
+	if (!soundfontPath.empty()) m_impl->soundfontPath = soundfontPath;
+	m_impl->soundfontPath = std::regex_replace(m_impl->soundfontPath, std::regex("^~"), homepath);
 
 	std::cout << "SOUNDFONT=" << m_impl->soundfontPath << std::endl;
 }

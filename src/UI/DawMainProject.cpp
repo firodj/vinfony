@@ -6,7 +6,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include "kosongg/Component.h"
+#include "imkosongg/ImKosongg.hpp"
 #include <fmt/core.h>
 #include "jdksmidi/track.h"
 //#include <libassert/assert.hpp>
@@ -329,6 +329,7 @@ void DawMainProject::Draw(IDawSeq *seq)
 
 void DawMainProject::DrawChild1()
 {
+	Globals *globals = Globals::Resolve();
 	DawMainStorage &storage = *m_storage;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
@@ -360,7 +361,7 @@ void DawMainProject::DrawChild1()
 
 				if (c > 0) ImGui::SameLine();
 				ImGui::SetCursorPosX(pos_x);
-				ImGui::ColoredButtonV1(prop->name.c_str(), {(float)prop->w + SplitterThickness/2, m_drawingState.header_h});
+				globals->pImKosongg->ColoredButtonV1(prop->name.c_str(), {(float)prop->w + SplitterThickness/2, m_drawingState.header_h});
 
 				pos_x += prop->w + SplitterThickness;
 			}

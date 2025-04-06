@@ -9,6 +9,8 @@
 struct ImGuiContext;
 struct tsf;
 
+class ImKosongg;
+
 namespace vinfony {
 
 class MainWidget;
@@ -28,6 +30,9 @@ public:
     IDawSeq *sequencer{nullptr};
     tsf *pTinySoundFont{nullptr};
     hscpp::mem::UniqueRef<MainWidget> pMainWidget;
+    hscpp::mem::UniqueRef<ImKosongg> pImKosongg;
+
+    std::function<std::string(const char*, const char*)> getResourcePath;
 
     float toolbarSize{50};
 	float menuBarHeight{0};

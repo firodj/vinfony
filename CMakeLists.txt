@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(vinfony)
 
+set(EXT_PATH "../ext" CACHE PATH "Ext folder")
+if (IS_ABSOLUTE ${EXT_PATH})
+  file(RELATIVE_PATH EXT_PATH ${PROJECT_SOURCE_DIR} ${EXT_PATH})
+endif()
+message(STATUS "Relative EXT_PATH = ${EXT_PATH}")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 17)
@@ -23,24 +29,27 @@ endif()
 find_package(OpenGL REQUIRED)
 set(SDL_TEST OFF)
 set(SDL2_DISABLE_SDL2MAIN ON)
-add_subdirectory(ext/sdl2)
-set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/ext/glad2")
-add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
+add_subdirectory("${EXT_PATH}/sdl2" "ext/sdl2")
+add_subdirectory("kosongg/cpp/imgui")
+add_subdirectory("${EXT_PATH}/glad2/cmake" glad_cmake)
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
-add_subdirectory(kosongg/cmake/imgui)
-add_subdirectory(ext/fmt)
-add_subdirectory(ext/libassert)
-add_subdirectory(ext/jdksmidi)
-add_subdirectory(ext/tsf)
+add_subdirectory("${EXT_PATH}/fmt" "ext/fmt")
+add_subdirectory("${EXT_PATH}/jdksmidi" "ext/jdksmidi")
+add_subdirectory("${EXT_PATH}/tsf" "ext/tsf")
+add_subdirectory("${EXT_PATH}/libassert" "ext/libassert")
 set(HSCPP_BUILD_EXAMPLES OFF)
 set(HSCPP_BUILD_TESTS OFF)
-add_subdirectory(ext/hscpp)
+add_subdirectory("${EXT_PATH}/hscpp" "ext/hscpp")
 set(ifd_BUILD_EXAMPLES OFF)
-add_subdirectory(ext/ifd)
+add_subdirectory("${EXT_PATH}/ifd" "ext/ifd")
+
+if (IS_ABSOLUTE ${IMGUI_DIR})
+  file(RELATIVE_PATH IMGUI_DIR ${PROJECT_SOURCE_DIR} ${IMGUI_DIR})
+endif()
+message(STATUS "Relative IMGUI_DIR = ${IMGUI_DIR}")
 
 include_directories(SYSTEM
   ${OPENGL_INCLUDE_DIR}
-  ${SDL2_SOURCE_DIR}/include
   ${fmt_SOURCE_DIR}/include
 )
 
@@ -49,9 +58,9 @@ set(SOURCE
   ${VENDOR_DIR}/Engine.cpp
   ${VENDOR_DIR}/GLUtil.cpp
   ${VENDOR_DIR}/UtfConv.c
-  ${VENDOR_DIR}/Component.cpp
-  ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+  ${VENDOR_DIR}/imkosongg/ImKosongg.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+  ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 ## -- sources --
   src/MainApp.cpp
   src/UI/DawMainProject.cpp
@@ -77,7 +86,7 @@ set(HEADERS
   ${VENDOR_DIR}/kosongg/Engine.h
   ${VENDOR_DIR}/kosongg/GLUtil.h
   ${VENDOR_DIR}/kosongg/UtfConv.h
-  ${VENDOR_DIR}/kosongg/Component.h
+  ${VENDOR_DIR}/imkosongg/ImKosongg.hpp
 ## -- headers --
   src/MainApp.hpp
   src/Globals.hpp
@@ -135,8 +144,17 @@ add_executable(vinfony
 )
 endif()
 
-source_group("Source Files" FILES ${SOURCE})
-source_group("Header Files" FILES ${HEADERS})
+foreach(_source IN ITEMS ${SOURCE})
+    get_filename_component(_source_path "${_source}" PATH)
+    string(REPLACE "/" "\\" _source_path_msvc "${_source_path}")
+    source_group("${_source_path_msvc}" FILES "${_source}")
+endforeach()
+
+foreach(_source IN ITEMS ${HEADERS})
+    get_filename_component(_source_path "${_source}" PATH)
+    string(REPLACE "/" "\\" _source_path_msvc "${_source_path}")
+    source_group("${_source_path_msvc}" FILES "${_source}")
+endforeach()
 
 if (MSVC)
 
@@ -172,18 +190,19 @@ list(APPEND _COMPILE_DEFINITIONS
   _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
   SDL_MAIN_HANDLED
   _USE_HSCPP_
+  _USE_IFD_
 )
 
 add_compile_definitions(${_COMPILE_DEFINITIONS})
 
 target_link_libraries(vinfony
-  ${OPENGL_LIBRARIES}
   SDL2
-  glad_gl_core_33
+  ${OPENGL_LIBRARIES}
   imgui
+  glad_gl_core_33
   fmt
-  libassert::assert
   jdksmidi
+  libassert::assert
   hscpp
   hscpp-mem
   ifd

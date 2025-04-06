@@ -1,7 +1,5 @@
 *.pdb
 *.ilk
-
-venv/
 .vscode/
 
 build/
@@ -19,3 +17,6 @@ vinfonyd.exe
 
 *.dylib
 *.dll
+
+.venv
+.env
