@@ -2,6 +2,9 @@
 
 MIDI Music Creator
 
+Video:
+[![Screenshot](./docs/images/screenshot1.png)](https://youtu.be/HHwiREK-5zc?si=sXR79DU0YB6-c6T9)
+
 ## Dev Notes
 
 **IMGUI**: How to store state (globally) when not using class/instances.
