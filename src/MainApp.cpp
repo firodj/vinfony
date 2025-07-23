@@ -1,4 +1,4 @@
-#include "MainApp.hpp"
+#include "mainapp.hpp"
 #include <thread>
 #include <mutex>
 #include <iostream>
@@ -15,13 +15,12 @@
 //#include "DawSoundFont.hpp"
 
 #define MINI_CASE_SENSITIVE
-#include <kosongg/mINI.h>
+#include <kosongg/m_ini.hpp>
 #include <ImFileDialog.hpp>
 #include <ImFileDialog_opengl.hpp>
-#include <kosongg/IconsFontAwesome6.h>
-#include "imkosongg/ImKosongg.hpp"
-#include "kosongg/GLUtil.h"
-#include <kosongg/GetExeDirectory.h>
+#include <kosongg/iconsfontawesome6.h>
+#include "kosongg/glutil.hpp"
+#include <kosongg/getexedirectory.hpp>
 #include <fmt/core.h>
 #include <regex>
 #include "circularfifo1.h"
@@ -31,15 +30,21 @@
 //#include "PianoButton.hpp"
 #include "Misc.hpp"
 
+
+#ifdef _USE_HSCPP_
 #include "hscpp/Filesystem.h"
 #include "hscpp/Hotswapper.h"
 #include "hscpp/Util.h"
 #include "hscpp/mem/Ref.h"
 #include "hscpp/mem/MemoryManager.h"
+#include "kosongg/hscpp_progress.hpp"
+#endif
 
 #include "UI/MainWidget.hpp"
 
-#include "Globals.hpp"
+#include "globals.hpp"
+#include "watched/imcontrol.hpp"
+
 
 #define SAMPLE_RATE 44100.0
 
@@ -47,10 +52,11 @@ static std::unique_ptr<MainApp> g_mainapp;
 static std::mutex g_mtxMainapp;
 
 struct MainApp::Impl {
-	std::unique_ptr<hscpp::Hotswapper> swapper;
 	std::unique_ptr<vinfony::Globals> globals;
+#ifdef _USE_HSCPP_
+	std::unique_ptr<hscpp::Hotswapper> swapper;
 	hscpp::mem::UniqueRef<hscpp::mem::MemoryManager> memoryManager;
-
+#endif
 	std::unique_ptr<vinfony::TinySoundFontDevice> tsfdev;
 	std::unique_ptr<vinfony::BassMidiDevice> bassdev;
 	// FIXME: sequencer should afer audiodevice.
@@ -64,6 +70,10 @@ struct MainApp::Impl {
 
 	bool showSoundFont;
 };
+
+#ifndef _USE_HSCPP_
+vinfony::Globals * vinfony::Globals::m_g;
+#endif
 
 MainApp *MainApp::GetInstance(/* dependency */) {
 	std::lock_guard<std::mutex> lock(g_mtxMainapp);
@@ -86,49 +96,56 @@ MainApp::MainApp(/* dependency */): kosongg::EngineBase(/* dependency */) {
 MainApp::~MainApp() {
 }
 
-void MainApp::RunImGui() {
+void MainApp::UpdateHsCpp() {
 	vinfony::Globals *globals = vinfony::Globals::Resolve();
-	static hscpp::Hotswapper::UpdateResult lastUpdateResult = hscpp::Hotswapper::UpdateResult::Idle;
+
+#ifdef _USE_HSCPP_
 	auto updateResult = m_impl->swapper->Update();
 
-	static const char *lastCompilingText = "Ready";
-	static ImColor lastCompilingColor = ImColor{0, 0, 0};
-	//static std::chrono::steady_clock::time_point startCompileTime;
-	static std::chrono::system_clock::time_point startCompileTime;
-	static std::chrono::duration<float, std::milli> lastElapsedCompileTime;
-	//bool isCompiling = false;
+	if (!globals->pHsCppProgress) {
+		globals->pHsCppProgress = std::make_unique<HsCppProgress>();
+	}
+
 	switch (updateResult) {
 		case hscpp::Hotswapper::UpdateResult::Compiling:
-			lastCompilingText = "Compiling";
-			lastCompilingColor = ImColor{222, 222, 0};
-			lastElapsedCompileTime = std::chrono::high_resolution_clock::now() - startCompileTime;
+			globals->pHsCppProgress->lastCompilingText = "Compiling";
+			globals->pHsCppProgress->lastCompilingColor = {222, 222, 0};
+			globals->pHsCppProgress->lastElapsedCompileTime = std::chrono::high_resolution_clock::now() - globals->pHsCppProgress->startCompileTime;
 			break;
 		case hscpp::Hotswapper::UpdateResult::StartedCompiling:
-			startCompileTime = std::chrono::high_resolution_clock::now();
+			globals->pHsCppProgress->startCompileTime = std::chrono::high_resolution_clock::now();
 			break;
 		case hscpp::Hotswapper::UpdateResult::PerformedSwap:
-			lastCompilingText = "PerformedSwap";
+			globals->pHsCppProgress->lastCompilingText = "PerformedSwap";
 			break;
 		case hscpp::Hotswapper::UpdateResult::FailedSwap:
-			lastCompilingColor = ImColor{172, 0, 0};
-			lastCompilingText = "FailedSwap";
+			globals->pHsCppProgress->lastCompilingColor = {172, 0, 0};
+			globals->pHsCppProgress->lastCompilingText = "FailedSwap";
 			break;
 		default:
-			switch (lastUpdateResult) {
-				case hscpp::Hotswapper::UpdateResult::Compiling:
-					lastCompilingColor = ImColor{172, 0, 0};
-					lastCompilingText = "Error";
+			switch (globals->pHsCppProgress->lastUpdateResult) {
+				case (int)hscpp::Hotswapper::UpdateResult::Compiling:
+					globals->pHsCppProgress->lastCompilingColor = {172, 0, 0};
+					globals->pHsCppProgress->lastCompilingText = "Error";
 					break;
-				case hscpp::Hotswapper::UpdateResult::PerformedSwap:
-					lastCompilingColor = ImColor{0, 172, 0};
-					lastCompilingText = "Success";
+				case (int)hscpp::Hotswapper::UpdateResult::PerformedSwap:
+					globals->pHsCppProgress->lastCompilingColor = {0, 172, 0};
+					globals->pHsCppProgress->lastCompilingText = "Success";
 					break;
 				default:
 					break;
 			};
 	};
-	lastUpdateResult = updateResult;
+	globals->pHsCppProgress->lastUpdateResult = (int)updateResult;
+#endif
+}
 
+void MainApp::RunImGui() {
+	vinfony::Globals *globals = vinfony::Globals::Resolve();
+
+	UpdateHsCpp();
+	
+	// Process custom messages
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	ImColor clearColor(m_clearColor);
 	m_impl->sequencer.ProcessMessage([&](vinfony::SeqMsg &msg) -> bool {
@@ -151,15 +168,6 @@ void MainApp::RunImGui() {
 
 	globals->pMainWidget->Update();
 
-	if (globals->showHotswapStatus)
-	{
-		if (ImGui::Begin("Hot-swap Compiler")) {      // Create a window called "Hello, world!" and append into it.
-			ImGui::TextColored(lastCompilingColor, "Status %s %.2f ms", lastCompilingText, lastElapsedCompileTime.count());
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-		}
-		ImGui::End();
-	}
-
 #if 0
 	ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
 	if (ImGui::Begin("Piano")) {
@@ -173,6 +181,8 @@ void MainApp::RunImGui() {
 	ImGui::End();
 #endif
 
+
+#ifdef _USE_IFD_
 	if (ifd::FileDialog::Instance().IsDone("MidiFileOpenDialog")) {
 		if (ifd::FileDialog::Instance().HasResult()) {
 			const std::vector<std::filesystem::path>& res = ifd::FileDialog::Instance().GetResults();
@@ -182,6 +192,7 @@ void MainApp::RunImGui() {
 		}
 		ifd::FileDialog::Instance().Close();
 	}
+#endif
 }
 
 void MainApp::Init(std::vector<std::string> &args) {
@@ -192,7 +203,12 @@ void MainApp::Init(std::vector<std::string> &args) {
 	// InitSDL & InitImGui
 	EngineBase::Init(args);
 
+	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
+
+#ifdef _USE_HSCPP_
 	auto projPath = hscpp::fs::canonical( hscpp::fs::path(_PROJECT_SRC_PATH_) );
+	auto extPath = hscpp::fs::canonical(hscpp::fs::path(_PROJECT_EXT_PATH_));
+
 	auto swapperConfig = std::make_unique<hscpp::Config>();
 	swapperConfig->compiler.projPath = projPath.u8string();
 	swapperConfig->compiler.ninja = true;
@@ -203,19 +219,30 @@ void MainApp::Init(std::vector<std::string> &args) {
 	m_impl->swapper->EnableFeature(hscpp::Feature::DependentCompilation);
 #ifdef _WIN32
     m_impl->swapper->SetVar("os", "Windows");
+#elif defined(__APPLE__)
+	m_impl->swapper->SetVar("os", "Darwin");
 #else
-    m_impl->swapper->SetVar("os", "Posix");
+	m_impl->swapper->SetVar("os", "Linux");
+#endif
+	m_impl->swapper->SetVar("projPath", projPath.u8string());
+	m_impl->swapper->SetVar("extPath", extPath.u8string());
+
+#ifdef _USE_IFD_
+	m_impl->swapper->SetVar("use_ifd", true);
+	m_impl->swapper->AddPreprocessorDefinition("_USE_IFD_");
+#else
+ 	m_impl->swapper->SetVar("use_ifd", false);
 #endif
 
-
-	m_impl->swapper->SetVar("projPath", projPath.u8string());
-
+	// Source directory to watchs
 	m_impl->swapper->AddSourceDirectory(projPath / "src" / "UI");
-	m_impl->swapper->AddSourceDirectory(projPath / "kosongg/cpp/imkosongg");
+	m_impl->swapper->AddSourceDirectory(projPath / "kosongg/cpp/watched");
 	//m_impl->swapper->AddIncludeDirectory(projPath / "src" );
 
 	auto buildPath = hscpp::util::GetHscppBuildPath();
 	m_impl->swapper->SetVar("buildPath", buildPath.u8string());
+	m_impl->swapper->AddPreprocessorDefinition("_USE_HSCPP_");
+
 #ifdef IMGUI_USER_CONFIG
 	m_impl->swapper->AddPreprocessorDefinition(fmt::format("IMGUI_USER_CONFIG=\\\"{}\\\"", hscpp::fs::path(IMGUI_USER_CONFIG).u8string()));
 #endif
@@ -233,12 +260,21 @@ void MainApp::Init(std::vector<std::string> &args) {
 	m_impl->globals->pMemoryManager = &m_impl->memoryManager;
 	m_impl->globals->pImGuiContext = ImGui::GetCurrentContext();
 	m_impl->globals->pMainWidget = m_impl->memoryManager->Allocate<vinfony::MainWidget>();
-	m_impl->globals->pImKosongg = m_impl->memoryManager->Allocate<ImKosongg>();
+	m_impl->globals->pImControl = m_impl->memoryManager->Allocate<kosongg::ImControl>();
 	m_impl->globals->sequencer = &m_impl->sequencer;
+#else
+	Globals::SetGlobalUserData(m_impl->globals.get());
 
+	m_impl->globals->pMainWidget = std::make_unique<MainWidget>();
+	m_impl->globals->pImControl = std::make_unique<kosongg::ImControl>();
+#endif
+
+#ifdef _USE_IFD_
 	// ImFileDialog requires you to set the CreateTexture and DeleteTexture
 	ifd::FileDialog::Instance().CreateTexture = ifd::openglCreateTexture;
 	ifd::FileDialog::Instance().DeleteTexture = ifd::openglDeleteTexture;
+#endif
+
 	m_impl->tsfdev = std::make_unique<vinfony::TinySoundFontDevice>(m_impl->soundfontPath);
 	if (!m_impl->tsfdev->Init()) {
 		fmt::println("Error init tsf device");
@@ -259,8 +295,10 @@ void MainApp::Init(std::vector<std::string> &args) {
 }
 
 void MainApp::Clean() {
+#ifdef _USE_HSCPP_
 	m_impl->globals.reset();
 	m_impl->swapper.reset();
+#endif
 
 	EngineBase::Clean();
 }

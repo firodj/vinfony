@@ -7,12 +7,12 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <kosongg/IconsFontAwesome6.h>
+#include <kosongg/iconsfontawesome6.h>
 #include <fmt/core.h>
 #include "PianoButton.hpp"
 #include "UI.hpp"
 
-#include "../Globals.hpp"
+#include "../globals.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")

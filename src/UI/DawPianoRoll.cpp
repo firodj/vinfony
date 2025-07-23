@@ -6,7 +6,7 @@
 #include <imgui_internal.h>
 #include "PianoButton.hpp"
 #include "UI.hpp"
-#include "../Globals.hpp"
+#include "../globals.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")

@@ -5,7 +5,7 @@
 
 #include "hscpp/module/Tracker.h"
 
-#include "../Globals.hpp"
+#include "../globals.hpp"
 
 hscpp_require_include_dir("${projPath}/ext/imgui-docking")
 hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")

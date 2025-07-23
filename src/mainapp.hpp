@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <kosongg/Engine.h>
+#include <kosongg/engine.hpp>
 
 #if defined(__APPLE__) && defined(BUILD_APPLE_BUNDLE)
 std::string GetBundleResourcePath(const char * path);
@@ -16,6 +16,7 @@ protected:
     MainApp(/* dependency */);
     void RunImGui() override;
     void ReadIniConfig();
+    void UpdateHsCpp();
 
 public:
     MainApp(MainApp &other) = delete;

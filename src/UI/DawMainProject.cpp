@@ -6,7 +6,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include "imkosongg/ImKosongg.hpp"
+#include "watched/imcontrol.hpp"
 #include <fmt/core.h>
 #include "jdksmidi/track.h"
 //#include <libassert/assert.hpp>
@@ -16,7 +16,7 @@
 #include "UI.hpp"
 #include "IDawTrackNotes.hpp"
 #include "DawNote.hpp"
-#include "../Globals.hpp"
+#include "../globals.hpp"
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
@@ -361,7 +361,7 @@ void DawMainProject::DrawChild1()
 
 				if (c > 0) ImGui::SameLine();
 				ImGui::SetCursorPosX(pos_x);
-				globals->pImKosongg->ColoredButtonV1(prop->name.c_str(), {(float)prop->w + SplitterThickness/2, m_drawingState.header_h});
+				globals->pImControl->ColoredButtonV1(prop->name.c_str(), {(float)prop->w + SplitterThickness/2, m_drawingState.header_h});
 
 				pos_x += prop->w + SplitterThickness;
 			}

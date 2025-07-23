@@ -55,10 +55,10 @@ include_directories(SYSTEM
 
 set(SOURCE
   ${VENDOR_DIR}/main.cpp
-  ${VENDOR_DIR}/Engine.cpp
-  ${VENDOR_DIR}/GLUtil.cpp
-  ${VENDOR_DIR}/UtfConv.c
-  ${VENDOR_DIR}/imkosongg/ImKosongg.cpp
+  ${VENDOR_DIR}/engine.cpp
+  ${VENDOR_DIR}/glutil.cpp
+  ${VENDOR_DIR}/utfconv.c
+  ${VENDOR_DIR}/watched/imcontrol.cpp
   ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 ## -- sources --
@@ -83,10 +83,10 @@ set(SOURCE
 )
 
 set(HEADERS
-  ${VENDOR_DIR}/kosongg/Engine.h
-  ${VENDOR_DIR}/kosongg/GLUtil.h
-  ${VENDOR_DIR}/kosongg/UtfConv.h
-  ${VENDOR_DIR}/imkosongg/ImKosongg.hpp
+  ${VENDOR_DIR}/kosongg/engine.hpp
+  ${VENDOR_DIR}/kosongg/glutil.hpp
+  ${VENDOR_DIR}/kosongg/utfconv.h
+  ${VENDOR_DIR}/watched/imcontrol.hpp
 ## -- headers --
   src/MainApp.hpp
   src/Globals.hpp
@@ -125,7 +125,7 @@ list(APPEND SOURCE
   ${ICON_PATH}
   ${PROJECT_SOURCE_DIR}/kosongg/fonts/selawkl.ttf
   ${PROJECT_SOURCE_DIR}/kosongg/fonts/fa-solid-900.ttf
-  ${VENDOR_DIR}/Utils.mm
+  ${VENDOR_DIR}/utils.mm
 )
 add_executable(vinfony MACOSX_BUNDLE ${SOURCE} ${HEADERS})
 set_target_properties(vinfony PROPERTIES
@@ -188,6 +188,7 @@ endif()
 
 list(APPEND _COMPILE_DEFINITIONS
   _PROJECT_SRC_PATH_="${CMAKE_SOURCE_DIR}"
+  _PROJECT_EXT_PATH_="${EXT_PATH}"
   SDL_MAIN_HANDLED
   _USE_HSCPP_
   _USE_IFD_
@@ -239,7 +240,7 @@ if(WIN32)
   elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
     set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x32")
   endif()
-  
+
 elseif(APPLE)
   set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/osx")
 else()

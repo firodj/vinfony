@@ -28,6 +28,7 @@ protected:
     void ToolbarUI();
     void DemoUI();
     void MainMenuUI();
+    void HsCppUI();
 
     bool m_showDemoWindow;
     bool m_showToolMetrics;

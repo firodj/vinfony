@@ -3,12 +3,19 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "../Globals.hpp"
+#include "../globals.hpp"
+#include "kosongg/hscpp_macros.hpp"
 
+#ifdef _USE_HSCPP_
+#include "kosongg/hscpp_progress.hpp"
+#endif
+
+#ifdef _USE_IFD_
 #include <ImFileDialog.hpp>
+#endif
 
-#include <kosongg/IconsFontAwesome6.h>
-#include "imkosongg/ImKosongg.hpp"
+#include <kosongg/iconsfontawesome6.h>
+#include "watched/imcontrol.hpp"
 
 #include "../IDawSeq.hpp"
 
@@ -21,10 +28,10 @@
 
 hscpp_require_include_dir("${projPath}/src")
 hscpp_require_include_dir("${projPath}/kosongg/cpp")
-hscpp_require_include_dir("${projPath}/ext/imgui-docking")
-hscpp_require_include_dir("${projPath}/ext/fmt/include")
-hscpp_require_include_dir("${projPath}/ext/ifd/src")
-hscpp_require_include_dir("${projPath}/ext/hscpp/extensions/mem/include")
+hscpp_require_include_dir("${extPath}/ext/imgui-docking")
+hscpp_require_include_dir("${extPath}/ext/fmt/include")
+hscpp_require_include_dir("${extPath}/ext/ifd/src")
+hscpp_require_include_dir("${extPath}/ext/hscpp/extensions/mem/include")
 
 hscpp_require_source("DawMainProject.cpp")
 hscpp_require_source("DawSoundFont.cpp")
@@ -162,21 +169,21 @@ void MainWidget::ToolbarUI()
 		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_WHITE);
 	}
 
-	if (globals->pImKosongg->ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
+	if (globals->pImControl->ColoredButtonV1(ICON_FA_BACKWARD_FAST " Rewind", ImVec2{})) {
 		globals->sequencer->SetMIDITimeBeat(0);
 	}
 	ImGui::SameLine();
-	if (globals->pImKosongg->ColoredButtonV1(ICON_FA_PLAY " Play")) {
+	if (globals->pImControl->ColoredButtonV1(ICON_FA_PLAY " Play")) {
 		globals->sequencer->AsyncPlayMIDI();
 	}
 	ImGui::SameLine();
-	if (globals->pImKosongg->ColoredButtonV1(ICON_FA_STOP " Stop")) {
+	if (globals->pImControl->ColoredButtonV1(ICON_FA_STOP " Stop")) {
 		globals->sequencer->StopMIDI();
 	}
 	ImGui::SameLine();
 
 	std::string label = fmt::format(ICON_FA_GAUGE " {:.2f}", globals->sequencer->GetTempoBPM());
-	globals->pImKosongg->ColoredButtonV1(label.c_str());
+	globals->pImControl->ColoredButtonV1(label.c_str());
 	ImGui::SameLine();
 
 	int curM, curB, curT;
@@ -185,9 +192,9 @@ void MainWidget::ToolbarUI()
 
     static ImVec2 labelMBTsize{};
 	if (labelMBTsize.x == 0) {
-		labelMBTsize = globals->pImKosongg->CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
+		labelMBTsize = globals->pImControl->CalcButtonSizeWithText(ICON_FA_CLOCK " 000:0:000", NULL, true);
 	}
-	globals->pImKosongg->ColoredButtonV1(label.c_str(), labelMBTsize);
+	globals->pImControl->ColoredButtonV1(label.c_str(), labelMBTsize);
 
 	ImGui::PopItemFlag();
 	ImGui::PopStyleColor(2);
@@ -206,6 +213,7 @@ void MainWidget::Update() {
 
 	DemoUI();
 	MainMenuUI();
+	HsCppUI();
 
 	m_pDawMainProject->Update();
 	m_pDawSoundFont->Update();
@@ -221,6 +229,30 @@ void MainWidget::DemoUI() {
     ImGui::ShowDebugLogWindow(&m_showToolDebugLog);
   if (m_showToolAbout)
     ImGui::ShowAboutWindow(&m_showToolAbout);
+}
+
+void MainWidget::HsCppUI() {
+#ifdef _USE_HSCPP_
+	auto globals = vinfony::Globals::Resolve();
+	auto p = globals->pHsCppProgress.get();
+
+	if (globals->showHsCppProgress) {
+		if (ImGui::Begin("Hot-swap Compiler", &globals->showHsCppProgress)) {
+		ImColor color = IM_COL32(
+			p->lastCompilingColor[0],
+			p->lastCompilingColor[1],
+			p->lastCompilingColor[2],
+			0xFF
+		);
+		ImGui::TextColored(
+			color,
+			"Status %s %.2f ms",
+			p->lastCompilingText,
+			p->lastElapsedCompileTime.count());
+		}
+		ImGui::End();
+	}
+#endif
 }
 
 void MainWidget::MainMenuUI() {
