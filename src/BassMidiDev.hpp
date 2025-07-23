@@ -1,5 +1,6 @@
 #include "BaseMidiOut.hpp"
 #include <string>
+#include <memory>
 namespace vinfony
 {
 	class BassMidiDevice: public BaseMidiOutDevice {

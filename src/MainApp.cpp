@@ -93,7 +93,8 @@ void MainApp::RunImGui() {
 
 	static const char *lastCompilingText = "Ready";
 	static ImColor lastCompilingColor = ImColor{0, 0, 0};
-	static std::chrono::steady_clock::time_point startCompileTime;
+	//static std::chrono::steady_clock::time_point startCompileTime;
+	static std::chrono::system_clock::time_point startCompileTime;
 	static std::chrono::duration<float, std::milli> lastElapsedCompileTime;
 	//bool isCompiling = false;
 	switch (updateResult) {

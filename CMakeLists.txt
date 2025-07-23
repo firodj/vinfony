@@ -239,10 +239,14 @@ if(WIN32)
   elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
     set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/win32/x32")
   endif()
-  message(STATUS "BASS_LIBRARY_DIR = ${BASS_LIBRARY_DIR}" )
+  
 elseif(APPLE)
   set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/osx")
+else()
+  set(BASS_LIBRARY_DIR "${BASSMIDI_MIRROR}/bass24/linux/${CMAKE_SYSTEM_PROCESSOR}")
 endif()
+
+message(STATUS "BASS_LIBRARY_DIR = ${BASS_LIBRARY_DIR}" )
 
 add_executable(test_model
   examples/test_model.cpp

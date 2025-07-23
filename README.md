@@ -5,6 +5,21 @@ MIDI Music Creator
 Video:
 [![Screenshot](./docs/images/screenshot1.png)](https://youtu.be/HHwiREK-5zc?si=sXR79DU0YB6-c6T9)
 
+## Development
+
+```bash
+$ git clone THIS_REPO_URL
+$ cd THIS_REPO_DIR
+$ git submodule update --init
+$ python -m venv .venv
+$ source .venv/bin/activate
+$ pip install -r kosongg/requirements.txt
+$ python kosongg/main.py
+$ python run.py
+```
+
+For Arachno SoundFont update `./configs/vinfony.ini` file.
+
 ## Dev Notes
 
 **IMGUI**: How to store state (globally) when not using class/instances.

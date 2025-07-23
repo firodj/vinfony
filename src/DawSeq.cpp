@@ -264,8 +264,8 @@ namespace vinfony {
     if (m_impl->th_read_midi_file_running) return;
     m_impl->th_read_midi_file_running = true;
 
-    m_impl->th_read_midi_file = std::thread([this](std::string filename){
-      std::string midifile = filename;
+    m_impl->th_read_midi_file = std::thread([this](std::string _filename){
+      std::string midifile = _filename;
       m_impl->midi_file_loaded = ReadMIDIFile(midifile);
       m_impl->th_read_midi_file_done = true;
       fmt::println("Done open midi file: {}", midifile);
@@ -420,7 +420,7 @@ namespace vinfony {
               }
 
               if (msg.IsProgramChange()) {
-                if (trackit->second->ch == msg.GetChannel()+1) {
+                if (trackit->second->ch == (unsigned)msg.GetChannel()+1) {
                   trackit->second->pg = msg.GetPGValue()+1;
                   fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel(),
                     trackit->second->bank, trackit->second->pg);
@@ -428,7 +428,7 @@ namespace vinfony {
 
                 for (const auto & kv: m_impl->doc->m_tracks) {
                   if (trackit->first == kv.second->id) continue; // already set
-                  if (kv.second->ch == msg.GetChannel() + 1) {
+                  if (kv.second->ch == (unsigned)msg.GetChannel() + 1) {
                     kv.second->pg = msg.GetPGValue()+1;
                   }
                 }
@@ -577,7 +577,7 @@ static long processing_samples = 0;
               }
 
               if (msg.IsProgramChange()) {
-                if (trackit->second->ch == msg.GetChannel()+1) {
+                if (trackit->second->ch == (unsigned)msg.GetChannel()+1) {
                   trackit->second->pg = msg.GetPGValue()+1;
                   fmt::println("DEBUG: TRACK {} CHANNEL: {} BANK: {:04X}h PG:{}", ev_track, msg.GetChannel()+1,
                     trackit->second->bank, trackit->second->pg);
@@ -585,7 +585,7 @@ static long processing_samples = 0;
 
                 for (const auto & kv: m_impl->doc->m_tracks) {
                   if (trackit->first == kv.second->id) continue; // already set
-                  if (kv.second->ch == msg.GetChannel() + 1) {
+                  if (kv.second->ch == (unsigned)msg.GetChannel()+1) {
                     kv.second->pg = msg.GetPGValue()+1;
                   }
                 }
